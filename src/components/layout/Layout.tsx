@@ -108,7 +108,7 @@ export const Layout = ({ children }: LayoutProps) => {
   };
 
   // Show loading spinner
-  if (loading) {
+  if (typeof loading !== 'undefined' ? loading : false) {
     return (
       <div className="min-h-screen bg-gradient-dashboard flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
