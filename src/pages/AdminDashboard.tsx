@@ -24,8 +24,17 @@ interface Profile {
   full_name: string;
 }
 
+interface Branch {
+  id: string;
+  name: string;
+  code: string;
+  address: string;
+  branch_type: string;
+}
+
 const AdminDashboard = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [branch, setBranch] = useState<Branch | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -45,6 +54,19 @@ const AdminDashboard = () => {
 
       if (error) throw error;
       setProfile(profileData);
+
+      // Fetch branch info if user is branch manager
+      if (profileData?.branch_id) {
+        const { data: branchData, error: branchError } = await supabase
+          .from('branches')
+          .select('*')
+          .eq('id', profileData.branch_id)
+          .single();
+
+        if (!branchError) {
+          setBranch(branchData);
+        }
+      }
     } catch (error: any) {
       toast.error("Gagal memuat profil: " + error.message);
     } finally {
@@ -78,12 +100,21 @@ const AdminDashboard = () => {
   return (
     <div className="min-h-screen bg-gradient-dashboard p-4">
       <div className="container mx-auto">
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold">Dashboard {profile.role === 'ho_admin' ? 'Admin HO' : 'Manajer Cabang'}</h1>
-          <p className="text-muted-foreground">
-            Selamat datang, {profile.full_name}
-          </p>
+        {/* Header with Logo */}
+        <div className="mb-6 flex items-center gap-6">
+          <ZegerLogo size="md" />
+          <div>
+            <h1 className="text-3xl font-bold">
+              {profile.role === 'ho_admin' ? 'Admin HO' : 
+               branch ? `Branch ${branch.name}` : 'Dashboard Branch Manager'}
+            </h1>
+            <p className="text-lg text-muted-foreground">
+              {profile.role === 'ho_admin' ? 'Head Office Admin' : 'Branch Manager'}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Selamat datang, {profile.full_name}
+            </p>
+          </div>
         </div>
 
         {/* Main Content */}
