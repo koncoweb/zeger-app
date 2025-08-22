@@ -51,6 +51,7 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
   const [quantity, setQuantity] = useState("");
   const [selectedRider, setSelectedRider] = useState("");
   const [selectedToBranch, setSelectedToBranch] = useState("");
+  const [productQuantities, setProductQuantities] = useState<Record<string, number>>({});
 
   useEffect(() => {
     fetchData();
@@ -160,6 +161,50 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
     }
   };
 
+  const createBulkTransferForRider = async () => {
+    if (!branchId) {
+      toast.error("Branch tidak diketahui");
+      return;
+    }
+    if (!selectedRider) {
+      toast.error("Pilih rider terlebih dahulu");
+      return;
+    }
+
+    const rows = products
+      .map(p => ({ id: p.id, qty: Number(productQuantities[p.id] || 0) }))
+      .filter(p => p.qty > 0)
+      .map(p => ({
+        product_id: p.id,
+        quantity: p.qty,
+        movement_type: 'transfer' as const,
+        branch_id: branchId,
+        rider_id: selectedRider,
+        created_by: userId,
+        notes: 'Transfer to rider'
+      }));
+
+    if (rows.length === 0) {
+      toast.error("Isi jumlah untuk minimal 1 produk");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.from('stock_movements').insert(rows);
+      if (error) throw error;
+
+      toast.success("Transfer stok ke rider berhasil!");
+      setProductQuantities({});
+      setSelectedRider("");
+      await fetchTransfers();
+    } catch (error: any) {
+      toast.error("Gagal membuat transfer: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const confirmStockReceival = async (transferId: string) => {
     setLoading(true);
     try {
@@ -220,62 +265,98 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
         <CardContent className="space-y-4">
           {/* Create Transfer Form */}
           {(role === 'ho_admin' || role === 'branch_manager') && (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Select value={selectedProduct} onValueChange={setSelectedProduct}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih Produk" />
-                </SelectTrigger>
-                <SelectContent>
-                  {products.map((product) => (
-                    <SelectItem key={product.id} value={product.id}>
-                      {product.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Input
-                type="number"
-                placeholder="Jumlah"
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-                min="1"
-              />
-
+            <div className="space-y-4">
               {role === 'ho_admin' && (
-                <Select value={selectedToBranch} onValueChange={setSelectedToBranch}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Ke Branch" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {branches.map((branch) => (
-                      <SelectItem key={branch.id} value={branch.id}>
-                        {branch.name} ({branch.branch_type})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <Select value={selectedProduct} onValueChange={setSelectedProduct}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pilih Produk" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {products.map((product) => (
+                        <SelectItem key={product.id} value={product.id}>
+                          {product.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Input
+                    type="number"
+                    placeholder="Jumlah"
+                    value={quantity}
+                    onChange={(e) => setQuantity(e.target.value)}
+                    min="1"
+                  />
+
+                  <Select value={selectedToBranch} onValueChange={setSelectedToBranch}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Ke Branch" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {branches.map((branch) => (
+                        <SelectItem key={branch.id} value={branch.id}>
+                          {branch.name} ({branch.branch_type})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Button onClick={createStockTransfer} disabled={loading}>
+                    <Send className="h-4 w-4 mr-2" />
+                    Kirim
+                  </Button>
+                </div>
               )}
 
               {role === 'branch_manager' && (
-                <Select value={selectedRider} onValueChange={setSelectedRider}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Ke Rider" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {riders.filter(r => r.branch_id === branchId).map((rider) => (
-                      <SelectItem key={rider.id} value={rider.id}>
-                        {rider.full_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                    <div className="md:col-span-2">
+                      <Select value={selectedRider} onValueChange={setSelectedRider}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Pilih Rider" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {riders.filter(r => r.branch_id === branchId).map((rider) => (
+                            <SelectItem key={rider.id} value={rider.id}>
+                              {rider.full_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Button onClick={createBulkTransferForRider} disabled={loading || !selectedRider} className="w-full">
+                        <Send className="h-4 w-4 mr-2" />
+                        Berikan Stok ke Rider
+                      </Button>
+                    </div>
+                  </div>
 
-              <Button onClick={createStockTransfer} disabled={loading}>
-                <Send className="h-4 w-4 mr-2" />
-                Kirim
-              </Button>
+                  <div className="border rounded-lg p-4">
+                    <p className="text-sm text-muted-foreground mb-3">Masukkan jumlah per produk</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {products.map((product) => (
+                        <div key={product.id} className="flex items-center justify-between gap-3 border rounded-md p-3">
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">{product.name}</p>
+                            <p className="text-xs text-muted-foreground truncate">{product.category}</p>
+                          </div>
+                          <Input
+                            type="number"
+                            inputMode="numeric"
+                            min="0"
+                            className="w-24"
+                            value={productQuantities[product.id] ?? 0}
+                            onChange={(e) => setProductQuantities(prev => ({ ...prev, [product.id]: Math.max(0, Number(e.target.value)) }))}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </CardContent>
