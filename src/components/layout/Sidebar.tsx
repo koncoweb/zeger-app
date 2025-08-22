@@ -7,7 +7,7 @@ import {
   ShoppingBag,
   Package,
   Building2,
-  DollarSign,
+  Wallet,
   Calculator,
   PieChart,
   Database,
@@ -19,7 +19,9 @@ import {
   LogOut,
   Menu,
   X,
-  Calendar
+  Calendar,
+  Truck,
+  Store
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -44,11 +46,14 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
   {
-    id: "esb",
-    label: "What's on ESB",
-    icon: Coffee,
-    path: "/esb",
-    roles: ["ho_admin", "branch_manager"]
+    id: "roles",
+    label: "Peran",
+    icon: Settings,
+    children: [
+      { id: "role-ho", label: "Kantor Pusat", icon: Building2, path: "\/?role=ho" },
+      { id: "role-branch", label: "Manajer Cabang", icon: Store, path: "\/?role=branch" },
+      { id: "role-rider", label: "Mobile Seller", icon: Truck, path: "\/?role=rider" },
+    ]
   },
   {
     id: "dashboard",
@@ -70,26 +75,6 @@ const menuItems: MenuItem[] = [
     ]
   },
   {
-    id: "production",
-    label: "Production",
-    icon: Factory,
-    children: [
-      { id: "recipes", label: "Recipes", icon: FileText, path: "/recipes" },
-      { id: "production-schedule", label: "Schedule", icon: Calendar, path: "/production" },
-    ],
-    roles: ["ho_admin", "branch_manager"]
-  },
-  {
-    id: "purchasing",
-    label: "Purchasing",
-    icon: ShoppingBag,
-    children: [
-      { id: "suppliers", label: "Suppliers", icon: Building2, path: "/suppliers" },
-      { id: "purchase-orders", label: "Purchase Orders", icon: FileText, path: "/purchase-orders" },
-    ],
-    roles: ["ho_admin", "branch_manager", "finance"]
-  },
-  {
     id: "inventory",
     label: "Inventory",
     icon: Package,
@@ -100,22 +85,17 @@ const menuItems: MenuItem[] = [
     ]
   },
   {
-    id: "fixed-assets",
-    label: "Fixed Assets",
-    icon: Building2,
-    path: "/fixed-assets",
-    roles: ["ho_admin", "finance"]
-  },
-  {
     id: "finance",
     label: "Finance",
-    icon: DollarSign,
+    icon: Wallet,
     children: [
-      { id: "transactions", label: "Transactions", icon: DollarSign, path: "/transactions" },
-      { id: "cash-flow", label: "Cash Flow", icon: PieChart, path: "/cash-flow" },
+      { id: "profit-loss", label: "Laba Rugi", icon: FileText, path: "/finance/profit-loss" },
+      { id: "cash-flow", label: "Arus Kas", icon: PieChart, path: "/finance/cash-flow" },
+      { id: "balance-sheet", label: "Neraca", icon: FileText, path: "/finance/balance-sheet" },
+      { id: "operational-expenses", label: "Beban Operasional", icon: FileText, path: "/finance/operational-expenses" },
+      { id: "transactions", label: "Transactions", icon: FileText, path: "/transactions" },
       { id: "daily-reports", label: "Daily Reports", icon: FileText, path: "/daily-reports" },
-    ],
-    roles: ["ho_admin", "branch_manager", "finance"]
+    ]
   },
   {
     id: "accounting",
@@ -124,26 +104,7 @@ const menuItems: MenuItem[] = [
     children: [
       { id: "chart-of-accounts", label: "Chart of Accounts", icon: FileText, path: "/chart-accounts" },
       { id: "journal", label: "Journal Entries", icon: FileText, path: "/journal" },
-    ],
-    roles: ["ho_admin", "finance"]
-  },
-  {
-    id: "budget",
-    label: "Budget",
-    icon: PieChart,
-    path: "/budget",
-    roles: ["ho_admin", "finance"]
-  },
-  {
-    id: "master",
-    label: "Master",
-    icon: Database,
-    children: [
-      { id: "products", label: "Products", icon: Package, path: "/products" },
-      { id: "branches", label: "Branches", icon: Building2, path: "/branches" },
-      { id: "users", label: "Users", icon: Database, path: "/users" },
-    ],
-    roles: ["ho_admin", "branch_manager"]
+    ]
   },
   {
     id: "report",
@@ -154,13 +115,6 @@ const menuItems: MenuItem[] = [
       { id: "inventory-report", label: "Inventory Report", icon: FileText, path: "/reports/inventory" },
       { id: "financial-report", label: "Financial Report", icon: FileText, path: "/reports/financial" },
     ]
-  },
-  {
-    id: "esb-product",
-    label: "ESB Product",
-    icon: Coffee,
-    path: "/esb-products",
-    roles: ["ho_admin", "branch_manager"]
   }
 ];
 

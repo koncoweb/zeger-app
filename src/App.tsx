@@ -11,6 +11,10 @@ import POS from "./pages/POS";
 import MobileSeller from "./pages/MobileSeller";
 import CustomerApp from "./pages/CustomerApp";
 import NotFound from "./pages/NotFound";
+import ProfitLoss from "./pages/finance/ProfitLoss";
+import CashFlow from "./pages/finance/CashFlow";
+import BalanceSheet from "./pages/finance/BalanceSheet";
+import OperationalExpenses from "./pages/finance/OperationalExpenses";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +37,26 @@ const App = () => (
             <Route path="/pos" element={
               <Layout>
                 <POS />
+              </Layout>
+            } />
+            <Route path="/finance/profit-loss" element={
+              <Layout>
+                <ProfitLoss />
+              </Layout>
+            } />
+            <Route path="/finance/cash-flow" element={
+              <Layout>
+                <CashFlow />
+              </Layout>
+            } />
+            <Route path="/finance/balance-sheet" element={
+              <Layout>
+                <BalanceSheet />
+              </Layout>
+            } />
+            <Route path="/finance/operational-expenses" element={
+              <Layout>
+                <OperationalExpenses />
               </Layout>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

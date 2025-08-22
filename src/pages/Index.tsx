@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Coffee, Store, Truck, ShoppingCart, Smartphone, Users } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { StatsOverview } from "@/components/dashboard/StatsOverview";
 import { EnhancedQuickActions } from "@/components/dashboard/EnhancedQuickActions";
@@ -14,6 +14,7 @@ import { RiderTracking } from "@/components/rider/RiderTracking";
 const Index = () => {
   const [activeRole, setActiveRole] = useState<'ho' | 'branch' | 'rider'>('ho');
   const navigate = useNavigate();
+  const location = useLocation();
 
   return (
     <div className="min-h-screen bg-gradient-dashboard">

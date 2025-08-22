@@ -227,6 +227,63 @@ export type Database = {
           },
         ]
       }
+      financial_transactions: {
+        Row: {
+          account_type: string
+          amount: number
+          branch_id: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          fiscal_period: string | null
+          id: string
+          reference_number: string | null
+          transaction_id: string | null
+          transaction_type: string
+        }
+        Insert: {
+          account_type: string
+          amount: number
+          branch_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          fiscal_period?: string | null
+          id?: string
+          reference_number?: string | null
+          transaction_id?: string | null
+          transaction_type: string
+        }
+        Update: {
+          account_type?: string
+          amount?: number
+          branch_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          fiscal_period?: string | null
+          id?: string
+          reference_number?: string | null
+          transaction_id?: string | null
+          transaction_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_transactions_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financial_transactions_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory: {
         Row: {
           branch_id: string | null
@@ -281,6 +338,53 @@ export type Database = {
             columns: ["rider_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      operational_expenses: {
+        Row: {
+          amount: number
+          branch_id: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          expense_category: string
+          expense_date: string | null
+          id: string
+          is_recurring: boolean | null
+          recurring_frequency: string | null
+        }
+        Insert: {
+          amount: number
+          branch_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          expense_category: string
+          expense_date?: string | null
+          id?: string
+          is_recurring?: boolean | null
+          recurring_frequency?: string | null
+        }
+        Update: {
+          amount?: number
+          branch_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          expense_category?: string
+          expense_date?: string | null
+          id?: string
+          is_recurring?: boolean | null
+          recurring_frequency?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operational_expenses_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
             referencedColumns: ["id"]
           },
         ]
@@ -560,6 +664,14 @@ export type Database = {
           required_role: Database["public"]["Enums"]["user_role"]
         }
         Returns: boolean
+      }
+      get_current_user_branch: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      get_current_user_role: {
+        Args: Record<PropertyKey, never>
+        Returns: Database["public"]["Enums"]["user_role"]
       }
       get_user_profile: {
         Args: Record<PropertyKey, never>
