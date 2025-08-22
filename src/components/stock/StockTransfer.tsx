@@ -173,8 +173,17 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
 
     const rows = products
       .map(p => ({ id: p.id, qty: Number(productQuantities[p.id] || 0) }))
-      .filter(p => p.qty > 0)
-      .map(p => ({
+      .filter(p => p.qty > 0);
+
+    if (rows.length === 0) {
+      toast.error("Isi jumlah untuk minimal 1 produk");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Create stock movement records
+      const stockMovements = rows.map(p => ({
         product_id: p.id,
         quantity: p.qty,
         movement_type: 'transfer' as const,
@@ -184,15 +193,50 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
         notes: 'Transfer to rider'
       }));
 
-    if (rows.length === 0) {
-      toast.error("Isi jumlah untuk minimal 1 produk");
-      return;
-    }
+      const { error: movementError } = await supabase
+        .from('stock_movements')
+        .insert(stockMovements);
 
-    setLoading(true);
-    try {
-      const { error } = await supabase.from('stock_movements').insert(rows);
-      if (error) throw error;
+      if (movementError) throw movementError;
+
+      // Update or create rider inventory
+      for (const row of rows) {
+        // Check if rider already has this product in inventory
+        const { data: existingInventory } = await supabase
+          .from('inventory')
+          .select('id, stock_quantity')
+          .eq('rider_id', selectedRider)
+          .eq('product_id', row.id)
+          .maybeSingle();
+
+        if (existingInventory) {
+          // Update existing inventory
+          const { error: updateError } = await supabase
+            .from('inventory')
+            .update({
+              stock_quantity: existingInventory.stock_quantity + row.qty,
+              last_updated: new Date().toISOString()
+            })
+            .eq('id', existingInventory.id);
+
+          if (updateError) throw updateError;
+        } else {
+          // Create new inventory record
+          const { error: insertError } = await supabase
+            .from('inventory')
+            .insert({
+              product_id: row.id,
+              rider_id: selectedRider,
+              branch_id: branchId,
+              stock_quantity: row.qty,
+              min_stock_level: 0,
+              max_stock_level: 100,
+              reserved_quantity: 0
+            });
+
+          if (insertError) throw insertError;
+        }
+      }
 
       toast.success("Transfer stok ke rider berhasil!");
       setProductQuantities({});
