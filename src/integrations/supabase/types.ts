@@ -554,6 +554,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_user_role: {
+        Args: {
+          check_user_id: string
+          required_role: Database["public"]["Enums"]["user_role"]
+        }
+        Returns: boolean
+      }
       get_user_profile: {
         Args: Record<PropertyKey, never>
         Returns: {
