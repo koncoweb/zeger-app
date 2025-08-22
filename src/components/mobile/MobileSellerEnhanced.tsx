@@ -734,4 +734,4 @@ const MobileSellerEnhanced = () => {
       );
 };
 
-export { MobileSellerEnhanced };
+export default MobileSellerEnhanced;

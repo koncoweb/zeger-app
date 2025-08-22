@@ -1,4 +1,4 @@
-import { MobileSellerEnhanced } from "@/components/mobile/MobileSellerEnhanced";
+import MobileSellerEnhanced from "@/components/mobile/MobileSellerEnhanced";
 import { ZegerLogo } from "@/components/ui/zeger-logo";
 
 export default function MobileSeller() {
