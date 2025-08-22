@@ -18,6 +18,8 @@ import OperationalExpenses from "./pages/finance/OperationalExpenses";
 import Transactions from "./pages/Transactions";
 import Branches from "./pages/Branches";
 import Riders from "./pages/Riders";
+import Inventory from "./pages/Inventory";
+import AdminUsers from "./pages/AdminUsers";
 
 const queryClient = new QueryClient();
 
@@ -75,6 +77,16 @@ const App = () => (
             <Route path="/riders" element={
               <Layout>
                 <Riders />
+              </Layout>
+            } />
+            <Route path="/inventory" element={
+              <Layout>
+                <Inventory />
+              </Layout>
+            } />
+            <Route path="/admin/users" element={
+              <Layout>
+                <AdminUsers />
               </Layout>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

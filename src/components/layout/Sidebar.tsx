@@ -21,7 +21,8 @@ import {
   X,
   Calendar,
   Truck,
-  Store
+  Store,
+  Users
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -114,6 +115,14 @@ const menuItems: MenuItem[] = [
       { id: "sales-report", label: "Sales Report", icon: FileText, path: "/reports/sales" },
       { id: "inventory-report", label: "Inventory Report", icon: FileText, path: "/reports/inventory" },
       { id: "financial-report", label: "Financial Report", icon: FileText, path: "/reports/financial" },
+    ]
+  },
+  {
+    id: "admin",
+    label: "Admin",
+    icon: Settings,
+    children: [
+      { id: "user-management", label: "User Management", icon: Users, path: "/admin/users" }
     ]
   }
 ];

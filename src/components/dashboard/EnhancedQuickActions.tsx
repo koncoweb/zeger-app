@@ -19,7 +19,7 @@ const actionsByRole = {
       description: "Buat cabang baru", 
       color: "bg-primary",
       action: "manage_branches",
-      route: "/admin-dashboard"
+      route: "/branches"
     },
     { 
       icon: FileText, 
@@ -27,7 +27,7 @@ const actionsByRole = {
       description: "Analisis keuangan", 
       color: "bg-success",
       action: "view_reports",
-      route: "/admin-dashboard"
+      route: "/reports/transactions"
     },
     { 
       icon: TrendingUp, 
@@ -35,7 +35,7 @@ const actionsByRole = {
       description: "Metrik performa", 
       color: "bg-warning",
       action: "analytics",
-      route: "/admin-dashboard"
+      route: "/reports/transactions"
     },
     { 
       icon: Package, 
@@ -43,7 +43,7 @@ const actionsByRole = {
       description: "Kelola stok", 
       color: "bg-destructive",
       action: "inventory",
-      route: "/admin-dashboard"
+      route: "/inventory"
     }
   ],
   branch: [
@@ -53,7 +53,7 @@ const actionsByRole = {
       description: "Daftarkan rider baru", 
       color: "bg-primary",
       action: "add_rider",
-      route: "/admin-dashboard"
+      route: "/admin/users"
     },
     { 
       icon: Package, 
@@ -61,7 +61,7 @@ const actionsByRole = {
       description: "Kelola inventori", 
       color: "bg-success",
       action: "stock_management",
-      route: "/admin-dashboard"
+      route: "/inventory"
     },
     { 
       icon: FileText, 
@@ -69,7 +69,7 @@ const actionsByRole = {
       description: "Lihat performa", 
       color: "bg-warning",
       action: "rider_reports",
-      route: "/admin-dashboard"
+      route: "/riders"
     },
     { 
       icon: Plus, 
