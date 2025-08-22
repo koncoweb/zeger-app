@@ -12,6 +12,8 @@ import {
 import { UserManagement } from "@/components/user/UserManagement";
 import { StockTransfer } from "@/components/stock/StockTransfer";
 import { SalesReporting } from "@/components/sales/SalesReporting";
+import { ZegerLogo } from "@/components/ui/zeger-logo";
+import { QuickActions } from "@/components/dashboard/QuickActions";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 

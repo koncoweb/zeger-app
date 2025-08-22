@@ -19,6 +19,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { ZegerLogo } from "@/components/ui/zeger-logo";
 
 interface Product {
   id: string;
@@ -138,27 +139,27 @@ const CustomerApp = () => {
   };
 
   const renderMenu = () => (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20">
       <div className="text-center py-4">
-        <h1 className="text-2xl font-bold text-primary">Zeger Coffee</h1>
-        <p className="text-muted-foreground">Kopi premium untuk hari yang sempurna</p>
+        <ZegerLogo size="md" />
+        <p className="text-gray-600 mt-2">Kopi premium untuk hari yang sempurna</p>
       </div>
 
       {/* Loyalty Status */}
-      <Card className="bg-gradient-to-r from-primary/10 to-primary/5">
+      <Card className="bg-gradient-to-r from-red-500/10 to-red-600/5 border-red-200 shadow-soft rounded-2xl overflow-hidden">
         <CardContent className="p-4">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <Gift className="h-5 w-5 text-primary" />
-              <span className="font-medium">Level {loyaltyData.tier}</span>
+              <Gift className="h-5 w-5 text-red-600" />
+              <span className="font-medium text-gray-800">Level {loyaltyData.tier}</span>
             </div>
-            <Badge variant="secondary">{loyaltyData.points} Poin</Badge>
+            <Badge className="bg-red-100 text-red-700 border-red-200">{loyaltyData.points} Poin</Badge>
           </div>
           <Progress 
             value={(loyaltyData.points / loyaltyData.nextTierPoints) * 100} 
             className="h-2"
           />
-          <p className="text-xs text-muted-foreground mt-2">
+          <p className="text-xs text-gray-600 mt-2">
             {loyaltyData.nextTierPoints - loyaltyData.points} poin lagi untuk level Gold
           </p>
         </CardContent>
@@ -166,12 +167,12 @@ const CustomerApp = () => {
 
       {/* Search */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
         <Input
           placeholder="Cari menu favorit..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10"
+          className="pl-10 bg-white/80 border-red-100 focus:border-red-300 rounded-xl shadow-soft"
         />
       </div>
 
@@ -182,30 +183,30 @@ const CustomerApp = () => {
             <div key={category} className="space-y-3">
               <div className="flex items-center gap-2">
                 <span className="text-lg">{categoryIcons[category] || '📋'}</span>
-                <h3 className="font-bold text-base text-primary">{category}</h3>
-                <div className="flex-1 h-px bg-border"></div>
-                <Badge variant="outline" className="text-xs">
+                <h3 className="font-bold text-base text-red-700">{category}</h3>
+                <div className="flex-1 h-px bg-red-200"></div>
+                <Badge className="bg-red-50 text-red-700 border-red-200 text-xs">
                   {groupedProducts[category].length} item
                 </Badge>
               </div>
               <div className="space-y-2">
                 {groupedProducts[category].map((product) => (
-                  <Card key={product.id} className="overflow-hidden">
+                  <Card key={product.id} className="bg-white/90 border-red-100 shadow-soft rounded-xl overflow-hidden hover:shadow-glow transition-all duration-300">
                     <CardContent className="p-4">
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
-                          <h4 className="font-semibold">{product.name}</h4>
-                          <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
+                          <h4 className="font-semibold text-gray-800">{product.name}</h4>
+                          <p className="text-sm text-gray-600 mb-2 line-clamp-2">
                             {product.description}
                           </p>
-                          <p className="text-lg font-bold text-primary">
+                          <p className="text-lg font-bold text-red-600">
                             Rp {product.price.toLocaleString('id-ID')}
                           </p>
                         </div>
                         <Button
                           size="sm"
                           onClick={() => addToCart(product)}
-                          className="ml-4"
+                          className="ml-4 bg-gradient-to-r from-red-500 to-red-600 text-white hover:from-red-600 hover:to-red-700 rounded-xl shadow-md"
                         >
                           <Plus className="h-4 w-4" />
                         </Button>
@@ -219,7 +220,7 @@ const CustomerApp = () => {
           
           {categories.length === 0 && (
             <div className="text-center py-8">
-              <p className="text-muted-foreground">Tidak ada menu ditemukan</p>
+              <p className="text-gray-500">Tidak ada menu ditemukan</p>
             </div>
           )}
         </div>
@@ -434,21 +435,28 @@ const CustomerApp = () => {
   );
 
   return (
-    <div className="max-w-md mx-auto min-h-screen bg-gradient-to-b from-primary to-primary-light text-white">
-      <div className="glass text-gray-900 min-h-screen">
+    <div className="max-w-md mx-auto min-h-screen bg-gradient-to-br from-white via-red-50/30 to-white">
+      <div className="bg-white/95 backdrop-blur-md text-gray-900 min-h-screen">
         {/* Header */}
-        <div className="sticky top-0 bg-white/90 backdrop-blur border-b p-4 z-10">
+        <div className="sticky top-0 bg-white/95 backdrop-blur-lg border-b border-red-100 p-4 z-10 shadow-soft">
           <div className="flex items-center justify-between">
-            <h1 className="text-lg font-bold">Zeger Coffee</h1>
+            <div className="flex items-center gap-3">
+              <ZegerLogo size="sm" />
+              <div>
+                <h1 className="text-lg font-bold text-gray-800">Zeger Coffee</h1>
+                <p className="text-sm text-gray-600">Kopi Premium Indonesia</p>
+              </div>
+            </div>
             <div className="relative">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setActiveView('cart')}
+                className="bg-white/80 border-red-200 hover:bg-red-50 transition-all shadow-soft"
               >
-                <ShoppingCart className="h-4 w-4" />
+                <ShoppingCart className="h-4 w-4 text-red-600" />
                 {cart.length > 0 && (
-                  <Badge className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs">
+                  <Badge className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs bg-red-500 text-white">
                     {cart.reduce((sum, item) => sum + item.quantity, 0)}
                   </Badge>
                 )}
@@ -458,7 +466,7 @@ const CustomerApp = () => {
         </div>
 
         {/* Content */}
-        <div className="p-4">
+        <div className="p-4 bg-white/80 backdrop-blur-sm min-h-screen">
           {activeView === 'menu' && renderMenu()}
           {activeView === 'cart' && renderCart()}
           {activeView === 'riders' && renderRiders()}
@@ -466,13 +474,17 @@ const CustomerApp = () => {
         </div>
 
         {/* Bottom Navigation */}
-        <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-md bg-white border-t">
+        <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-md bg-white/95 backdrop-blur-md border-t border-red-100 shadow-lg">
           <div className="grid grid-cols-4 gap-1 p-2">
             <Button
               variant={activeView === 'menu' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setActiveView('menu')}
-              className="flex flex-col gap-1 h-12"
+              className={`flex flex-col gap-1 h-12 ${
+                activeView === 'menu' 
+                  ? 'bg-gradient-to-r from-red-500 to-red-600 text-white' 
+                  : 'text-gray-600 hover:text-red-600 hover:bg-red-50'
+              }`}
             >
               <Search className="h-4 w-4" />
               <span className="text-xs">Menu</span>
@@ -481,28 +493,40 @@ const CustomerApp = () => {
               variant={activeView === 'cart' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setActiveView('cart')}
-              className="flex flex-col gap-1 h-12"
+              className={`flex flex-col gap-1 h-12 ${
+                activeView === 'cart' 
+                  ? 'bg-gradient-to-r from-red-500 to-red-600 text-white' 
+                  : 'text-gray-600 hover:text-red-600 hover:bg-red-50'
+              }`}
             >
               <ShoppingCart className="h-4 w-4" />
               <span className="text-xs">Keranjang</span>
             </Button>
             <Button
-              variant={activeView === 'riders' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setActiveView('riders')}
-              className="flex flex-col gap-1 h-12"
-            >
-              <MapPin className="h-4 w-4" />
-              <span className="text-xs">Rider</span>
-            </Button>
-            <Button
               variant={activeView === 'loyalty' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setActiveView('loyalty')}
-              className="flex flex-col gap-1 h-12"
+              className={`flex flex-col gap-1 h-12 ${
+                activeView === 'loyalty' 
+                  ? 'bg-gradient-to-r from-red-500 to-red-600 text-white' 
+                  : 'text-gray-600 hover:text-red-600 hover:bg-red-50'
+              }`}
             >
               <Gift className="h-4 w-4" />
               <span className="text-xs">Poin</span>
+            </Button>
+            <Button
+              variant={activeView === 'riders' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setActiveView('riders')}
+              className={`flex flex-col gap-1 h-12 ${
+                activeView === 'riders' 
+                  ? 'bg-gradient-to-r from-red-500 to-red-600 text-white' 
+                  : 'text-gray-600 hover:text-red-600 hover:bg-red-50'
+              }`}
+            >
+              <Navigation className="h-4 w-4" />
+              <span className="text-xs">Rider</span>
             </Button>
           </div>
         </div>

@@ -23,6 +23,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { ZegerLogo } from "@/components/ui/zeger-logo";
 
 interface Product {
   id: string;
@@ -413,39 +414,37 @@ const MobileSellerEnhanced = () => {
 
   // Render functions for each view
   const renderCheckIn = () => (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4">
       <div className="text-center">
-        <Avatar className="h-20 w-20 mx-auto mb-4">
-          <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
-            MS
-          </AvatarFallback>
-        </Avatar>
-        <h2 className="text-xl font-bold">Selamat Pagi, Mobile Seller!</h2>
-        <p className="text-muted-foreground">Siap memulai hari?</p>
+        <div className="mb-4">
+          <ZegerLogo size="md" />
+        </div>
+        <h2 className="text-xl font-bold text-gray-800">Selamat Pagi, Mobile Seller!</h2>
+        <p className="text-gray-600">Siap memulai hari?</p>
       </div>
 
-      <Card className="dashboard-card">
+      <Card className="bg-white/90 backdrop-blur-sm border-red-100 shadow-soft rounded-2xl">
         <CardContent className="p-6 space-y-4">
           <div className="flex items-center gap-3">
-            <MapPin className="h-5 w-5 text-primary" />
+            <MapPin className="h-5 w-5 text-red-600" />
             <div>
-              <p className="font-medium">Lokasi Saat Ini</p>
-              <p className="text-sm text-muted-foreground">{location}</p>
+              <p className="font-medium text-gray-800">Lokasi Saat Ini</p>
+              <p className="text-sm text-gray-600">{location}</p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <Clock className="h-5 w-5 text-primary" />
+            <Clock className="h-5 w-5 text-red-600" />
             <div>
-              <p className="font-medium">Waktu</p>
-              <p className="text-sm text-muted-foreground">{new Date().toLocaleString('id-ID')}</p>
+              <p className="font-medium text-gray-800">Waktu</p>
+              <p className="text-sm text-gray-600">{new Date().toLocaleString('id-ID')}</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
       <Button 
-        className="w-full h-12 text-lg gradient-primary"
+        className="w-full h-12 text-lg bg-gradient-to-r from-red-500 to-red-600 text-white hover:from-red-600 hover:to-red-700 rounded-xl shadow-md hover:shadow-lg transition-all duration-300"
         onClick={handleCheckIn}
         disabled={loading}
       >
@@ -722,17 +721,17 @@ const MobileSellerEnhanced = () => {
     );
   };
 
-  return (
-    <div className="max-w-md mx-auto min-h-screen bg-gradient-to-b from-primary to-primary-light text-white p-4">
-      <div className="glass rounded-xl p-4 text-gray-900 min-h-[calc(100vh-2rem)]">
-        {currentView === 'checkin' && renderCheckIn()}
-        {currentView === 'stock-confirm' && renderStockConfirm()}
-        {currentView === 'selling' && renderSelling()}
-        {currentView === 'returns' && renderReturns()}
-        {currentView === 'checkout' && renderCheckout()}
-      </div>
-    </div>
-  );
+      return (
+        <div className="max-w-md mx-auto min-h-screen bg-gradient-to-br from-white via-red-50/30 to-white">
+          <div className="bg-white/95 backdrop-blur-md text-gray-800 min-h-screen p-4">
+            {currentView === 'checkin' && renderCheckIn()}
+            {currentView === 'stock-confirm' && renderStockConfirm()}
+            {currentView === 'selling' && renderSelling()}
+            {currentView === 'returns' && renderReturns()}
+            {currentView === 'checkout' && renderCheckout()}
+          </div>
+        </div>
+      );
 };
 
-export default MobileSellerEnhanced;
+export { MobileSellerEnhanced };

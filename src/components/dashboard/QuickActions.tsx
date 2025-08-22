@@ -7,22 +7,22 @@ interface QuickActionsProps {
 
 const actionsByRole = {
   ho: [
-    { icon: Users, label: "Add Branch", description: "Create new branch", color: "bg-primary" },
-    { icon: FileText, label: "View Reports", description: "Financial analysis", color: "bg-success" },
-    { icon: TrendingUp, label: "Analytics", description: "Performance metrics", color: "bg-warning" },
-    { icon: Package, label: "Inventory", description: "Manage stock", color: "bg-destructive" }
+    { icon: Users, label: "Tambah Cabang", description: "Buat cabang baru", color: "bg-primary" },
+    { icon: FileText, label: "Lihat Laporan", description: "Analisis keuangan", color: "bg-success" },
+    { icon: TrendingUp, label: "Analytics", description: "Metrik performa", color: "bg-warning" },
+    { icon: Package, label: "Inventori", description: "Kelola stok", color: "bg-destructive" }
   ],
   branch: [
-    { icon: Users, label: "Add Rider", description: "Assign new rider", color: "bg-primary" },
-    { icon: Package, label: "Stock Management", description: "Manage inventory", color: "bg-success" },
-    { icon: FileText, label: "Rider Reports", description: "View performance", color: "bg-warning" },
-    { icon: Plus, label: "New Order", description: "Manual entry", color: "bg-destructive" }
+    { icon: Users, label: "Tambah Rider", description: "Daftarkan rider baru", color: "bg-primary" },
+    { icon: Package, label: "Manajemen Stok", description: "Kelola inventori", color: "bg-success" },
+    { icon: FileText, label: "Laporan Rider", description: "Lihat performa", color: "bg-warning" },
+    { icon: Plus, label: "Pesanan Baru", description: "Input manual", color: "bg-destructive" }
   ],
   rider: [
-    { icon: Scan, label: "Scan Menu", description: "QR code order", color: "bg-primary" },
-    { icon: Plus, label: "Manual Order", description: "Add new order", color: "bg-success" },
-    { icon: Package, label: "Check Stock", description: "View inventory", color: "bg-warning" },
-    { icon: FileText, label: "Daily Report", description: "Submit report", color: "bg-destructive" }
+    { icon: Scan, label: "Scan Menu", description: "Pesanan QR code", color: "bg-primary" },
+    { icon: Plus, label: "Pesanan Manual", description: "Tambah pesanan", color: "bg-success" },
+    { icon: Package, label: "Cek Stok", description: "Lihat inventori", color: "bg-warning" },
+    { icon: FileText, label: "Laporan Harian", description: "Kirim laporan", color: "bg-destructive" }
   ]
 };
 
@@ -31,7 +31,7 @@ export const QuickActions = ({ role }: QuickActionsProps) => {
 
   return (
     <div className="dashboard-card animate-slide-up">
-      <h3 className="text-lg font-semibold mb-4 text-foreground">Quick Actions</h3>
+      <h3 className="text-lg font-semibold mb-4 text-foreground">Aksi Cepat</h3>
       <div className="grid grid-cols-2 gap-3">
         {actions.map((action, index) => {
           const Icon = action.icon;
