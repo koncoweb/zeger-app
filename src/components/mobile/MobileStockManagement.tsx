@@ -40,16 +40,18 @@ interface StockItem {
 interface ShiftReport {
   cash_collected: number;
   total_sales: number;
+  cash_sales: number;
   total_transactions: number;
   operational_expenses: number;
   notes: string;
 }
 
 // Stock Return Component
-const StockReturnTab = ({ userProfile, activeShift, onRefresh }: { 
+const StockReturnTab = ({ userProfile, activeShift, onRefresh, onGoToShift }: { 
   userProfile: any; 
   activeShift: any; 
   onRefresh: () => void; 
+  onGoToShift: () => void;
 }) => {
   const [returnableStock, setReturnableStock] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -145,6 +147,7 @@ const StockReturnTab = ({ userProfile, activeShift, onRefresh }: {
       toast.success("Stok berhasil dikembalikan!");
       fetchReturnableStock();
       onRefresh();
+      onGoToShift();
     } catch (error: any) {
       toast.error("Gagal mengembalikan stok: " + error.message);
     } finally {
@@ -226,18 +229,28 @@ const MobileStockManagement = () => {
   const [receivedStock, setReceivedStock] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeShift, setActiveShift] = useState<any>(null);
+  const [tab, setTab] = useState<'receive' | 'return' | 'history' | 'shift'>('receive');
   const [shiftReport, setShiftReport] = useState<ShiftReport>({
     cash_collected: 0,
     total_sales: 0,
+    cash_sales: 0,
     total_transactions: 0,
     operational_expenses: 0,
     notes: ''
   });
 
-  useEffect(() => {
-    fetchStockData();
-    fetchActiveShift();
-  }, []);
+useEffect(() => {
+  setShiftReport(prev => ({
+    ...prev,
+    cash_collected: Math.max(0, (prev.cash_sales || 0) - (prev.operational_expenses || 0))
+  }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [shiftReport.cash_sales, shiftReport.operational_expenses]);
+
+useEffect(() => {
+  fetchStockData();
+  fetchActiveShift();
+}, []);
 
   const fetchStockData = async () => {
     try {
@@ -295,16 +308,19 @@ const MobileStockManagement = () => {
         const today = new Date().toISOString().split('T')[0];
         const { data: transactions } = await supabase
           .from('transactions')
-          .select('final_amount')
+          .select('final_amount, payment_method')
           .eq('rider_id', userProfile.id)
           .gte('transaction_date', `${today}T00:00:00`)
           .lte('transaction_date', `${today}T23:59:59`);
 
         const totalSales = transactions?.reduce((sum, t) => sum + Number(t.final_amount), 0) || 0;
+        const cashSales = transactions?.filter((t: any) => t.payment_method === 'cash')
+          .reduce((sum: number, t: any) => sum + Number(t.final_amount), 0) || 0;
 
         setShiftReport(prev => ({
           ...prev,
           total_sales: totalSales,
+          cash_sales: cashSales,
           total_transactions: transactions?.length || 0
         }));
       }
@@ -400,10 +416,12 @@ const MobileStockManagement = () => {
       }
 
       // Update shift with report data
+      const expectedDeposit = Math.max(0, (shiftReport.cash_sales || 0) - (shiftReport.operational_expenses || 0));
+
       const { error } = await supabase
         .from('shift_management')
         .update({
-          cash_collected: shiftReport.cash_collected,
+          cash_collected: expectedDeposit,
           total_sales: shiftReport.total_sales,
           total_transactions: shiftReport.total_transactions,
           report_submitted: true,
@@ -413,6 +431,19 @@ const MobileStockManagement = () => {
         .eq('id', activeShift.id);
 
       if (error) throw error;
+
+      // Insert daily report summary for branch verification
+      await supabase
+        .from('daily_reports')
+        .insert([{
+          rider_id: userProfile?.id,
+          branch_id: userProfile?.branch_id,
+          report_date: new Date().toISOString().split('T')[0],
+          total_sales: shiftReport.total_sales,
+          cash_collected: expectedDeposit,
+          total_transactions: shiftReport.total_transactions,
+          photos: photoUrl ? { shift_end_photo: photoUrl } : null
+        }]);
 
       // Create operational expense record if any beban operasional
       if (shiftReport.operational_expenses > 0 && shiftReport.notes.trim()) {
@@ -433,6 +464,7 @@ const MobileStockManagement = () => {
       setShiftReport({
         cash_collected: 0,
         total_sales: 0,
+        cash_sales: 0,
         total_transactions: 0,
         operational_expenses: 0,
         notes: ''
@@ -463,7 +495,7 @@ const MobileStockManagement = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="receive" className="space-y-4">
+            <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="space-y-4">
               <TabsList className="grid w-full grid-cols-4 text-xs">
                 <TabsTrigger value="receive">
                   Terima
@@ -572,6 +604,7 @@ const MobileStockManagement = () => {
                   userProfile={userProfile} 
                   activeShift={activeShift}
                   onRefresh={fetchStockData}
+                  onGoToShift={() => setTab('shift')}
                 />
               </TabsContent>
 
@@ -678,18 +711,16 @@ const MobileStockManagement = () => {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium mb-2">Setoran Tunai (Rp)</label>
+                        <label className="block text-sm font-medium mb-2">Setoran Tunai (otomatis)</label>
                         <Input
                           type="number"
                           placeholder="0"
                           value={shiftReport.cash_collected}
-                          onChange={(e) => setShiftReport(prev => ({
-                            ...prev,
-                            cash_collected: Number(e.target.value)
-                          }))}
+                          readOnly
+                          disabled
                         />
                         <p className="text-xs text-muted-foreground mt-1">
-                          Total uang tunai yang disetor ke branch
+                          Otomatis dihitung: penjualan tunai - beban operasional
                         </p>
                       </div>
 
@@ -732,7 +763,7 @@ const MobileStockManagement = () => {
                         <div className="border-t pt-2 flex justify-between font-bold">
                           <span>Total Setoran Seharusnya:</span>
                           <span className="text-green-600">
-                            {formatCurrency(Math.max(0, shiftReport.total_sales - shiftReport.operational_expenses))}
+                            {formatCurrency(Math.max(0, shiftReport.cash_sales - shiftReport.operational_expenses))}
                           </span>
                         </div>
                         <div className="flex justify-between">
@@ -742,11 +773,11 @@ const MobileStockManagement = () => {
                         <div className="flex justify-between text-sm">
                           <span>Selisih:</span>
                           <span className={`font-medium ${
-                            shiftReport.cash_collected - (shiftReport.total_sales - shiftReport.operational_expenses) >= 0 
+                            shiftReport.cash_collected - (shiftReport.cash_sales - shiftReport.operational_expenses) >= 0 
                               ? 'text-green-600' 
                               : 'text-red-600'
                           }`}>
-                            {formatCurrency(shiftReport.cash_collected - (shiftReport.total_sales - shiftReport.operational_expenses))}
+                            {formatCurrency(shiftReport.cash_collected - (shiftReport.cash_sales - shiftReport.operational_expenses))}
                           </span>
                         </div>
                       </div>
@@ -769,7 +800,7 @@ const MobileStockManagement = () => {
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
                           <span className="text-muted-foreground">Penjualan Tunai:</span>
-                          <p className="font-medium">{formatCurrency(shiftReport.total_sales)}</p>
+                          <p className="font-medium">{formatCurrency(shiftReport.cash_sales)}</p>
                         </div>
                         <div>
                           <span className="text-muted-foreground">Total Transaksi:</span>
@@ -782,7 +813,7 @@ const MobileStockManagement = () => {
                         <div>
                           <span className="text-muted-foreground">Setoran Tunai yang diharapkan:</span>
                           <p className="font-medium text-green-600">
-                            {formatCurrency(Math.max(0, shiftReport.total_sales - shiftReport.operational_expenses))}
+                            {formatCurrency(Math.max(0, shiftReport.cash_sales - shiftReport.operational_expenses))}
                           </p>
                         </div>
                       </div>
