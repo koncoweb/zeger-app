@@ -182,7 +182,7 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
 
     setLoading(true);
     try {
-      // Create stock movement records
+      // Create stock movement records (pending confirmation)
       const stockMovements = rows.map(p => ({
         product_id: p.id,
         quantity: p.qty,
@@ -190,7 +190,7 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
         branch_id: branchId,
         rider_id: selectedRider,
         created_by: userId,
-        notes: 'Transfer to rider'
+        notes: null  // null = pending rider confirmation
       }));
 
       const { error: movementError } = await supabase
@@ -199,44 +199,7 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
 
       if (movementError) throw movementError;
 
-      // Update or create rider inventory
-      for (const row of rows) {
-        // Check if rider already has this product in inventory
-        const { data: existingInventory } = await supabase
-          .from('inventory')
-          .select('id, stock_quantity')
-          .eq('rider_id', selectedRider)
-          .eq('product_id', row.id)
-          .maybeSingle();
-
-        if (existingInventory) {
-          // Update existing inventory
-          const { error: updateError } = await supabase
-            .from('inventory')
-            .update({
-              stock_quantity: existingInventory.stock_quantity + row.qty,
-              last_updated: new Date().toISOString()
-            })
-            .eq('id', existingInventory.id);
-
-          if (updateError) throw updateError;
-        } else {
-          // Create new inventory record
-          const { error: insertError } = await supabase
-            .from('inventory')
-            .insert({
-              product_id: row.id,
-              rider_id: selectedRider,
-              branch_id: branchId,
-              stock_quantity: row.qty,
-              min_stock_level: 0,
-              max_stock_level: 100,
-              reserved_quantity: 0
-            });
-
-          if (insertError) throw insertError;
-        }
-      }
+      // Don't pre-populate rider inventory - wait for rider confirmation
 
       toast.success("Transfer stok ke rider berhasil!");
       setProductQuantities({});

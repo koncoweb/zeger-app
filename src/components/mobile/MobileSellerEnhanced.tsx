@@ -112,7 +112,7 @@ const MobileSellerEnhanced = () => {
 
       if (!profile) return;
 
-      // Fetch pending stock transfers for this rider
+      // Fetch pending stock transfers for this rider  
       const { data: pendingTransfers } = await supabase
         .from('stock_movements')
         .select(`
