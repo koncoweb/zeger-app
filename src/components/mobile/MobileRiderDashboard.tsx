@@ -469,63 +469,32 @@ const MobileRiderDashboard = () => {
       </div>
 
       <div className="p-4 space-y-6">
-        {/* Quick Actions */}
+        {/* Quick Actions - tanpa tombol Absen */}
         <div className="grid grid-cols-2 gap-4">
-          {needsCheckIn ? (
-            <Button
-              onClick={handleCheckIn}
-              disabled={loading}
-              className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white h-16 col-span-2"
-            >
-              <Camera className="h-5 w-5" />
-              <div className="text-center">
-                <div className="font-semibold">Absen Masuk dengan Foto</div>
-                <div className="text-xs opacity-90">Wajib sebelum shift</div>
+          <Button
+            onClick={() => {/* Navigate to shift management */}}
+            className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white h-16"
+          >
+            <CheckCircle className="h-5 w-5" />
+            <div className="text-center">
+              <div className="font-semibold">{shiftStatus ? 'Kelola Shift' : 'Mulai Shift'}</div>
+              <div className="text-xs opacity-90">{shiftStatus ? 'Laporan & Pengembalian' : 'Mulai Shift Hari Ini'}</div>
+            </div>
+          </Button>
+
+          <Button
+            variant="outline"
+            className="flex items-center justify-center gap-2 h-16"
+            disabled={!shiftStatus}
+          >
+            <Package className="h-5 w-5" />
+            <div className="text-center">
+              <div className="font-semibold">Penjualan</div>
+              <div className="text-xs text-muted-foreground">
+                {shiftStatus ? 'Mulai Jual' : 'Perlu Shift In'}
               </div>
-            </Button>
-          ) : (
-            <>
-              {!shiftStatus ? (
-                <Button
-                  onClick={() => {/* Navigate to shift management to start shift */}}
-                  className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white h-16"
-                >
-                  <CheckCircle className="h-5 w-5" />
-                  <div className="text-center">
-                    <div className="font-semibold">Shift In</div>
-                    <div className="text-xs opacity-90">Mulai Shift</div>
-                  </div>
-                </Button>
-              ) : (
-                <Button
-                  onClick={handleCheckOut}
-                  disabled={loading}
-                  variant="destructive"
-                  className="flex items-center justify-center gap-2 h-16"
-                >
-                  <Clock className="h-5 w-5" />
-                  <div className="text-center">
-                    <div className="font-semibold">Check Out</div>
-                    <div className="text-xs opacity-90">Akhiri Shift</div>
-                  </div>
-                </Button>
-              )}
-              
-              <Button
-                variant="outline"
-                className="flex items-center justify-center gap-2 h-16"
-                disabled={!shiftStatus}
-              >
-                <Package className="h-5 w-5" />
-                <div className="text-center">
-                  <div className="font-semibold">Penjualan</div>
-                  <div className="text-xs text-muted-foreground">
-                    {shiftStatus ? 'Mulai Jual' : 'Perlu Shift In'}
-                  </div>
-                </div>
-              </Button>
-            </>
-          )}
+            </div>
+          </Button>
         </div>
 
         {/* Shift Status Alert */}

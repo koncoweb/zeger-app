@@ -55,10 +55,9 @@ const StockReturnTab = ({ userProfile, activeShift, onRefresh }: {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (activeShift) {
-      fetchReturnableStock();
-    }
-  }, [activeShift]);
+    // Selalu muat stok sisa agar sinkron dengan halaman penjualan
+    fetchReturnableStock();
+  }, [userProfile?.id, activeShift]);
 
   const fetchReturnableStock = async () => {
     try {
@@ -153,14 +152,7 @@ const StockReturnTab = ({ userProfile, activeShift, onRefresh }: {
     }
   };
 
-  if (!activeShift) {
-    return (
-      <div className="text-center py-8">
-        <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-        <p className="text-muted-foreground">Pengembalian stok hanya tersedia saat shift aktif</p>
-      </div>
-    );
-  }
+  /* Pengembalian diizinkan meski shift belum terdeteksi aktif; tetap tampilkan sisa stok */
 
   return (
     <div className="space-y-4">
