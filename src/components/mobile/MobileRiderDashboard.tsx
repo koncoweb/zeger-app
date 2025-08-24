@@ -69,6 +69,9 @@ interface ShiftStatus {
   status: string;
   shift_number: number;
   shift_date: string;
+  shift_start_time?: string;
+  shift_end_time?: string;
+  report_submitted?: boolean;
 }
 
 const MobileRiderDashboard = () => {
@@ -142,36 +145,40 @@ const MobileRiderDashboard = () => {
 
       const stockItems = inventory?.reduce((sum, item) => sum + item.stock_quantity, 0) || 0;
 
-      // Fetch stock awal (from stock movements today)
-      const { data: stockMovements } = await supabase
-        .from('stock_movements')
-        .select('quantity')
-        .eq('rider_id', profile.id)
-        .eq('movement_type', 'transfer')
-        .eq('status', 'received')
-        .gte('actual_delivery_date', `${today}T00:00:00`)
-        .lte('actual_delivery_date', `${today}T23:59:59`);
+// Tentukan rentang waktu berdasarkan shift aktif
+const startRange = (activeShift?.shift_start_time as string) || `${today}T00:00:00`;
+const endRange = (activeShift?.shift_end_time as string) || new Date().toISOString();
 
-      const stockAwal = stockMovements?.reduce((sum, movement) => sum + movement.quantity, 0) || 0;
+// Fetch stock awal (pergerakan stok diterima dalam rentang shift/hari)
+const { data: stockMovements } = await supabase
+  .from('stock_movements')
+  .select('quantity')
+  .eq('rider_id', profile.id)
+  .eq('movement_type', 'transfer')
+  .eq('status', 'received')
+  .gte('actual_delivery_date', startRange)
+  .lte('actual_delivery_date', endRange);
 
-      // Fetch pending stock transfers
-      const { data: pendingStock } = await supabase
-        .from('stock_movements')
-        .select('*')
-        .eq('rider_id', profile.id)
-        .eq('movement_type', 'transfer')
-        .eq('status', 'sent');
+const stockAwal = stockMovements?.reduce((sum, movement) => sum + movement.quantity, 0) || 0;
 
-      // Fetch today's sales and items sold
-      const { data: transactions } = await supabase
-        .from('transactions')
-        .select(`
-          final_amount,
-          transaction_items(quantity)
-        `)
-        .eq('rider_id', profile.id)
-        .gte('transaction_date', `${today}T00:00:00`)
-        .lte('transaction_date', `${today}T23:59:59`);
+// Fetch pending stock transfers
+const { data: pendingStock } = await supabase
+  .from('stock_movements')
+  .select('*')
+  .eq('rider_id', profile.id)
+  .eq('movement_type', 'transfer')
+  .eq('status', 'sent');
+
+// Fetch sales & items sold dalam rentang shift/hari
+const { data: transactions } = await supabase
+  .from('transactions')
+  .select(`
+    final_amount,
+    transaction_items(quantity)
+  `)
+  .eq('rider_id', profile.id)
+  .gte('transaction_date', startRange)
+  .lte('transaction_date', endRange);
 
       const totalSales = transactions?.reduce((sum, t) => sum + Number(t.final_amount), 0) || 0;
       const avgPerTransaction = transactions?.length > 0 ? totalSales / transactions.length : 0;
@@ -397,20 +404,105 @@ const MobileRiderDashboard = () => {
     }
   };
 
-  const getCurrentLocation = (): Promise<string> => {
-    return new Promise((resolve) => {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            resolve(`${position.coords.latitude}, ${position.coords.longitude}`);
-          },
-          () => resolve("Lokasi tidak tersedia")
-        );
-      } else {
-        resolve("Lokasi tidak tersedia");
-      }
-    });
-  };
+const getCurrentLocation = (): Promise<string> => {
+  return new Promise((resolve) => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          resolve(`${position.coords.latitude}, ${position.coords.longitude}`);
+        },
+        () => resolve("Lokasi tidak tersedia")
+      );
+    } else {
+      resolve("Lokasi tidak tersedia");
+    }
+  });
+};
+
+const startShift = async () => {
+  setLoading(true);
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User tidak terautentikasi');
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id, branch_id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (!profile) throw new Error('Profil tidak ditemukan');
+
+    const today = new Date().toISOString().split('T')[0];
+
+    // Pastikan sudah check-in
+    const { data: todayAttendance } = await supabase
+      .from('attendance')
+      .select('id, status')
+      .eq('rider_id', profile.id)
+      .eq('work_date', today)
+      .maybeSingle();
+
+    if (!todayAttendance) {
+      toast.error('Silakan Absen (Check-in) terlebih dahulu');
+      return;
+    }
+
+    // Cek jika sudah ada shift aktif
+    const { data: existingActive } = await supabase
+      .from('shift_management')
+      .select('*')
+      .eq('rider_id', profile.id)
+      .eq('shift_date', today)
+      .eq('status', 'active')
+      .maybeSingle();
+
+    if (existingActive) {
+      setShiftStatus(existingActive as any);
+      toast.info('Shift sudah aktif');
+      window.dispatchEvent(new CustomEvent('navigate-tab', { detail: 'stock' }));
+      return;
+    }
+
+    // Ambil nomor shift berikutnya
+    const { data: lastShift } = await supabase
+      .from('shift_management')
+      .select('shift_number')
+      .eq('rider_id', profile.id)
+      .eq('shift_date', today)
+      .order('shift_number', { ascending: false })
+      .limit(1);
+
+    const nextNumber = lastShift && lastShift.length > 0
+      ? (lastShift[0].shift_number || 0) + 1
+      : 1;
+
+    const { data: inserted, error } = await supabase
+      .from('shift_management')
+      .insert({
+        rider_id: profile.id,
+        branch_id: profile.branch_id,
+        shift_date: today,
+        shift_start_time: new Date().toISOString(),
+        status: 'active',
+        shift_number: nextNumber,
+      })
+      .select()
+      .maybeSingle();
+
+    if (error) throw error;
+
+    setShiftStatus(inserted as any);
+    toast.success(`Shift ${inserted?.shift_number || nextNumber} dimulai`);
+    window.dispatchEvent(new CustomEvent('navigate-tab', { detail: 'stock' }));
+    fetchDashboardData();
+  } catch (error: any) {
+    toast.error('Gagal mulai shift: ' + error.message);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -471,16 +563,16 @@ const MobileRiderDashboard = () => {
       <div className="p-4 space-y-6">
         {/* Quick Actions - tanpa tombol Absen */}
         <div className="grid grid-cols-2 gap-4">
-          <Button
-            onClick={() => window.dispatchEvent(new CustomEvent('navigate-tab', { detail: 'stock' }))}
-            className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white h-16"
-          >
-            <CheckCircle className="h-5 w-5" />
-            <div className="text-center">
-              <div className="font-semibold">{shiftStatus ? 'Kelola Shift' : 'Mulai Shift'}</div>
-              <div className="text-xs opacity-90">{shiftStatus ? 'Laporan & Pengembalian' : 'Mulai Shift Hari Ini'}</div>
-            </div>
-          </Button>
+<Button
+  onClick={() => (shiftStatus ? window.dispatchEvent(new CustomEvent('navigate-tab', { detail: 'stock' })) : startShift())}
+  className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white h-16"
+>
+  <CheckCircle className="h-5 w-5" />
+  <div className="text-center">
+    <div className="font-semibold">{shiftStatus ? 'Kelola Shift' : 'Mulai Shift'}</div>
+    <div className="text-xs opacity-90">{shiftStatus ? 'Laporan & Pengembalian' : 'Mulai Shift Hari Ini'}</div>
+  </div>
+</Button>
 
           <Button
             variant="outline"

@@ -501,17 +501,18 @@ const MobileStockManagement = () => {
 
       if (reportError) throw reportError;
 
-      // Update shift status to completed
-      const { error: shiftError } = await supabase
-        .from('shift_management')
-        .update({
-          status: 'completed',
-          report_submitted: true,
-          total_sales: shiftSummary.totalSales,
-          cash_collected: cashToDeposit,
-          total_transactions: shiftSummary.totalTransactions
-        })
-        .eq('id', activeShift.id);
+// Update shift status to completed & auto shift-out
+const { error: shiftError } = await supabase
+  .from('shift_management')
+  .update({
+    status: 'completed',
+    report_submitted: true,
+    total_sales: shiftSummary.totalSales,
+    cash_collected: cashToDeposit,
+    total_transactions: shiftSummary.totalTransactions,
+    shift_end_time: new Date().toISOString()
+  })
+  .eq('id', activeShift.id);
 
       if (shiftError) throw shiftError;
 
