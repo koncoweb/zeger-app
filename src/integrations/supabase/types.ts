@@ -239,6 +239,7 @@ export type Database = {
           photos: Json | null
           report_date: string
           rider_id: string | null
+          shift_id: string | null
           start_location: string | null
           total_sales: number | null
           total_transactions: number | null
@@ -254,6 +255,7 @@ export type Database = {
           photos?: Json | null
           report_date: string
           rider_id?: string | null
+          shift_id?: string | null
           start_location?: string | null
           total_sales?: number | null
           total_transactions?: number | null
@@ -269,6 +271,7 @@ export type Database = {
           photos?: Json | null
           report_date?: string
           rider_id?: string | null
+          shift_id?: string | null
           start_location?: string | null
           total_sales?: number | null
           total_transactions?: number | null
@@ -288,6 +291,13 @@ export type Database = {
             columns: ["rider_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_reports_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "shift_management"
             referencedColumns: ["id"]
           },
           {

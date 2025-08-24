@@ -487,17 +487,20 @@ const MobileStockManagement = () => {
         if (expenseError) throw expenseError;
       }
 
-      // Create daily report for branch verification
+// Create daily report for branch verification (Upsert by shift_id)
       const { error: reportError } = await supabase
         .from('daily_reports')
-        .insert([{
+        .upsert({
           rider_id: userProfile.id,
+          shift_id: activeShift.id,
           branch_id: userProfile.branch_id,
           report_date: new Date().toISOString().split('T')[0],
           total_sales: shiftSummary.totalSales,
           cash_collected: cashToDeposit,
           total_transactions: shiftSummary.totalTransactions
-        }]);
+        }, {
+          onConflict: 'rider_id, shift_id'
+        });
 
       if (reportError) throw reportError;
 
