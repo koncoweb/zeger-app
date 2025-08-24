@@ -822,7 +822,7 @@ const { error: shiftError } = await supabase
 
                         <Button
                           onClick={handleSubmitShiftReport}
-                          disabled={loading || !operationalExpenses.some(exp => exp.type && exp.amount)}
+                          disabled={loading}
                           className="w-full bg-green-600 hover:bg-green-700"
                         >
                           {loading ? "Mengirim..." : "Kirim Laporan Shift"}

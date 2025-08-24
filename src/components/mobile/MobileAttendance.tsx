@@ -88,6 +88,8 @@ const MobileAttendance = () => {
         .select('*')
         .eq('rider_id', userProfile.id)
         .eq('work_date', today)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
 
       setTodayAttendance(data);

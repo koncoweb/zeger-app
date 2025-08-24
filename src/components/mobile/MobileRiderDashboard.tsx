@@ -121,6 +121,8 @@ const MobileRiderDashboard = () => {
         .select('*')
         .eq('rider_id', profile.id)
         .eq('work_date', today)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
 
       setIsCheckedIn(!!todayAttendance);
@@ -446,6 +448,8 @@ const startShift = async () => {
       .select('id, status')
       .eq('rider_id', profile.id)
       .eq('work_date', today)
+      .order('created_at', { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     if (!todayAttendance) {
