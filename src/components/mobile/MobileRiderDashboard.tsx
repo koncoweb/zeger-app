@@ -442,21 +442,6 @@ const startShift = async () => {
 
     const today = new Date().toISOString().split('T')[0];
 
-    // Pastikan sudah check-in
-    const { data: todayAttendance } = await supabase
-      .from('attendance')
-      .select('id, status')
-      .eq('rider_id', profile.id)
-      .eq('work_date', today)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (!todayAttendance) {
-      toast.error('Silakan Absen (Check-in) terlebih dahulu');
-      return;
-    }
-
     // Cek jika sudah ada shift aktif
     const { data: existingActive } = await supabase
       .from('shift_management')
@@ -573,13 +558,14 @@ const startShift = async () => {
         {/* Quick Actions - tanpa tombol Absen */}
         <div className="grid grid-cols-2 gap-4">
 <Button
-  onClick={() => (shiftStatus ? window.dispatchEvent(new CustomEvent('navigate-tab', { detail: 'stock' })) : startShift())}
-  className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white h-16"
+  onClick={startShift}
+  disabled={!!shiftStatus}
+  className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white h-16 disabled:opacity-70"
 >
   <CheckCircle className="h-5 w-5" />
   <div className="text-center">
-    <div className="font-semibold">{shiftStatus ? 'Kelola Shift' : 'Mulai Shift'}</div>
-    <div className="text-xs opacity-90">{shiftStatus ? 'Laporan & Pengembalian' : 'Mulai Shift Hari Ini'}</div>
+    <div className="font-semibold">{shiftStatus ? `Shift ${shiftStatus.shift_number} Anda sedang aktif` : 'Mulai Shift'}</div>
+    <div className="text-xs opacity-90">{shiftStatus ? 'Kirim laporan untuk menyelesaikan shift' : 'Mulai Shift Hari Ini'}</div>
   </div>
 </Button>
 

@@ -306,20 +306,25 @@ const MobileStockManagement = () => {
 
       setActiveShift(shift);
 
-      // Get today's sales summary
+      // Get sales summary scoped to active shift time window (or today if no shift)
       const today = new Date().toISOString().split('T')[0];
-      const { data: todaysTransactions } = await supabase
+      let startRange = `${today}T00:00:00`;
+      let endRange = new Date().toISOString();
+      if (shift?.shift_start_time) startRange = shift.shift_start_time;
+      if (shift?.shift_end_time) endRange = shift.shift_end_time;
+
+      const { data: rangeTransactions } = await supabase
         .from('transactions')
         .select('final_amount, payment_method')
         .eq('rider_id', userProfile.id)
-        .gte('transaction_date', `${today}T00:00:00`)
-        .lte('transaction_date', `${today}T23:59:59`);
+        .gte('transaction_date', startRange)
+        .lte('transaction_date', endRange);
 
-      const cashSales = todaysTransactions
+      const cashSales = rangeTransactions
         ?.filter(t => t.payment_method === 'cash')
         ?.reduce((sum, t) => sum + parseFloat(t.final_amount.toString()), 0) || 0;
 
-      const qrisSales = todaysTransactions
+      const qrisSales = rangeTransactions
         ?.filter(t => t.payment_method === 'qris')
         ?.reduce((sum, t) => sum + parseFloat(t.final_amount.toString()), 0) || 0;
 
@@ -329,7 +334,7 @@ const MobileStockManagement = () => {
         totalSales,
         cashSales,
         qrisSales,
-        totalTransactions: todaysTransactions?.length || 0
+        totalTransactions: rangeTransactions?.length || 0
       });
     } catch (error: any) {
       console.error("Error fetching shift data:", error);
