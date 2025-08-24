@@ -494,7 +494,6 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
                               <SelectItem 
                                 key={rider.id} 
                                 value={rider.id}
-                                disabled={!canReceive}
                               >
                                 <div className="flex items-center justify-between w-full">
                                   <span>{rider.full_name}</span>
