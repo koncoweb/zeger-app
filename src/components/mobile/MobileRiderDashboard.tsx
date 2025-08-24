@@ -472,7 +472,7 @@ const MobileRiderDashboard = () => {
         {/* Quick Actions - tanpa tombol Absen */}
         <div className="grid grid-cols-2 gap-4">
           <Button
-            onClick={() => {/* Navigate to shift management */}}
+            onClick={() => window.dispatchEvent(new CustomEvent('navigate-tab', { detail: 'stock' }))}
             className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white h-16"
           >
             <CheckCircle className="h-5 w-5" />
@@ -486,6 +486,7 @@ const MobileRiderDashboard = () => {
             variant="outline"
             className="flex items-center justify-center gap-2 h-16"
             disabled={!shiftStatus}
+            onClick={() => window.dispatchEvent(new CustomEvent('navigate-tab', { detail: 'selling' }))}
           >
             <Package className="h-5 w-5" />
             <div className="text-center">
@@ -513,7 +514,7 @@ const MobileRiderDashboard = () => {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 gap-4">
-          <Card>
+          <Card onClick={() => window.dispatchEvent(new CustomEvent('navigate-tab', { detail: 'stock' }))} className="cursor-pointer">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-blue-100 rounded-lg">
@@ -527,7 +528,7 @@ const MobileRiderDashboard = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card onClick={() => window.dispatchEvent(new CustomEvent('navigate-tab', { detail: 'stock' }))} className="cursor-pointer">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-orange-100 rounded-lg">
@@ -541,7 +542,7 @@ const MobileRiderDashboard = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card onClick={() => window.dispatchEvent(new CustomEvent('navigate-tab', { detail: 'selling' }))} className="cursor-pointer">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-green-100 rounded-lg">
@@ -555,7 +556,7 @@ const MobileRiderDashboard = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card onClick={() => window.dispatchEvent(new CustomEvent('navigate-tab', { detail: 'stock' }))} className="cursor-pointer">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-purple-100 rounded-lg">
@@ -569,7 +570,7 @@ const MobileRiderDashboard = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card onClick={() => window.dispatchEvent(new CustomEvent('navigate-tab', { detail: 'analytics' }))} className="cursor-pointer">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-green-100 rounded-lg">
@@ -583,7 +584,7 @@ const MobileRiderDashboard = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card onClick={() => window.dispatchEvent(new CustomEvent('navigate-tab', { detail: 'analytics' }))} className="cursor-pointer">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-blue-100 rounded-lg">

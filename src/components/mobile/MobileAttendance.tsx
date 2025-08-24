@@ -95,22 +95,40 @@ const MobileAttendance = () => {
 
   const startCamera = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
           facingMode: "user",
           width: { ideal: 1280 },
           height: { ideal: 720 }
-        } 
+        },
+        audio: false
       });
-      
+
       if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
+        const video = videoRef.current;
+        video.srcObject = stream;
         setCameraActive(true);
+        await new Promise<void>((resolve) => {
+          const onReady = () => resolve();
+          video.addEventListener('loadedmetadata', onReady, { once: true });
+          video.addEventListener('canplay', onReady, { once: true });
+        });
+        await video.play();
       }
     } catch (error: any) {
       toast.error("Gagal mengakses kamera: " + error.message);
     }
+  };
+
+  const waitForVideoReady = async () => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0) return;
+    await new Promise<void>((resolve) => {
+      const onReady = () => resolve();
+      video.addEventListener('loadedmetadata', onReady, { once: true });
+      video.addEventListener('canplay', onReady, { once: true });
+    });
   };
 
   const stopCamera = () => {
@@ -173,22 +191,9 @@ const MobileAttendance = () => {
     setLoading(true);
     try {
       await startCamera();
-      
-      // Wait for user to position themselves
-      await new Promise(resolve => {
-        const button = document.createElement('button');
-        button.textContent = 'Ambil Foto';
-        button.onclick = resolve;
-        button.className = 'fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 bg-primary text-white px-6 py-3 rounded-lg';
-        document.body.appendChild(button);
-        
-        setTimeout(() => {
-          if (document.body.contains(button)) {
-            document.body.removeChild(button);
-          }
-          resolve(undefined);
-        }, 10000); // Auto-capture after 10 seconds
-      });
+      await waitForVideoReady();
+      // Beri sedikit jeda agar kamera stabil
+      await new Promise((r) => setTimeout(r, 500));
 
       const photoDataUrl = capturePhoto();
       if (!photoDataUrl) {
@@ -208,7 +213,7 @@ const MobileAttendance = () => {
           branch_id: userProfile?.branch_id,
           status: 'checked_in',
           check_in_time: new Date().toISOString(),
-          check_in_location: locationName,
+          check_in_location: locationName || `${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}`,
           check_in_photo_url: photoUrl,
           work_date: new Date().toISOString().split('T')[0]
         }]);
@@ -239,22 +244,8 @@ const MobileAttendance = () => {
     setLoading(true);
     try {
       await startCamera();
-      
-      // Wait for user to position themselves
-      await new Promise(resolve => {
-        const button = document.createElement('button');
-        button.textContent = 'Ambil Foto';
-        button.onclick = resolve;
-        button.className = 'fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 bg-primary text-white px-6 py-3 rounded-lg';
-        document.body.appendChild(button);
-        
-        setTimeout(() => {
-          if (document.body.contains(button)) {
-            document.body.removeChild(button);
-          }
-          resolve(undefined);
-        }, 10000);
-      });
+      await waitForVideoReady();
+      await new Promise((r) => setTimeout(r, 500));
 
       const photoDataUrl = capturePhoto();
       if (!photoDataUrl) {
@@ -272,7 +263,7 @@ const MobileAttendance = () => {
         .update({
           status: 'checked_out',
           check_out_time: new Date().toISOString(),
-          check_out_location: locationName,
+          check_out_location: locationName || `${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}`,
           check_out_photo_url: photoUrl
         })
         .eq('id', todayAttendance.id);

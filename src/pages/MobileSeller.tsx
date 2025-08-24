@@ -22,6 +22,16 @@ export default function MobileSeller() {
     }
   }, [user, userProfile, loading]);
 
+  // Support programmatic tab navigation from inner components
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<string>).detail;
+      if (typeof detail === 'string') setActiveTab(detail);
+    };
+    window.addEventListener('navigate-tab', handler as EventListener);
+    return () => window.removeEventListener('navigate-tab', handler as EventListener);
+  }, []);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-white via-red-50/30 to-white flex items-center justify-center">
