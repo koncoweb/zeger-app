@@ -321,20 +321,33 @@ const MobileStockManagement = () => {
       console.log('Fetching transactions for rider:', userProfile.id);
       console.log('Date range:', { startRange, endRange });
 
-      const { data: rangeTransactions, error: transactionError } = await supabase
+      // Use broader query to catch all transactions for this rider today
+      const { data: allTransactions, error: allTransError } = await supabase
         .from('transactions')
-        .select('final_amount, payment_method, transaction_date, status')
+        .select('final_amount, payment_method, transaction_date, status, id')
         .eq('rider_id', userProfile.id)
-        .gte('transaction_date', startRange)
+        .gte('transaction_date', `${today}T00:00:00`)
         .lte('transaction_date', endRange)
-        .eq('status', 'completed');
+        .order('transaction_date', { ascending: false });
 
-      if (transactionError) {
-        console.error('Transaction query error:', transactionError);
+      console.log('All transactions today:', allTransactions);
+
+      if (allTransError) {
+        console.error('Transaction query error:', allTransError);
         return;
       }
 
-      console.log('Found transactions:', rangeTransactions);
+      // Filter for shift period if shift exists, otherwise use all today's transactions
+      let rangeTransactions = allTransactions || [];
+      
+      if (shift?.shift_start_time) {
+        rangeTransactions = allTransactions?.filter(t => 
+          new Date(t.transaction_date) >= new Date(shift.shift_start_time) &&
+          (t.status === 'completed' || t.status === 'pending')
+        ) || [];
+      }
+
+      console.log('Filtered transactions for shift:', rangeTransactions);
 
       const cashSales = rangeTransactions
         ?.filter(t => t.payment_method === 'cash')
