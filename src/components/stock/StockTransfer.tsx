@@ -238,12 +238,13 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
       return;
     }
 
-    // Check if rider can receive stock (has completed previous shift report)
-    const canReceive = await checkRiderCanReceiveStock(selectedRider);
-    if (!canReceive) {
-      toast.error("Rider belum menyelesaikan laporan shift sebelumnya. Tunggu sampai rider mengirim laporan shift.");
-      return;
-    }
+    // Catatan: sebelumnya ada validasi mengharuskan laporan shift sebelumnya selesai.
+    // Untuk kelancaran operasional, kita tidak lagi memblokir transfer.
+    // Jika ingin hanya memberi peringatan tanpa memblokir, aktifkan blok berikut:
+    // const canReceive = await checkRiderCanReceiveStock(selectedRider);
+    // if (!canReceive) {
+    //   toast.info("Catatan: Rider punya laporan shift sebelumnya yang belum selesai. Transfer tetap dilanjutkan.");
+    // }
 
     const rows = products
       .map(p => ({ id: p.id, qty: Number(productQuantities[p.id] || 0) }))
