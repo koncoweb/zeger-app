@@ -39,7 +39,7 @@ interface DailyReport {
   id?: string;
   report_date: string;
   total_sales: number;
-  cash_collected: number;
+  cash_collected: number; // cash + transfer for deposit calc
   total_transactions: number;
   photos: any[];
   verified_by?: string;
@@ -48,19 +48,26 @@ interface DailyReport {
   end_location?: string;
   operational_cost?: number;
   cash_deposit_required?: number;
+  // Added breakdown fields
+  cash_sales?: number;
+  qris_sales?: number;
+  transfer_sales?: number;
 }
 
 export const SalesReporting = ({ role, userId, branchId }: SalesReportingProps) => {
   const [transactions, setTransactions] = useState<SalesTransaction[]>([]);
-  const [dailyReport, setDailyReport] = useState<DailyReport>({
-    report_date: new Date().toISOString().split('T')[0],
-    total_sales: 0,
-    cash_collected: 0,
-    total_transactions: 0,
-    photos: [],
-    operational_cost: 0,
-    cash_deposit_required: 0
-  });
+const [dailyReport, setDailyReport] = useState<DailyReport>({
+  report_date: new Date().toISOString().split('T')[0],
+  total_sales: 0,
+  cash_collected: 0,
+  total_transactions: 0,
+  photos: [],
+  operational_cost: 0,
+  cash_deposit_required: 0,
+  cash_sales: 0,
+  qris_sales: 0,
+  transfer_sales: 0
+});
   const [loading, setLoading] = useState(false);
   const [paymentProofFiles, setPaymentProofFiles] = useState<{[key: string]: File}>({});
 
@@ -110,14 +117,17 @@ export const SalesReporting = ({ role, userId, branchId }: SalesReportingProps) 
     const operationalCost = totalCollected * 0.1;
     const cashDepositRequired = totalCollected - operationalCost;
 
-    setDailyReport(prev => ({
-      ...prev,
-      total_sales: totalSales,
-      cash_collected: totalCollected, // Now includes cash + transfer
-      total_transactions: transactions.length,
-      operational_cost: operationalCost,
-      cash_deposit_required: cashDepositRequired
-    }));
+setDailyReport(prev => ({
+  ...prev,
+  total_sales: totalSales,
+  cash_collected: totalCollected, // Now includes cash + transfer
+  total_transactions: transactions.length,
+  operational_cost: operationalCost,
+  cash_deposit_required: cashDepositRequired,
+  cash_sales: cashCollected,
+  qris_sales: qrisAmount,
+  transfer_sales: transferAmount
+}));
   };
 
   const fetchPendingReports = async () => {
@@ -211,15 +221,18 @@ export const SalesReporting = ({ role, userId, branchId }: SalesReportingProps) 
       toast.success("Laporan harian berhasil dikirim!");
       
       // Reset form
-      setDailyReport({
-        report_date: new Date().toISOString().split('T')[0],
-        total_sales: 0,
-        cash_collected: 0,
-        total_transactions: 0,
-        photos: [],
-        operational_cost: 0,
-        cash_deposit_required: 0
-      });
+setDailyReport({
+  report_date: new Date().toISOString().split('T')[0],
+  total_sales: 0,
+  cash_collected: 0,
+  total_transactions: 0,
+  photos: [],
+  operational_cost: 0,
+  cash_deposit_required: 0,
+  cash_sales: 0,
+  qris_sales: 0,
+  transfer_sales: 0
+});
     } catch (error: any) {
       toast.error("Gagal mengirim laporan: " + error.message);
     } finally {
@@ -239,7 +252,7 @@ export const SalesReporting = ({ role, userId, branchId }: SalesReportingProps) 
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
               <div className="text-center p-4 bg-muted rounded-lg">
                 <p className="text-2xl font-bold text-primary">
                   {dailyReport.total_transactions}
@@ -254,15 +267,27 @@ export const SalesReporting = ({ role, userId, branchId }: SalesReportingProps) 
               </div>
               <div className="text-center p-4 bg-muted rounded-lg">
                 <p className="text-2xl font-bold text-warning">
-                  Rp {dailyReport.cash_collected.toLocaleString('id-ID')}
+                  Rp { (dailyReport.cash_sales ?? 0).toLocaleString('id-ID') }
                 </p>
                 <p className="text-sm text-muted-foreground">Penjualan Tunai</p>
+              </div>
+              <div className="text-center p-4 bg-muted rounded-lg">
+                <p className="text-2xl font-bold text-info">
+                  Rp { (dailyReport.qris_sales ?? 0).toLocaleString('id-ID') }
+                </p>
+                <p className="text-sm text-muted-foreground">Penjualan QRIS</p>
+              </div>
+              <div className="text-center p-4 bg-muted rounded-lg">
+                <p className="text-2xl font-bold text-accent">
+                  Rp { (dailyReport.transfer_sales ?? 0).toLocaleString('id-ID') }
+                </p>
+                <p className="text-sm text-muted-foreground">Transfer Bank</p>
               </div>
               <div className="text-center p-4 bg-muted rounded-lg">
                 <p className="text-2xl font-bold text-destructive">
                   Rp {dailyReport.cash_deposit_required.toLocaleString('id-ID')}
                 </p>
-                <p className="text-sm text-muted-foreground">Setoran Tunai</p>
+                <p className="text-sm text-muted-foreground">Setoran (Tunai + Transfer)</p>
               </div>
             </div>
 
