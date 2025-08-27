@@ -17,7 +17,8 @@ import {
   RefreshCw,
   Plus,
   Trash2,
-  FileText
+  FileText,
+  Tag
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -656,36 +657,48 @@ const { error: shiftError } = await supabase
 
                 <ScrollArea className="h-96">
                   <div className="space-y-4">
-                    {pendingStock.map((item) => (
-                      <Card key={item.id} className="border-l-4 border-l-orange-500">
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between mb-3">
-                            <div>
-                              <h4 className="font-medium">{item.product?.name}</h4>
-                              <p className="text-sm text-muted-foreground">
-                                Jumlah: {item.quantity} | Kategori: {item.product?.category}
-                              </p>
-                              {item.expected_delivery_date && (
-                                <p className="text-xs text-muted-foreground">
-                                  Target: {new Date(item.expected_delivery_date).toLocaleString('id-ID')}
-                                </p>
-                              )}
-                            </div>
-                            <Badge variant="secondary" className="bg-orange-100 text-orange-800">
-                              <Clock className="h-3 w-3 mr-1" />
-                              Menunggu
-                            </Badge>
-                          </div>
+                     {pendingStock.map((item) => (
+                       <Card key={item.id} className="border-l-4 border-l-orange-500">
+                         <CardContent className="p-4">
+                           <div className="space-y-3">
+                             <div className="flex items-center justify-between">
+                               <Badge variant="secondary" className="bg-orange-100 text-orange-800">
+                                 <Clock className="h-3 w-3 mr-1" />
+                                 Menunggu
+                               </Badge>
+                             </div>
+                             
+                             <div className="bg-muted/50 p-3 rounded-lg">
+                               <h4 className="text-lg font-bold text-foreground mb-2">{item.product?.name}</h4>
+                               <div className="flex flex-col gap-1">
+                                 <div className="flex items-center gap-2">
+                                   <Package className="h-4 w-4 text-primary" />
+                                   <span className="font-semibold text-primary">Jumlah: {item.quantity} pcs</span>
+                                 </div>
+                                 <div className="flex items-center gap-2">
+                                   <Tag className="h-4 w-4 text-muted-foreground" />
+                                   <span className="text-muted-foreground">Kategori: {item.product?.category}</span>
+                                 </div>
+                               </div>
+                             </div>
+                             
+                             {item.expected_delivery_date && (
+                               <p className="text-xs text-muted-foreground">
+                                 Target: {new Date(item.expected_delivery_date).toLocaleString('id-ID')}
+                               </p>
+                             )}
+                           </div>
 
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              onClick={() => confirmStockReceival(item.id)}
-                              disabled={loading}
-                            >
-                              <CheckCircle className="h-4 w-4 mr-1" />
-                              Terima Stok
-                            </Button>
+                           <div className="flex gap-2 mt-4">
+                             <Button
+                               size="sm"
+                               onClick={() => confirmStockReceival(item.id)}
+                               disabled={loading}
+                               className="flex-1"
+                             >
+                               <CheckCircle className="h-4 w-4 mr-1" />
+                               Terima Stok
+                             </Button>
                             
                             <input
                               type="file"
