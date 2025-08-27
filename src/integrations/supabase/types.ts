@@ -879,6 +879,36 @@ export type Database = {
           },
         ]
       }
+      user_role_permissions: {
+        Row: {
+          created_at: string
+          id: string
+          is_granted: boolean
+          module_name: string
+          permission: Database["public"]["Enums"]["permission_type"]
+          role_name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_granted?: boolean
+          module_name: string
+          permission: Database["public"]["Enums"]["permission_type"]
+          role_name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_granted?: boolean
+          module_name?: string
+          permission?: Database["public"]["Enums"]["permission_type"]
+          role_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -927,6 +957,13 @@ export type Database = {
       }
     }
     Enums: {
+      permission_type:
+        | "view"
+        | "insert"
+        | "update"
+        | "delete"
+        | "approve"
+        | "release"
       stock_movement_type: "in" | "out" | "transfer" | "adjustment" | "return"
       transaction_status: "pending" | "completed" | "cancelled" | "returned"
       user_role:
@@ -1062,6 +1099,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      permission_type: [
+        "view",
+        "insert",
+        "update",
+        "delete",
+        "approve",
+        "release",
+      ],
       stock_movement_type: ["in", "out", "transfer", "adjustment", "return"],
       transaction_status: ["pending", "completed", "cancelled", "returned"],
       user_role: ["ho_admin", "branch_manager", "rider", "finance", "customer"],
