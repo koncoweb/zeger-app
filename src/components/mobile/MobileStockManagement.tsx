@@ -45,6 +45,7 @@ interface ShiftSummary {
   totalSales: number;
   cashSales: number;
   qrisSales: number;
+  transferSales: number;
   totalTransactions: number;
 }
 
@@ -260,6 +261,7 @@ const MobileStockManagement = () => {
     totalSales: 0,
     cashSales: 0,
     qrisSales: 0,
+    transferSales: 0,
     totalTransactions: 0
   });
   const [operationalExpenses, setOperationalExpenses] = useState<OperationalExpense[]>([
@@ -367,21 +369,26 @@ const MobileStockManagement = () => {
       console.log('Filtered transactions for shift:', rangeTransactions);
 
       const cashSales = rangeTransactions
-        ?.filter(t => t.payment_method === 'cash')
+        ?.filter(t => (t.payment_method || '').toLowerCase() === 'cash')
         ?.reduce((sum, t) => sum + parseFloat(t.final_amount.toString()), 0) || 0;
 
-      const nonCashSales = rangeTransactions
-        ?.filter(t => t.payment_method && t.payment_method.toLowerCase() !== 'cash')
+      const qrisSales = rangeTransactions
+        ?.filter(t => (t.payment_method || '').toLowerCase() === 'qris')
         ?.reduce((sum, t) => sum + parseFloat(t.final_amount.toString()), 0) || 0;
 
-      const totalSales = cashSales + nonCashSales;
+      const transferSales = rangeTransactions
+        ?.filter(t => ['transfer', 'bank_transfer', 'bank'].includes((t.payment_method || '').toLowerCase()))
+        ?.reduce((sum, t) => sum + parseFloat(t.final_amount.toString()), 0) || 0;
 
-      console.log('Sales summary:', { cashSales, nonCashSales, totalSales, count: rangeTransactions?.length });
+      const totalSales = cashSales + qrisSales + transferSales;
+
+      console.log('Sales summary:', { cashSales, qrisSales, transferSales, totalSales, count: rangeTransactions?.length });
 
       setShiftSummary({
         totalSales,
         cashSales,
-        qrisSales: nonCashSales,
+        qrisSales,
+        transferSales,
         totalTransactions: rangeTransactions?.length || 0
       });
     } catch (error: any) {
@@ -817,6 +824,10 @@ const { error: shiftError } = await supabase
                         <div className="flex justify-between">
                           <span>Penjualan QRIS:</span>
                           <span className="font-semibold">{formatCurrency(shiftSummary.qrisSales)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Penjualan Transfer:</span>
+                          <span className="font-semibold">{formatCurrency(shiftSummary.transferSales)}</span>
                         </div>
                         <div className="flex justify-between border-t pt-1">
                           <span className="font-medium">Total Penjualan:</span>
