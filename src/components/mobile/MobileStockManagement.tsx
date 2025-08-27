@@ -291,7 +291,7 @@ const MobileStockManagement = () => {
         .from('stock_movements')
         .select(`
           *,
-          products(id, name, category)
+          product:products(id, name, category)
         `)
         .eq('rider_id', userProfile.id)
         .eq('movement_type', 'transfer')
@@ -305,7 +305,7 @@ const MobileStockManagement = () => {
         .from('stock_movements')
         .select(`
           *,
-          products(id, name, category)
+          product:products(id, name, category)
         `)
         .eq('rider_id', userProfile.id)
         .eq('movement_type', 'transfer')
