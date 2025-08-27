@@ -16,6 +16,10 @@ interface UserProfile {
   role: string;
   email?: string;
   branch_id?: string;
+  branch?: {
+    name: string;
+    branch_type: string;
+  };
 }
 
 export const Layout = ({ children }: LayoutProps) => {
@@ -66,7 +70,10 @@ export const Layout = ({ children }: LayoutProps) => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select(`
+          *,
+          branches(name, branch_type)
+        `)
         .eq('user_id', userId)
         .single();
 
@@ -93,7 +100,8 @@ export const Layout = ({ children }: LayoutProps) => {
       } else {
         setUserProfile({
           ...data,
-          email: user?.email
+          email: user?.email,
+          branch: Array.isArray(data.branches) ? data.branches[0] : data.branches
         });
       }
     } catch (error) {
