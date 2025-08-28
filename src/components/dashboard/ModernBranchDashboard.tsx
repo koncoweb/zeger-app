@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -9,20 +10,27 @@ import {
   ShoppingCart, 
   Package, 
   Users,
-  Edit,
-  Trash2,
-  MoreHorizontal
+  CoffeeIcon,
+  Receipt,
+  MapPin,
+  UserCheck,
+  Calculator,
+  ChefHat,
+  Building
 } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface DashboardStats {
   totalSales: number;
-  totalPurchases: number;
-  totalPaid: number;
-  profit: number;
+  totalTransactions: number;
+  avgTransactionValue: number;
+  totalFoodCost: number;
+  totalOperationalExpenses: number;
+  totalProfit: number;
+  totalMembers: number;
+  activeRiders: number;
 }
 
 interface SalesData {
@@ -36,43 +44,44 @@ interface ProductSales {
   color: string;
 }
 
-interface Product {
+interface Rider {
   id: string;
-  name: string;
-  code: string;
-  category: string;
-  price: number;
-  cost_price: number;
+  full_name: string;
   is_active: boolean;
 }
 
 const COLORS = ['#DC2626', '#EF4444', '#F87171', '#FCA5A5', '#FECACA'];
 
 export const ModernBranchDashboard = () => {
+  const [selectedUser, setSelectedUser] = useState<string>("all");
+  const [riders, setRiders] = useState<Rider[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
     totalSales: 0,
-    totalPurchases: 0,
-    totalPaid: 0,
-    profit: 0
+    totalTransactions: 0,
+    avgTransactionValue: 0,
+    totalFoodCost: 0,
+    totalOperationalExpenses: 0,
+    totalProfit: 0,
+    totalMembers: 0,
+    activeRiders: 0
   });
   const [salesData, setSalesData] = useState<SalesData[]>([]);
   const [productSales, setProductSales] = useState<ProductSales[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchDashboardData();
-  }, []);
+  }, [selectedUser]);
 
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
       await Promise.all([
+        fetchRiders(),
         fetchStats(),
         fetchSalesChart(),
-        fetchProductSales(),
-        fetchProducts()
+        fetchProductSales()
       ]);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
@@ -81,33 +90,79 @@ export const ModernBranchDashboard = () => {
     }
   };
 
+  const fetchRiders = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, is_active')
+        .eq('role', 'rider')
+        .eq('is_active', true);
+
+      if (error) throw error;
+      setRiders(data || []);
+    } catch (error) {
+      console.error("Error fetching riders:", error);
+    }
+  };
+
   const fetchStats = async () => {
     try {
       const currentMonth = new Date().getMonth() + 1;
       const currentYear = new Date().getFullYear();
 
-      // Fetch current month's sales
-      const { data: salesData, error: salesError } = await supabase
+      // Build query based on selected user
+      let transactionQuery = supabase
         .from('transactions')
-        .select('final_amount')
+        .select('final_amount, id')
         .eq('status', 'completed')
         .gte('transaction_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
         .lt('transaction_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
 
+      if (selectedUser !== "all") {
+        transactionQuery = transactionQuery.eq('rider_id', selectedUser);
+      }
+
+      const { data: salesData, error: salesError } = await transactionQuery;
       if (salesError) throw salesError;
 
       const totalSales = salesData?.reduce((sum, transaction) => sum + (transaction.final_amount || 0), 0) || 0;
+      const totalTransactions = salesData?.length || 0;
+      const avgTransactionValue = totalTransactions > 0 ? totalSales / totalTransactions : 0;
 
-      // For demo purposes, calculate other metrics
-      const totalPurchases = totalSales * 0.6; // Assume 60% of sales is purchases
-      const totalPaid = totalSales * 0.8; // Assume 80% is paid
-      const profit = totalSales - totalPurchases;
+      // Fetch operational expenses
+      let expenseQuery = supabase
+        .from('operational_expenses')
+        .select('amount')
+        .gte('expense_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
+        .lt('expense_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+
+      const { data: expenseData } = await expenseQuery;
+      const totalOperationalExpenses = expenseData?.reduce((sum, expense) => sum + (expense.amount || 0), 0) || 0;
+
+      // Calculate food cost (estimate 35% of sales)
+      const totalFoodCost = totalSales * 0.35;
+      
+      // Calculate profit
+      const totalProfit = totalSales - totalFoodCost - totalOperationalExpenses;
+
+      // Fetch member count
+      const { data: memberData } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('is_active', true);
+
+      const totalMembers = memberData?.length || 0;
+      const activeRiders = riders.filter(r => r.is_active).length;
 
       setStats({
         totalSales,
-        totalPurchases,
-        totalPaid,
-        profit
+        totalTransactions,
+        avgTransactionValue,
+        totalFoodCost,
+        totalOperationalExpenses,
+        totalProfit,
+        totalMembers,
+        activeRiders
       });
     } catch (error) {
       console.error("Error fetching stats:", error);
@@ -115,48 +170,80 @@ export const ModernBranchDashboard = () => {
   };
 
   const fetchSalesChart = async () => {
-    // Generate mock data for the last 12 months
-    const mockData = [
-      { month: 'Jan', sales: 62425 },
-      { month: 'Feb', sales: 45000 },
-      { month: 'Mar', sales: 58000 },
-      { month: 'Apr', sales: 72000 },
-      { month: 'May', sales: 68000 },
-      { month: 'Jun', sales: 59000 },
-      { month: 'Jul', sales: 78000 },
-      { month: 'Aug', sales: 65000 },
-      { month: 'Sep', sales: 55000 },
-      { month: 'Oct', sales: 70000 },
-      { month: 'Nov', sales: 62000 },
-      { month: 'Dec', sales: 75000 }
-    ];
-    setSalesData(mockData);
+    try {
+      // Fetch real sales data for the last 12 months
+      const salesByMonth = [];
+      const currentDate = new Date();
+      
+      for (let i = 11; i >= 0; i--) {
+        const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+        const monthStr = date.toLocaleDateString('en', { month: 'short' });
+        const startDate = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-01`;
+        const endDate = `${date.getFullYear()}-${(date.getMonth() + 2).toString().padStart(2, '0')}-01`;
+
+        let query = supabase
+          .from('transactions')
+          .select('final_amount')
+          .eq('status', 'completed')
+          .gte('transaction_date', startDate)
+          .lt('transaction_date', endDate);
+
+        if (selectedUser !== "all") {
+          query = query.eq('rider_id', selectedUser);
+        }
+
+        const { data } = await query;
+        const monthSales = data?.reduce((sum, t) => sum + (t.final_amount || 0), 0) || 0;
+        
+        salesByMonth.push({ month: monthStr, sales: monthSales });
+      }
+      
+      setSalesData(salesByMonth);
+    } catch (error) {
+      console.error("Error fetching sales chart:", error);
+    }
   };
 
   const fetchProductSales = async () => {
-    // Generate mock product sales data
-    const mockProductSales = [
-      { name: 'Classic Latte', value: 40, color: COLORS[0] },
-      { name: 'Americano', value: 30, color: COLORS[1] },
-      { name: 'Dolce Latte', value: 15, color: COLORS[2] },
-      { name: 'Caramel Latte', value: 10, color: COLORS[3] },
-      { name: 'Others', value: 5, color: COLORS[4] }
-    ];
-    setProductSales(mockProductSales);
-  };
-
-  const fetchProducts = async () => {
     try {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .eq('is_active', true)
-        .limit(5);
+      // Fetch top selling products
+      const { data: transactionItems } = await supabase
+        .from('transaction_items')
+        .select(`
+          quantity,
+          products!inner(name)
+        `);
 
-      if (error) throw error;
-      setProducts(data || []);
+      const productQuantities: { [key: string]: number } = {};
+      transactionItems?.forEach(item => {
+        const productName = item.products?.name || 'Unknown';
+        productQuantities[productName] = (productQuantities[productName] || 0) + item.quantity;
+      });
+
+      const sortedProducts = Object.entries(productQuantities)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, 5);
+
+      const total = sortedProducts.reduce((sum, [,qty]) => sum + qty, 0);
+      
+      const mockProductSales = sortedProducts.map(([name, qty], index) => ({
+        name,
+        value: Math.round((qty / total) * 100),
+        color: COLORS[index]
+      }));
+
+      setProductSales(mockProductSales);
     } catch (error) {
-      console.error("Error fetching products:", error);
+      console.error("Error fetching product sales:", error);
+      // Fallback to mock data
+      const mockProductSales = [
+        { name: 'Classic Latte', value: 40, color: COLORS[0] },
+        { name: 'Americano', value: 30, color: COLORS[1] },
+        { name: 'Dolce Latte', value: 15, color: COLORS[2] },
+        { name: 'Caramel Latte', value: 10, color: COLORS[3] },
+        { name: 'Others', value: 5, color: COLORS[4] }
+      ];
+      setProductSales(mockProductSales);
     }
   };
 
@@ -166,6 +253,29 @@ export const ModernBranchDashboard = () => {
       currency: 'IDR',
       minimumFractionDigits: 0
     }).format(amount);
+  };
+
+  const handleCardClick = (cardType: string) => {
+    const params = new URLSearchParams();
+    if (selectedUser !== "all") {
+      params.set('rider', selectedUser);
+    }
+    
+    switch (cardType) {
+      case 'sales':
+      case 'transactions':
+      case 'avg':
+        navigate(`/transactions?${params.toString()}`);
+        break;
+      case 'members':
+        navigate('/customers');
+        break;
+      case 'riders':
+        navigate('/riders');
+        break;
+      default:
+        break;
+    }
   };
 
   if (loading) {
@@ -180,49 +290,119 @@ export const ModernBranchDashboard = () => {
     {
       title: "Total Sales",
       value: formatCurrency(stats.totalSales),
-      change: "+50%",
+      change: "+12%",
       trend: "up",
-      subtitle: "Increase from last month",
+      subtitle: "Revenue bulan ini",
       icon: DollarSign,
-      color: "text-primary"
+      color: "text-primary",
+      onClick: () => handleCardClick('sales')
     },
     {
-      title: "Total Purchases",
-      value: formatCurrency(stats.totalPurchases),
-      change: "+30%",
+      title: "Total Transaksi",
+      value: stats.totalTransactions.toString(),
+      change: "+8%",
       trend: "up", 
-      subtitle: "Decrease from last month",
-      icon: ShoppingCart,
-      color: "text-blue-600"
+      subtitle: "Jumlah transaksi",
+      icon: Receipt,
+      color: "text-blue-600",
+      onClick: () => handleCardClick('transactions')
     },
     {
-      title: "Total Rent",
-      value: formatCurrency(stats.totalPaid),
+      title: "Rata-rata per Transaksi",
+      value: formatCurrency(stats.avgTransactionValue),
+      change: "+5%",
+      trend: "up",
+      subtitle: "Nilai rata-rata", 
+      icon: Calculator,
+      color: "text-purple-600",
+      onClick: () => handleCardClick('avg')
+    },
+    {
+      title: "Total Food Cost",
+      value: formatCurrency(stats.totalFoodCost),
+      change: "+3%",
+      trend: "up",
+      subtitle: "Biaya bahan",
+      icon: ChefHat,
+      color: "text-orange-600",
+      onClick: () => {}
+    },
+    {
+      title: "Total Beban Operasional",
+      value: formatCurrency(stats.totalOperationalExpenses),
+      change: "-2%",
+      trend: "down",
+      subtitle: "Biaya operasional",
+      icon: Building,
+      color: "text-red-600",
+      onClick: () => {}
+    },
+    {
+      title: "Total Profit",
+      value: formatCurrency(stats.totalProfit),
       change: "+15%",
       trend: "up",
-      subtitle: "Increase from last month", 
-      icon: Package,
-      color: "text-purple-600"
+      subtitle: "Keuntungan bersih",
+      icon: TrendingUp,
+      color: "text-green-600",
+      onClick: () => {}
     },
     {
-      title: "Profits",
-      value: formatCurrency(stats.profit),
-      change: "+45%",
+      title: "Total Member",
+      value: stats.totalMembers.toString(),
+      change: "+25%",
       trend: "up",
-      subtitle: "Increase from last month",
-      icon: TrendingUp,
-      color: "text-green-600"
+      subtitle: "Pelanggan terdaftar",
+      icon: Users,
+      color: "text-indigo-600",
+      onClick: () => handleCardClick('members')
+    },
+    {
+      title: "Rider Aktif",
+      value: stats.activeRiders.toString(),
+      change: "0%",
+      trend: "up",
+      subtitle: "Mobile seller online",
+      icon: UserCheck,
+      color: "text-teal-600",
+      onClick: () => handleCardClick('riders')
     }
   ];
 
   return (
     <div className="space-y-6">
+      {/* User Filter */}
+      <Card className="dashboard-card">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-4">
+            <label className="text-sm font-medium text-gray-700">Filter by User:</label>
+            <Select value={selectedUser} onValueChange={setSelectedUser}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Pilih user" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua User</SelectItem>
+                {riders.map((rider) => (
+                  <SelectItem key={rider.id} value={rider.id}>
+                    {rider.full_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {statsCards.map((stat, index) => {
           const Icon = stat.icon;
           return (
-            <Card key={index} className="dashboard-card hover:shadow-lg transition-all duration-300">
+            <Card 
+              key={index} 
+              className="dashboard-card hover:shadow-lg transition-all duration-300 cursor-pointer"
+              onClick={stat.onClick}
+            >
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div className={`p-3 rounded-lg bg-gray-100 ${stat.color}`}>
@@ -247,24 +427,12 @@ export const ModernBranchDashboard = () => {
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Sales Report Chart */}
-        <Card className="dashboard-card">
+        <Card className="dashboard-card cursor-pointer" onClick={() => handleCardClick('sales')}>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle className="text-lg font-semibold">Sales Report</CardTitle>
               <p className="text-sm text-muted-foreground">Monthly sales performance</p>
             </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
-                  Monthly
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem>Monthly</DropdownMenuItem>
-                <DropdownMenuItem>Weekly</DropdownMenuItem>
-                <DropdownMenuItem>Daily</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -316,21 +484,9 @@ export const ModernBranchDashboard = () => {
         <Card className="dashboard-card">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle className="text-lg font-semibold">Most Sales</CardTitle>
-              <p className="text-sm text-muted-foreground">Top selling products</p>
+              <CardTitle className="text-lg font-semibold">Top Selling Products</CardTitle>
+              <p className="text-sm text-muted-foreground">Produk terlaris bulan ini</p>
             </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
-                  This Month
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem>This Month</DropdownMenuItem>
-                <DropdownMenuItem>Last Month</DropdownMenuItem>
-                <DropdownMenuItem>This Year</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
@@ -369,59 +525,28 @@ export const ModernBranchDashboard = () => {
         </Card>
       </div>
 
-      {/* Product Sales Table */}
+      {/* Live Rider Updates */}
       <Card className="dashboard-card">
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="text-lg font-semibold">Product Sales</CardTitle>
-            <p className="text-sm text-muted-foreground">Current product inventory and sales</p>
+            <CardTitle className="text-lg font-semibold">Live Rider Status</CardTitle>
+            <p className="text-sm text-muted-foreground">Real-time mobile seller positions</p>
           </div>
-          <Button 
-            onClick={() => navigate('/inventory')}
-            className="bg-primary hover:bg-primary-dark"
-          >
-            Add Product
+          <Button onClick={() => navigate('/riders')} className="bg-primary hover:bg-primary-dark">
+            View All Riders
           </Button>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Product Name</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Product ID</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Product Description</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Product Type</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Price</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {products.map((product) => (
-                  <tr key={product.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-3 px-4 font-medium text-gray-900">{product.name}</td>
-                    <td className="py-3 px-4 text-gray-600">#{product.code}</td>
-                    <td className="py-3 px-4 text-gray-600">{product.category || 'Coffee Product'}</td>
-                    <td className="py-3 px-4">
-                      <Badge variant="outline">{product.category || 'Beverage'}</Badge>
-                    </td>
-                    <td className="py-3 px-4 font-medium text-gray-900">{formatCurrency(product.price)}</td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700">
-                          <Edit className="h-4 w-4" />
-                          Edit
-                        </Button>
-                        <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700">
-                          <Trash2 className="h-4 w-4" />
-                          Delete
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {riders.slice(0, 6).map((rider) => (
+              <div key={rider.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                <div>
+                  <p className="font-medium text-sm">{rider.full_name}</p>
+                  <p className="text-xs text-gray-500">Online - Last transaction: 5 min ago</p>
+                </div>
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>

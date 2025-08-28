@@ -1,0 +1,402 @@
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { 
+  DollarSign, 
+  Receipt, 
+  Calculator, 
+  Calendar,
+  Download,
+  Filter,
+  Search
+} from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useSearchParams } from "react-router-dom";
+
+interface Transaction {
+  id: string;
+  transaction_number: string;
+  transaction_date: string;
+  final_amount: number;
+  status: string;
+  payment_method: string;
+  customers?: { name: string };
+  profiles?: { full_name: string };
+}
+
+interface Summary {
+  totalSales: number;
+  totalTransactions: number;
+  avgPerTransaction: number;
+}
+
+interface Rider {
+  id: string;
+  full_name: string;
+}
+
+export const TransactionsEnhanced = () => {
+  const [searchParams] = useSearchParams();
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [riders, setRiders] = useState<Rider[]>([]);
+  const [summary, setSummary] = useState<Summary>({
+    totalSales: 0,
+    totalTransactions: 0,
+    avgPerTransaction: 0
+  });
+  
+  // Filter states
+  const [selectedRider, setSelectedRider] = useState(searchParams.get('rider') || "all");
+  const [startDate, setStartDate] = useState(() => {
+    const date = new Date();
+    date.setDate(1); // First day of current month
+    return date.toISOString().split('T')[0];
+  });
+  const [endDate, setEndDate] = useState(() => {
+    const date = new Date();
+    return date.toISOString().split('T')[0];
+  });
+  const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchRiders();
+  }, []);
+
+  useEffect(() => {
+    fetchTransactions();
+  }, [selectedRider, startDate, endDate]);
+
+  const fetchRiders = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .eq('role', 'rider')
+        .eq('is_active', true);
+
+      if (error) throw error;
+      setRiders(data || []);
+    } catch (error) {
+      console.error("Error fetching riders:", error);
+    }
+  };
+
+  const fetchTransactions = async () => {
+    setLoading(true);
+    try {
+      let query = supabase
+        .from('transactions')
+        .select(`
+          id,
+          transaction_number,
+          transaction_date,
+          final_amount,
+          status,
+          payment_method,
+          customer_id,
+          rider_id
+        `)
+        .gte('transaction_date', startDate)
+        .lte('transaction_date', endDate + 'T23:59:59')
+        .order('transaction_date', { ascending: false });
+
+      if (selectedRider !== "all") {
+        query = query.eq('rider_id', selectedRider);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      // Fetch additional data separately to avoid relation issues
+      const transactionsWithDetails = await Promise.all((data || []).map(async (transaction) => {
+        let customerName = '-';
+        let riderName = '-';
+
+        if (transaction.customer_id) {
+          const { data: customer } = await supabase
+            .from('customers')
+            .select('name')
+            .eq('id', transaction.customer_id)
+            .single();
+          customerName = customer?.name || '-';
+        }
+
+        if (transaction.rider_id) {
+          const { data: rider } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', transaction.rider_id)
+            .single();
+          riderName = rider?.full_name || '-';
+        }
+
+        return {
+          ...transaction,
+          customers: { name: customerName },
+          profiles: { full_name: riderName }
+        };
+      }));
+
+      const filteredData = transactionsWithDetails.filter(transaction => 
+        searchTerm === "" || 
+        transaction.transaction_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        transaction.customers?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        transaction.profiles?.full_name?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+
+      setTransactions(filteredData);
+
+      // Calculate summary
+      const totalSales = filteredData.reduce((sum, t) => sum + (t.final_amount || 0), 0);
+      const totalTransactions = filteredData.length;
+      const avgPerTransaction = totalTransactions > 0 ? totalSales / totalTransactions : 0;
+
+      setSummary({
+        totalSales,
+        totalTransactions,
+        avgPerTransaction
+      });
+
+    } catch (error) {
+      console.error("Error fetching transactions:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0
+    }).format(amount);
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('id-ID', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const exportToCSV = () => {
+    const headers = ['No. Transaksi', 'Tanggal', 'Pelanggan', 'Rider', 'Jumlah', 'Status', 'Metode Bayar'];
+    const csvData = transactions.map(t => [
+      t.transaction_number,
+      formatDate(t.transaction_date),
+      t.customers?.name || '-',
+      t.profiles?.full_name || '-',
+      t.final_amount,
+      t.status,
+      t.payment_method || '-'
+    ]);
+
+    const csvContent = [headers, ...csvData]
+      .map(row => row.map(field => `"${field}"`).join(','))
+      .join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `transactions_${startDate}_to_${endDate}.csv`;
+    a.click();
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Riwayat Transaksi</h1>
+          <p className="text-sm text-muted-foreground">Kelola dan analisis data transaksi</p>
+        </div>
+        <Button onClick={exportToCSV} className="bg-primary hover:bg-primary-dark">
+          <Download className="h-4 w-4 mr-2" />
+          Export CSV
+        </Button>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="dashboard-card">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="p-3 rounded-lg bg-gray-100 text-primary">
+                <DollarSign className="h-6 w-6" />
+              </div>
+              <div className="text-right">
+                <p className="text-2xl font-bold text-gray-900">{formatCurrency(summary.totalSales)}</p>
+                <p className="text-sm font-medium text-gray-900">Total Penjualan</p>
+                <p className="text-xs text-gray-500">Omset periode ini</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="dashboard-card">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="p-3 rounded-lg bg-gray-100 text-blue-600">
+                <Receipt className="h-6 w-6" />
+              </div>
+              <div className="text-right">
+                <p className="text-2xl font-bold text-gray-900">{summary.totalTransactions}</p>
+                <p className="text-sm font-medium text-gray-900">Total Transaksi</p>
+                <p className="text-xs text-gray-500">Jumlah transaksi</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="dashboard-card">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="p-3 rounded-lg bg-gray-100 text-purple-600">
+                <Calculator className="h-6 w-6" />
+              </div>
+              <div className="text-right">
+                <p className="text-2xl font-bold text-gray-900">{formatCurrency(summary.avgPerTransaction)}</p>
+                <p className="text-sm font-medium text-gray-900">Rata-rata per Transaksi</p>
+                <p className="text-xs text-gray-500">Nilai rata-rata</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters */}
+      <Card className="dashboard-card">
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            Filter Transaksi
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">User/Rider</label>
+              <Select value={selectedRider} onValueChange={setSelectedRider}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih rider" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua User</SelectItem>
+                  {riders.map((rider) => (
+                    <SelectItem key={rider.id} value={rider.id}>
+                      {rider.full_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">Tanggal Mulai</label>
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">Tanggal Akhir</label>
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">Cari</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="No transaksi, pelanggan..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-end">
+              <Button 
+                onClick={fetchTransactions}
+                className="w-full bg-primary hover:bg-primary-dark"
+              >
+                Apply Filter
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Transactions Table */}
+      <Card className="dashboard-card">
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold">
+            Data Transaksi ({transactions.length} transaksi)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="flex items-center justify-center min-h-[200px]">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">No. Transaksi</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Tanggal</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Pelanggan</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Rider</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Jumlah</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Metode Bayar</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {transactions.map((transaction) => (
+                    <tr key={transaction.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="py-3 px-4 font-medium text-primary">{transaction.transaction_number}</td>
+                      <td className="py-3 px-4 text-gray-600">{formatDate(transaction.transaction_date)}</td>
+                      <td className="py-3 px-4 text-gray-600">{transaction.customers?.name || '-'}</td>
+                      <td className="py-3 px-4 text-gray-600">{transaction.profiles?.full_name || '-'}</td>
+                      <td className="py-3 px-4 font-medium text-gray-900">{formatCurrency(transaction.final_amount)}</td>
+                      <td className="py-3 px-4">
+                        <Badge variant={transaction.status === 'completed' ? 'default' : 'secondary'}>
+                          {transaction.status}
+                        </Badge>
+                      </td>
+                      <td className="py-3 px-4 text-gray-600">{transaction.payment_method || '-'}</td>
+                    </tr>
+                  ))}
+                  {transactions.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="py-8 text-center text-gray-500">
+                        Tidak ada transaksi ditemukan
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+};

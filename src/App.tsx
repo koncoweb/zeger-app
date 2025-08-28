@@ -18,7 +18,7 @@ import ProfitLoss from "./pages/finance/ProfitLoss";
 import CashFlow from "./pages/finance/CashFlow";
 import BalanceSheet from "./pages/finance/BalanceSheet";
 import OperationalExpenses from "./pages/finance/OperationalExpenses";
-import Transactions from "./pages/Transactions";
+import { TransactionsEnhanced } from "./pages/TransactionsEnhanced";
 import Branches from "./pages/Branches";
 import Riders from "./pages/Riders";
 import Inventory from "./pages/Inventory";
@@ -127,7 +127,7 @@ const App = () => (
             <Route path="/transactions" element={
               <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'finance']}>
                 <ModernLayout>
-                  <Transactions />
+                  <TransactionsEnhanced />
                 </ModernLayout>
               </RoleBasedRoute>
             } />
@@ -141,7 +141,7 @@ const App = () => (
             <Route path="/sales" element={
               <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager']}>
                 <ModernLayout>
-                  <Transactions />
+                  <TransactionsEnhanced />
                 </ModernLayout>
               </RoleBasedRoute>
             } />
@@ -155,7 +155,7 @@ const App = () => (
             <Route path="/reports" element={
               <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager']}>
                 <ModernLayout>
-                  <Transactions />
+                  <TransactionsEnhanced />
                 </ModernLayout>
               </RoleBasedRoute>
             } />
@@ -190,7 +190,7 @@ const App = () => (
             <Route path="/reports/sales" element={
               <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager']}>
                 <ModernLayout>
-                  <Transactions />
+                  <TransactionsEnhanced />
                 </ModernLayout>
               </RoleBasedRoute>
             } />
