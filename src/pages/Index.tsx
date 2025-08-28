@@ -10,14 +10,11 @@ import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { SalesChart } from "@/components/charts/SalesChart";
 import { InventoryStatus } from "@/components/inventory/InventoryStatus";
 import { RiderTracking } from "@/components/rider/RiderTracking";
-
 const Index = () => {
   const [activeRole, setActiveRole] = useState<'ho' | 'branch' | 'rider'>('ho');
   const navigate = useNavigate();
   const location = useLocation();
-
-  return (
-    <div className="min-h-screen bg-gradient-dashboard">
+  return <div className="min-h-screen bg-gradient-dashboard">
       <div className="container mx-auto px-4 py-6 space-y-6">
         {/* Welcome Section */}
         <div className="text-center py-8">
@@ -31,39 +28,7 @@ const Index = () => {
         </div>
 
         {/* Quick Access Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="cursor-pointer hover:shadow-lg transition-shadow group" onClick={() => navigate('/pos')}>
-            <CardContent className="p-6 text-center">
-              <Store className="h-12 w-12 mx-auto mb-4 text-primary group-hover:scale-110 transition-transform" />
-              <h3 className="text-lg font-semibold mb-2">Point of Sale</h3>
-              <p className="text-muted-foreground text-sm">Sistem kasir untuk Branch Hub & On The Wheels</p>
-            </CardContent>
-          </Card>
-
-          <Card className="cursor-pointer hover:shadow-lg transition-shadow group" onClick={() => navigate('/mobile-seller')}>
-            <CardContent className="p-6 text-center">
-              <Truck className="h-12 w-12 mx-auto mb-4 text-primary group-hover:scale-110 transition-transform" />
-              <h3 className="text-lg font-semibold mb-2">Mobile Seller</h3>
-              <p className="text-muted-foreground text-sm">Aplikasi untuk rider/mobile seller</p>
-            </CardContent>
-          </Card>
-
-          <Card className="cursor-pointer hover:shadow-lg transition-shadow group" onClick={() => navigate('/customer-app')}>
-            <CardContent className="p-6 text-center">
-              <Smartphone className="h-12 w-12 mx-auto mb-4 text-primary group-hover:scale-110 transition-transform" />
-              <h3 className="text-lg font-semibold mb-2">Aplikasi Customer</h3>
-              <p className="text-muted-foreground text-sm">Aplikasi pelanggan untuk order & loyalty</p>
-            </CardContent>
-          </Card>
-
-          <Card className="cursor-pointer hover:shadow-lg transition-shadow group" onClick={() => navigate('/admin-dashboard')}>
-            <CardContent className="p-6 text-center">
-              <Users className="h-12 w-12 mx-auto mb-4 text-primary group-hover:scale-110 transition-transform" />
-              <h3 className="text-lg font-semibold mb-2">Admin Dashboard</h3>
-              <p className="text-muted-foreground text-sm">Manajemen pengguna dan cabang</p>
-            </CardContent>
-          </Card>
-        </div>
+        
 
         {/* Header */}
         <DashboardHeader activeRole={activeRole} onRoleChange={setActiveRole} />
@@ -93,14 +58,10 @@ const Index = () => {
             <InventoryStatus role={activeRole} />
             
             {/* Rider Tracking (for Branch/HO) */}
-            {(activeRole === 'ho' || activeRole === 'branch') && (
-              <RiderTracking role={activeRole} />
-            )}
+            {(activeRole === 'ho' || activeRole === 'branch') && <RiderTracking role={activeRole} />}
           </div>
         </div>
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default Index;
