@@ -18,6 +18,7 @@ import ProfitLoss from "./pages/finance/ProfitLoss";
 import CashFlow from "./pages/finance/CashFlow";
 import BalanceSheet from "./pages/finance/BalanceSheet";
 import OperationalExpenses from "./pages/finance/OperationalExpenses";
+import RiderExpenses from "./pages/finance/RiderExpenses";
 import { TransactionsEnhanced } from "./pages/TransactionsEnhanced";
 import Branches from "./pages/Branches";
 import Riders from "./pages/Riders";
@@ -121,6 +122,13 @@ const App = () => (
               <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'finance']}>
                 <ModernLayout>
                   <OperationalExpenses />
+                </ModernLayout>
+              </RoleBasedRoute>
+            } />
+            <Route path="/finance/rider-expenses" element={
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'finance']}>
+                <ModernLayout>
+                  <RiderExpenses />
                 </ModernLayout>
               </RoleBasedRoute>
             } />

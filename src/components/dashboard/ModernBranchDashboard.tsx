@@ -284,6 +284,9 @@ export const ModernBranchDashboard = () => {
       case 'riders':
         navigate('/riders');
         break;
+      case 'operational-expenses':
+        navigate('/finance/rider-expenses');
+        break;
       default:
         break;
     }
@@ -346,7 +349,7 @@ export const ModernBranchDashboard = () => {
       subtitle: "Biaya operasional",
       icon: Building,
       color: "text-red-600",
-      onClick: () => {}
+      onClick: () => handleCardClick('operational-expenses')
     },
     {
       title: "Total Profit",
@@ -435,8 +438,40 @@ export const ModernBranchDashboard = () => {
         })}
       </div>
 
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Sales Report - Made larger */}
+      <Card className="col-span-1 lg:col-span-2">
+        <CardHeader>
+          <CardTitle>Sales Report</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[400px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={salesData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip formatter={(value) => [formatCurrency(Number(value)), 'Sales']} />
+                <Area 
+                  type="monotone" 
+                  dataKey="sales" 
+                  stroke="#e11d48" 
+                  fill="url(#salesGradient)" 
+                  strokeWidth={2}
+                />
+                <defs>
+                  <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#e11d48" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#e11d48" stopOpacity={0.05}/>
+                  </linearGradient>
+                </defs>
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Product Performance - Horizontal layout */}
+      <div className="col-span-1 lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Sales Report Chart */}
         <Card className="dashboard-card cursor-pointer" onClick={() => handleCardClick('sales')}>
           <CardHeader className="flex flex-row items-center justify-between">
