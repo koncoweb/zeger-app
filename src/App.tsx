@@ -68,6 +68,27 @@ const App = () => (
                 </Layout>
               </RoleBasedRoute>
             } />
+            <Route path="/branches" element={
+              <RoleBasedRoute allowedRoles={['ho_admin']}>
+                <ModernLayout>
+                  <Branches />
+                </ModernLayout>
+              </RoleBasedRoute>
+            } />
+            <Route path="/riders" element={
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager']}>
+                <ModernLayout>
+                  <Riders />
+                </ModernLayout>
+              </RoleBasedRoute>
+            } />
+            <Route path="/customers" element={
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'rider']}>
+                <ModernLayout>
+                  <CustomerManager />
+                </ModernLayout>
+              </RoleBasedRoute>
+            } />
             <Route path="/finance" element={
               <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'finance']}>
                 <ModernLayout>
@@ -108,20 +129,6 @@ const App = () => (
                 <ModernLayout>
                   <Transactions />
                 </ModernLayout>
-              </RoleBasedRoute>
-            } />
-            <Route path="/branches" element={
-              <RoleBasedRoute allowedRoles={['ho_admin']}>
-                <Layout>
-                  <Branches />
-                </Layout>
-              </RoleBasedRoute>
-            } />
-            <Route path="/riders" element={
-              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager']}>
-                <Layout>
-                  <Riders />
-                </Layout>
               </RoleBasedRoute>
             } />
             <Route path="/inventory" element={
@@ -168,31 +175,44 @@ const App = () => (
             } />
             <Route path="/stock-transfer" element={
               <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager']}>
-                <Layout>
-                  {/* Stock transfer between branch and rider */}
+                <ModernLayout>
                   <StockTransfer />
-                </Layout>
+                </ModernLayout>
+              </RoleBasedRoute>
+            } />
+            <Route path="/stock-movements" element={
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager']}>
+                <ModernLayout>
+                  <Inventory />
+                </ModernLayout>
+              </RoleBasedRoute>
+            } />
+            <Route path="/reports/sales" element={
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager']}>
+                <ModernLayout>
+                  <Transactions />
+                </ModernLayout>
+              </RoleBasedRoute>
+            } />
+            <Route path="/reports/inventory" element={
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager']}>
+                <ModernLayout>
+                  <Inventory />
+                </ModernLayout>
+              </RoleBasedRoute>
+            } />
+            <Route path="/reports/financial" element={
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager']}>
+                <ModernLayout>
+                  <ProfitLoss />
+                </ModernLayout>
               </RoleBasedRoute>
             } />
             <Route path="/admin/users" element={
               <RoleBasedRoute allowedRoles={['ho_admin']}>
-                <Layout>
+                <ModernLayout>
                   <AdminUsers />
-                </Layout>
-              </RoleBasedRoute>
-            } />
-            <Route path="/customers" element={
-              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'rider']}>
-                <Layout>
-                  <CustomerManager />
-                </Layout>
-              </RoleBasedRoute>
-            } />
-            <Route path="/branch/users" element={
-              <RoleBasedRoute allowedRoles={['branch_manager']}>
-                <Layout>
-                  <AdminUsers />
-                </Layout>
+                </ModernLayout>
               </RoleBasedRoute>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
