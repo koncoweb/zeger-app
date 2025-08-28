@@ -65,16 +65,21 @@ export const RiderTracking = ({ role }: RiderTrackingProps) => {
         
         const location = locations[index % locations.length];
         
+        const profile = Array.isArray(shift.profiles)
+          ? (shift.profiles[0] as { full_name?: string } | undefined)
+          : (shift.profiles as { full_name?: string } | undefined);
+        const fullName = profile?.full_name || 'Rider';
+        
         return {
           id: shift.rider_id,
-          name: shift.profiles.full_name,
+          name: fullName,
           status: 'active' as const,
           location: location.name,
           coordinates: { lat: location.lat, lng: location.lng },
           orders: shift.total_transactions || 0,
           revenue: shift.total_sales || 0,
           lastUpdate: new Date().toLocaleTimeString('id-ID'),
-          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${shift.profiles.full_name}`
+          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(fullName)}`
         };
       }) || [];
 

@@ -110,8 +110,7 @@ export default function StockManagement() {
         .from('stock_movements')
         .select(`
           *,
-          products (id, name, code, category, price, cost_price),
-          profiles (full_name)
+          products (id, name, code, category, price, cost_price)
         `)
         .gte('created_at', startDate.toISOString())
         .lte('created_at', endDate.toISOString())
