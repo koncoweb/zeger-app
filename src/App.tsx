@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
+import { ModernLayout } from "@/components/layout/ModernLayout";
 import { AuthProvider } from "@/hooks/useAuth";
 import { RoleBasedRoute } from "@/components/auth/RoleBasedRoute";
 import Index from "./pages/Index";
@@ -12,6 +13,7 @@ import POS from "./pages/POS";
 import MobileSeller from "./pages/MobileSeller";
 import CustomerApp from "./pages/CustomerApp";
 import NotFound from "./pages/NotFound";
+import AdminDashboard from "./pages/AdminDashboard";
 import ProfitLoss from "./pages/finance/ProfitLoss";
 import CashFlow from "./pages/finance/CashFlow";
 import BalanceSheet from "./pages/finance/BalanceSheet";
@@ -47,9 +49,16 @@ const App = () => (
             } />
             <Route path="/" element={
               <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'finance']}>
-                <Layout>
-                  <Index />
-                </Layout>
+                <ModernLayout>
+                  <AdminDashboard />
+                </ModernLayout>
+              </RoleBasedRoute>
+            } />
+            <Route path="/admin" element={
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'finance']}>
+                <ModernLayout>
+                  <AdminDashboard />
+                </ModernLayout>
               </RoleBasedRoute>
             } />
             <Route path="/pos" element={
@@ -59,39 +68,46 @@ const App = () => (
                 </Layout>
               </RoleBasedRoute>
             } />
+            <Route path="/finance" element={
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'finance']}>
+                <ModernLayout>
+                  <ProfitLoss />
+                </ModernLayout>
+              </RoleBasedRoute>
+            } />
             <Route path="/finance/profit-loss" element={
               <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'finance']}>
-                <Layout>
+                <ModernLayout>
                   <ProfitLoss />
-                </Layout>
+                </ModernLayout>
               </RoleBasedRoute>
             } />
             <Route path="/finance/cash-flow" element={
               <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'finance']}>
-                <Layout>
+                <ModernLayout>
                   <CashFlow />
-                </Layout>
+                </ModernLayout>
               </RoleBasedRoute>
             } />
             <Route path="/finance/balance-sheet" element={
               <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'finance']}>
-                <Layout>
+                <ModernLayout>
                   <BalanceSheet />
-                </Layout>
+                </ModernLayout>
               </RoleBasedRoute>
             } />
             <Route path="/finance/operational-expenses" element={
               <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'finance']}>
-                <Layout>
+                <ModernLayout>
                   <OperationalExpenses />
-                </Layout>
+                </ModernLayout>
               </RoleBasedRoute>
             } />
-            <Route path="/reports/transactions" element={
+            <Route path="/transactions" element={
               <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'finance']}>
-                <Layout>
+                <ModernLayout>
                   <Transactions />
-                </Layout>
+                </ModernLayout>
               </RoleBasedRoute>
             } />
             <Route path="/branches" element={
@@ -110,9 +126,44 @@ const App = () => (
             } />
             <Route path="/inventory" element={
               <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager']}>
-                <Layout>
+                <ModernLayout>
                   <Inventory />
-                </Layout>
+                </ModernLayout>
+              </RoleBasedRoute>
+            } />
+            <Route path="/sales" element={
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager']}>
+                <ModernLayout>
+                  <Transactions />
+                </ModernLayout>
+              </RoleBasedRoute>
+            } />
+            <Route path="/admin-users" element={
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager']}>
+                <ModernLayout>
+                  <AdminUsers />
+                </ModernLayout>
+              </RoleBasedRoute>
+            } />
+            <Route path="/reports" element={
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager']}>
+                <ModernLayout>
+                  <Transactions />
+                </ModernLayout>
+              </RoleBasedRoute>
+            } />
+            <Route path="/settings" element={
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager']}>
+                <ModernLayout>
+                  <AdminUsers />
+                </ModernLayout>
+              </RoleBasedRoute>
+            } />
+            <Route path="/help" element={
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager']}>
+                <ModernLayout>
+                  <AdminUsers />
+                </ModernLayout>
               </RoleBasedRoute>
             } />
             <Route path="/stock-transfer" element={
