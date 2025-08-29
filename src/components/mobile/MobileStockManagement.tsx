@@ -507,19 +507,38 @@ const MobileStockManagement = () => {
           .maybeSingle();
 
         if (!existingShift) {
+          // Get next shift number
+          const { data: lastShift } = await supabase
+            .from('shift_management')
+            .select('shift_number')
+            .eq('rider_id', userProfile.id)
+            .eq('shift_date', today)
+            .order('shift_number', { ascending: false })
+            .limit(1);
+
+          const nextNumber = lastShift && lastShift.length > 0
+            ? (lastShift[0].shift_number || 0) + 1
+            : 1;
+
           // Create new active shift
-          await supabase
+          const { data: newShift } = await supabase
             .from('shift_management')
             .insert([{
               rider_id: userProfile.id,
               branch_id: userProfile.branch_id,
               shift_date: today,
               shift_start_time: currentTime,
-              status: 'active'
-            }]);
+              status: 'active',
+              shift_number: nextNumber
+            }])
+            .select()
+            .single();
           
-          toast.success("Shift otomatis dimulai setelah menerima stok!");
+          toast.success(`Shift ${nextNumber} otomatis dimulai setelah menerima stok!`);
           fetchShiftData(); // Refresh shift data
+          
+          // Notify dashboard to update shift status
+          window.dispatchEvent(new CustomEvent('shift-started', { detail: newShift }));
         }
       }
 
@@ -636,18 +655,18 @@ const MobileStockManagement = () => {
 
       if (reportError) throw reportError;
 
-// Update shift status to completed & auto shift-out
-const { error: shiftError } = await supabase
-  .from('shift_management')
-  .update({
-    status: 'completed',
-    report_submitted: true,
-    total_sales: shiftSummary.totalSales,
-    cash_collected: cashToDeposit,
-    total_transactions: shiftSummary.totalTransactions,
-    shift_end_time: new Date().toISOString()
-  })
-  .eq('id', activeShift.id);
+      // AUTO SHIFT OUT: Complete shift and end automatically
+      const { error: shiftError } = await supabase
+        .from('shift_management')
+        .update({
+          status: 'completed',
+          report_submitted: true,
+          total_sales: shiftSummary.totalSales,
+          cash_collected: cashToDeposit,
+          total_transactions: shiftSummary.totalTransactions,
+          shift_end_time: new Date().toISOString()
+        })
+        .eq('id', activeShift.id);
 
       if (shiftError) throw shiftError;
 
