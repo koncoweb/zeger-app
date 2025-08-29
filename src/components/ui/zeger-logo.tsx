@@ -1,23 +1,27 @@
 import React from 'react';
+
 interface ZegerLogoProps {
   className?: string;
   size?: 'sm' | 'md' | 'lg';
 }
+
 export const ZegerLogo: React.FC<ZegerLogoProps> = ({
   className = "",
   size = "md"
 }) => {
   const sizeClasses = {
-    sm: "w-24 h-24",
-    md: "w-32 h-32",
-    lg: "w-48 h-48"
+    sm: "w-32 h-auto",
+    md: "w-40 h-auto", 
+    lg: "w-48 h-auto"
   };
-  const textSizes = {
-    sm: "text-lg",
-    md: "text-2xl",
-    lg: "text-4xl"
-  };
-  return <div className={`flex flex-col items-center justify-center ${sizeClasses[size]} ${className}`}>
-      
-    </div>;
+
+  return (
+    <div className={`flex items-center justify-center ${className}`}>
+      <img 
+        src="/lovable-uploads/d4a2c054-62a4-4959-91f5-e3fcd06dda7d.png" 
+        alt="Zeger Coffee Logo"
+        className={`${sizeClasses[size]} object-contain`}
+      />
+    </div>
+  );
 };
