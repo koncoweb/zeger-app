@@ -10,6 +10,7 @@ import MobileAttendance from "@/components/mobile/MobileAttendance";
 import MobileCheckpoints from "@/components/mobile/MobileCheckpoints";
 import MobileHistory from "@/components/mobile/MobileHistory";
 import { CustomerManagement } from "@/components/customer/CustomerManagement";
+import { MobileProfile } from "@/components/mobile/MobileProfile";
 import { ZegerLogo } from "@/components/ui/zeger-logo";
 import { Users } from "lucide-react";
 
@@ -65,6 +66,8 @@ export default function MobileSeller() {
             <CustomerManagement />
           </div>
         );
+      case 'profile':
+        return <MobileProfile />;
       default:
         return <MobileRiderDashboard />;
     }

@@ -92,7 +92,7 @@ export const MobileLayout = ({ children }: MobileLayoutProps) => {
             branch={branch}
           />
           
-          <main className="flex-1 overflow-auto pb-16">
+          <main className="flex-1 overflow-auto pb-16 mt-16">
             {children || <Outlet />}
           </main>
           
