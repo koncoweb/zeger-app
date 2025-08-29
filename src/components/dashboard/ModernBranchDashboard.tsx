@@ -355,7 +355,8 @@ export const ModernBranchDashboard = () => {
 
       if (!profile) return;
 
-      const { data: expenses, error } = await supabase
+      // Use the selected date range instead of fixed 30 days
+      let expenseQuery = supabase
         .from('daily_operational_expenses')
         .select(`
           amount,
@@ -363,8 +364,15 @@ export const ModernBranchDashboard = () => {
           profiles!inner(full_name, branch_id)
         `)
         .eq('profiles.branch_id', profile.branch_id)
-        .gte('expense_date', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]); // Last 30 days
+        .gte('expense_date', startDate)
+        .lte('expense_date', endDate);
 
+      // Apply user filter if specific rider is selected
+      if (selectedUser !== "all") {
+        expenseQuery = expenseQuery.eq('rider_id', selectedUser);
+      }
+
+      const { data: expenses, error } = await expenseQuery;
       if (error) throw error;
 
       const riderExpenseMap: Record<string, number> = {};
@@ -709,7 +717,7 @@ export const ModernBranchDashboard = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <TrendingDown className="w-5 h-5 text-red-600" />
-            Total Beban Operasional (30 Hari)
+            Total Beban Operasional ({startDate} - {endDate})
           </CardTitle>
         </CardHeader>
         <CardContent>

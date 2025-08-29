@@ -472,51 +472,47 @@ export const Production = ({ userProfile }: ProductionProps) => {
         </CardHeader>
         <CardContent>
           <ScrollArea className="h-96">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Batch</TableHead>
-                  <TableHead>Waktu</TableHead>
-                  <TableHead>Total Item</TableHead>
-                  <TableHead>Total Biaya</TableHead>
-                  <TableHead>Detail</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {batches.map((batch) => (
-                  <TableRow key={batch.id}>
-                    <TableCell>
-                      <Badge variant="outline">Batch {batch.batch_number}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {format(new Date(batch.produced_at), 'dd/MM HH:mm')}
+            <div className="space-y-2">
+              {batches.map((batch) => (
+                <Accordion key={batch.id} type="single" collapsible className="w-full">
+                  <AccordionItem value={`batch-${batch.id}`} className="border rounded-lg">
+                    <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                      <div className="flex items-center justify-between w-full mr-4">
+                        <div className="flex items-center gap-4">
+                          <Badge variant="outline">Batch {batch.batch_number}</Badge>
+                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                            <Clock className="h-3 w-3" />
+                            {format(new Date(batch.produced_at), 'dd/MM HH:mm')}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-6 text-sm">
+                          <span className="font-medium">{batch.total_items} Items</span>
+                          <span className="font-semibold">{formatCurrency(batch.total_cost)}</span>
+                        </div>
                       </div>
-                    </TableCell>
-                    <TableCell className="font-medium">{batch.total_items}</TableCell>
-                    <TableCell>{formatCurrency(batch.total_cost)}</TableCell>
-                    <TableCell>
-                      <Accordion type="single" collapsible className="w-full">
-                        <AccordionItem value={`batch-${batch.id}`}>
-                          <AccordionTrigger className="text-xs">Lihat Detail</AccordionTrigger>
-                          <AccordionContent>
-                            <div className="space-y-1 text-xs">
-                              {batch.items.map((item, index) => (
-                                <div key={index} className="flex justify-between text-muted-foreground">
-                                  <span>{item.product?.name}</span>
-                                  <span>{item.quantity}x @ {formatCurrency(item.cost_per_unit || 0)}</span>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-4 pb-3">
+                      <div className="border-t pt-3">
+                        <h4 className="font-medium mb-2 text-sm">Rincian Produksi:</h4>
+                        <div className="space-y-2">
+                          {batch.items.map((item, index) => (
+                            <div key={index} className="flex justify-between items-center p-2 bg-muted rounded text-sm">
+                              <span className="font-medium">{item.product?.name || 'Produk Tidak Diketahui'}</span>
+                              <div className="text-right">
+                                <div>{item.quantity} item</div>
+                                <div className="text-xs text-muted-foreground">
+                                  @ {formatCurrency(item.cost_per_unit || 0)} = {formatCurrency((item.cost_per_unit || 0) * item.quantity)}
                                 </div>
-                              ))}
+                              </div>
                             </div>
-                          </AccordionContent>
-                        </AccordionItem>
-                      </Accordion>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                          ))}
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              ))}
+            </div>
             {batches.length === 0 && (
               <div className="text-center py-8 text-muted-foreground">
                 Belum ada riwayat produksi
