@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
 import { MobileSidebar } from "./MobileSidebar";
 import { MobileHeader } from "./MobileHeader";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -33,6 +33,7 @@ export const MobileLayout = ({ children }: MobileLayoutProps) => {
   const [branch, setBranch] = useState<Branch | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (user) {
@@ -101,7 +102,7 @@ export const MobileLayout = ({ children }: MobileLayoutProps) => {
             <Button
               size="lg"
               className="rounded-full w-14 h-14 bg-red-600 hover:bg-red-700 shadow-lg"
-              onClick={() => window.location.href = '/mobile-seller?tab=selling'}
+              onClick={() => navigate('/mobile-seller?tab=selling')}
             >
               <ShoppingCart className="h-6 w-6 text-white" />
             </Button>

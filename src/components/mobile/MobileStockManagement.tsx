@@ -108,11 +108,15 @@ const StockReturnTab = ({ userProfile, activeShift, onRefresh, onGoToShift }: {
         return;
       }
 
-      // Take photo for return verification
+      // Choose photo source: camera atau galeri
+      const useCamera = window.confirm('Pilih sumber foto:\nOK = Kamera, Cancel = Galeri');
       const photoInput = document.createElement('input');
       photoInput.type = 'file';
       photoInput.accept = 'image/*';
-      photoInput.capture = 'environment';
+      if (useCamera) {
+        // @ts-ignore - hint kamera pada perangkat yang mendukung
+        photoInput.capture = 'environment';
+      }
       
       const photo = await new Promise<File | null>((resolve) => {
         photoInput.onchange = (e) => {
@@ -972,12 +976,20 @@ const { error: shiftError } = await supabase
                     </Card>
                   </div>
                 ) : !activeShift ? (
-                  <div className="text-center py-8">
+                  <div className="space-y-4 text-center py-8">
                     <AlertCircle className="h-12 w-12 text-orange-500 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-orange-700 mb-2">Tidak Ada Shift Aktif</h3>
-                    <p className="text-muted-foreground mb-4">
-                      Mulai shift dengan check-in untuk mengakses fitur ini
-                    </p>
+                    <h3 className="text-lg font-semibold text-orange-700">Tidak Ada Shift Aktif</h3>
+                    <p className="text-muted-foreground">Anda tetap bisa melihat ringkasan penjualan hari ini di bawah ini.</p>
+                    <div className="bg-blue-50 p-4 rounded-lg text-left max-w-md mx-auto">
+                      <p className="text-sm font-medium text-blue-800 mb-2">Resume Penjualan Hari Ini</p>
+                      <div className="space-y-1 text-sm">
+                        <div className="flex justify-between"><span>Total Transaksi:</span><span className="font-semibold">{shiftSummary.totalTransactions}</span></div>
+                        <div className="flex justify-between"><span>Penjualan Tunai:</span><span className="font-semibold">{formatCurrency(shiftSummary.cashSales)}</span></div>
+                        <div className="flex justify-between"><span>Penjualan QRIS:</span><span className="font-semibold">{formatCurrency(shiftSummary.qrisSales)}</span></div>
+                        <div className="flex justify-between"><span>Penjualan Transfer:</span><span className="font-semibold">{formatCurrency(shiftSummary.transferSales)}</span></div>
+                        <div className="flex justify-between border-t pt-1"><span className="font-medium">Total Penjualan:</span><span className="font-semibold text-blue-600">{formatCurrency(shiftSummary.totalSales)}</span></div>
+                      </div>
+                    </div>
                   </div>
                 ) : (
                   <div className="text-center py-8">

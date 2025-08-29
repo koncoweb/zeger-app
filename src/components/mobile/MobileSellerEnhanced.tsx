@@ -453,6 +453,13 @@ const MobileSellerEnhanced = () => {
             <Button className="w-full h-12 bg-gradient-to-r from-red-500 to-red-600 text-white hover:from-red-600 hover:to-red-700" onClick={processTransaction} disabled={cart.length === 0 || loading}>
               {loading ? "Memproses..." : `Proses Transaksi (Rp ${calculateCartTotal().toLocaleString('id-ID')})`}
             </Button>
+
+            {/* Success Modal */}
+            <MobileSuccessModal
+              isOpen={showSuccessModal}
+              onClose={() => setShowSuccessModal(false)}
+              title="Transaksi Berhasil"
+            />
           </div>}
       </div>
     </div>;
