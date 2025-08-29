@@ -34,6 +34,12 @@ interface Product {
   cost_price: number;
 }
 
+interface ProductionHistoryProduct {
+  id: string;
+  name: string;
+  category: string;
+}
+
 interface ProductionItem {
   product_id: string;
   quantity: number;
@@ -50,7 +56,7 @@ interface ProductionBatch {
     product_id: string;
     quantity: number;
     cost_per_unit: number;
-    product?: Product;
+    product?: ProductionHistoryProduct;
   }>;
 }
 
@@ -113,7 +119,7 @@ export const Production = ({ userProfile }: ProductionProps) => {
             product_id,
             quantity,
             cost_per_unit,
-            products (id, name, category)
+            products!inner (id, name, category)
           )
         `)
         .eq('branch_id', userProfile.branch_id)
@@ -127,7 +133,10 @@ export const Production = ({ userProfile }: ProductionProps) => {
         ...batch,
         total_items: batch.production_items?.reduce((sum, item) => sum + item.quantity, 0) || 0,
         total_cost: batch.production_items?.reduce((sum, item) => sum + (item.cost_per_unit * item.quantity), 0) || 0,
-        items: batch.production_items || []
+        items: batch.production_items?.map(item => ({
+          ...item,
+          product: item.products
+        })) || []
       })) || [];
 
       setBatches(processedBatches);
