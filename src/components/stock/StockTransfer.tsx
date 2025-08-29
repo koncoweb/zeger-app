@@ -267,14 +267,6 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
       return;
     }
 
-    // Catatan: sebelumnya ada validasi mengharuskan laporan shift sebelumnya selesai.
-    // Untuk kelancaran operasional, kita tidak lagi memblokir transfer.
-    // Jika ingin hanya memberi peringatan tanpa memblokir, aktifkan blok berikut:
-    // const canReceive = await checkRiderCanReceiveStock(selectedRider);
-    // if (!canReceive) {
-    //   toast.info("Catatan: Rider punya laporan shift sebelumnya yang belum selesai. Transfer tetap dilanjutkan.");
-    // }
-
     const rows = products
       .map(p => ({ id: p.id, qty: Number(productQuantities[p.id] || 0) }))
       .filter(p => p.qty > 0);
@@ -286,10 +278,29 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
 
     setLoading(true);
     try {
-      const expectedDeliveryDate = new Date();
-      expectedDeliveryDate.setHours(expectedDeliveryDate.getHours() + 1); // Expected 1 hour from now
+      // Check branch hub inventory before transfer
+      for (const row of rows) {
+        const { data: hubInventory, error: hubError } = await supabase
+          .from('inventory')
+          .select('*')
+          .eq('branch_id', branchId)
+          .eq('product_id', row.id)
+          .is('rider_id', null)
+          .maybeSingle();
 
-      // Create stock movement records with status tracking
+        if (hubError) throw hubError;
+
+        if (!hubInventory || hubInventory.stock_quantity < row.qty) {
+          const productName = products.find(p => p.id === row.id)?.name || 'Unknown';
+          toast.error(`Stok branch hub tidak mencukupi untuk ${productName}`);
+          return;
+        }
+      }
+
+      const expectedDeliveryDate = new Date();
+      expectedDeliveryDate.setHours(expectedDeliveryDate.getHours() + 1);
+
+      // Create stock movement records
       const stockMovements = rows.map(p => ({
         product_id: p.id,
         quantity: p.qty,
@@ -308,12 +319,33 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
 
       if (movementError) throw movementError;
 
+      // Reduce branch hub inventory for each product
+      for (const row of rows) {
+        const { data: hubInventory } = await supabase
+          .from('inventory')
+          .select('*')
+          .eq('branch_id', branchId)
+          .eq('product_id', row.id)
+          .is('rider_id', null)
+          .maybeSingle();
+
+        if (hubInventory) {
+          await supabase
+            .from('inventory')
+            .update({ 
+              stock_quantity: hubInventory.stock_quantity - row.qty,
+              last_updated: new Date().toISOString()
+            })
+            .eq('id', hubInventory.id);
+        }
+      }
+
       toast.success("Transfer stok ke rider berhasil dikirim!");
       setProductQuantities({});
       setSelectedRider("");
       await fetchTransfers();
       await fetchRiderShifts();
-      window.dispatchEvent(new Event('stock-sent')); // Trigger notification
+      window.dispatchEvent(new Event('stock-sent'));
     } catch (error: any) {
       toast.error("Gagal membuat transfer: " + error.message);
     } finally {

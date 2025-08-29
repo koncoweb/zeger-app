@@ -57,10 +57,14 @@ interface Rider {
 const COLORS = ['#DC2626', '#EF4444', '#F87171', '#FCA5A5', '#FECACA'];
 
 export const ModernBranchDashboard = () => {
-  const [selectedUser, setSelectedUser] = useState<string>("");
+  const [selectedUser, setSelectedUser] = useState<string>("all");
   const [salesFilter, setSalesFilter] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
+  
+  // Set default to month-to-date (from 1st of current month to current date)
+  const currentDate = new Date();
+  const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+  const [startDate, setStartDate] = useState<string>(firstDayOfMonth.toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState<string>(currentDate.toISOString().split('T')[0]);
   const [riders, setRiders] = useState<Rider[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
     totalSales: 0,
