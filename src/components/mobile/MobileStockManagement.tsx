@@ -154,19 +154,20 @@ const StockReturnTab = ({ userProfile, activeShift, onRefresh, onGoToShift }: {
         return;
       }
 
-      // Upload photo
+      // Upload photo (robust upload with folder + upsert)
       const fileExt = photo.name.split('.').pop();
       const fileName = `return-${inventoryId}-${Date.now()}.${fileExt}`;
+      const path = `returns/${userProfile?.id}/${fileName}`;
       
       const { error: uploadError } = await supabase.storage
         .from('stock-photos')
-        .upload(fileName, photo);
+        .upload(path, photo, { cacheControl: '3600', upsert: true, contentType: photo.type });
 
       if (uploadError) throw uploadError;
 
       const { data: { publicUrl } } = supabase.storage
         .from('stock-photos')
-        .getPublicUrl(fileName);
+        .getPublicUrl(path);
 
       // Create return stock movement record
       const { error: movementError } = await supabase

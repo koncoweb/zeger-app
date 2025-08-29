@@ -70,9 +70,10 @@ const getMenuItems = (userRole: string): MenuItem[] => [
     icon: Package,
     roles: ["ho_admin", "branch_manager"],
     children: [
+      { id: "production", label: "Production", icon: Factory, path: "/inventory/production" },
       { id: "stock", label: "Stock Management", icon: Package, path: "/inventory" },
       { id: "stock-transfer", label: "Kirim Stok ke Rider", icon: Truck, path: "/stock-transfer" },
-      { id: "stock-movements", label: "Stock Movements", icon: FileText, path: "/stock-movements" }
+      { id: "branch-transfer", label: "Kirim Stok Ke Small Branch", icon: Store, path: "/inventory/branch-transfer" }
     ]
   },
   {

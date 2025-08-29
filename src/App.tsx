@@ -26,6 +26,8 @@ import Inventory from "./pages/Inventory";
 import AdminUsers from "./pages/AdminUsers";
 import StockTransfer from "./pages/StockTransfer";
 import CustomerManager from "./pages/CustomerManager";
+import InventoryProductionPage from "./pages/inventory/ProductionPage";
+import InventoryBranchTransfer from "./pages/inventory/BranchTransfer";
 
 const queryClient = new QueryClient();
 
@@ -188,10 +190,17 @@ const App = () => (
                 </ModernLayout>
               </RoleBasedRoute>
             } />
-            <Route path="/stock-movements" element={
+            <Route path="/inventory/production" element={
               <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager']}>
                 <ModernLayout>
-                  <Inventory />
+                  <InventoryProductionPage />
+                </ModernLayout>
+              </RoleBasedRoute>
+            } />
+            <Route path="/inventory/branch-transfer" element={
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager']}>
+                <ModernLayout>
+                  <InventoryBranchTransfer />
                 </ModernLayout>
               </RoleBasedRoute>
             } />
