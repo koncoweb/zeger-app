@@ -515,10 +515,11 @@ const MobileRiderAnalyticsEnhanced = () => {
                         <Badge variant="outline">#{index + 1}</Badge>
                         <h4 className="font-medium">{location.location_name}</h4>
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <span>{location.transaction_count} transaksi</span>
-                        <span>Rp {location.total_sales.toLocaleString('id-ID')}</span>
-                      </div>
+                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                         <span>{location.transaction_count} Transaksi</span>
+                         <span>{location.transactions.reduce((sum, t) => sum + t.items.reduce((itemSum, item) => itemSum + item.quantity, 0), 0)} item</span>
+                         <span>Rp {location.total_sales.toLocaleString('id-ID')}</span>
+                       </div>
                     </div>
                     <ChevronRight className={`h-4 w-4 transition-transform ${showLocationDetail === location.location_name ? 'rotate-90' : ''}`} />
                   </div>

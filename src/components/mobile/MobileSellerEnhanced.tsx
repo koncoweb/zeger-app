@@ -13,12 +13,15 @@ import {
   LogOut,
   AlertCircle,
   X,
-  MapPin
+  MapPin,
+  Users
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { MobileSuccessModal } from "./MobileSuccessModal";
+import { MobileCustomerQuickAdd } from "./MobileCustomerQuickAdd";
 
 interface Product {
   id: string;
@@ -52,6 +55,7 @@ const MobileSellerEnhanced = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<string>('');
   const [currentLocation, setCurrentLocation] = useState<{lat: number, lng: number, name: string} | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   useEffect(() => {
     fetchSellingStock();
@@ -313,7 +317,7 @@ const MobileSellerEnhanced = () => {
 
       setCart([]);
       setSelectedCustomer('');
-      toast.success("Transaksi berhasil!");
+      setShowSuccessModal(true);
       fetchSellingStock(); // Refresh stock
     } catch (error: any) {
       toast.error("Gagal memproses transaksi: " + error.message);
@@ -378,6 +382,34 @@ const MobileSellerEnhanced = () => {
               </div>
               <Badge variant="secondary">{cart.reduce((sum, item) => sum + item.quantity, 0)} item</Badge>
             </div>
+
+            {/* Customer Section - Above Products */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Pilih Pelanggan
+                  </CardTitle>
+                  <MobileCustomerQuickAdd onCustomerAdded={fetchCustomers} />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih pelanggan atau kosongkan" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="general">Pelanggan Umum</SelectItem>
+                    {customers.filter(customer => customer.id && customer.name).map((customer) => (
+                      <SelectItem key={customer.id} value={customer.id}>
+                        {customer.name} {customer.phone && `(${customer.phone})`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </CardContent>
+            </Card>
 
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -458,23 +490,6 @@ const MobileSellerEnhanced = () => {
               </Card>
             )}
 
-            {/* Customer Selection */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Pelanggan (Opsional):</label>
-              <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih pelanggan atau kosongkan" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="general">Pelanggan Umum</SelectItem>
-                  {customers.filter(customer => customer.id && customer.name).map((customer) => (
-                    <SelectItem key={customer.id} value={customer.id}>
-                      {customer.name} {customer.phone && `(${customer.phone})`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
 
             {/* Location Info */}
             {currentLocation && (

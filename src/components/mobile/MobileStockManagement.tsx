@@ -226,16 +226,16 @@ const StockReturnTab = ({ userProfile, activeShift, onRefresh, onGoToShift }: {
                   </Badge>
                 </div>
 
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  onClick={() => handleStockReturn(item.id, item.stock_quantity)}
-                  disabled={loading}
-                  className="w-full"
-                >
-                  <Camera className="h-4 w-4 mr-1" />
-                  Kembalikan Stok (Foto Wajib)
-                </Button>
+                   <Button
+                     size="sm"
+                     variant="destructive"
+                     onClick={() => handleStockReturn(item.id, item.stock_quantity)}
+                     disabled={loading}
+                     className="w-full"
+                   >
+                     <Camera className="h-4 w-4 mr-1" />
+                     Kembalikan Stok (Foto Wajib)
+                   </Button>
               </CardContent>
             </Card>
           ))}
@@ -875,40 +875,61 @@ const { error: shiftError } = await supabase
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
-                        {operationalExpenses.map((expense, index) => (
-                          <div key={index} className="border rounded-lg p-3 space-y-3">
-                            <div className="grid grid-cols-2 gap-3">
-                              <Input
-                                placeholder="Jenis beban"
-                                value={expense.type}
-                                onChange={(e) => updateExpense(index, 'type', e.target.value)}
-                              />
-                              <Input
-                                type="number"
-                                placeholder="Jumlah"
-                                value={expense.amount}
-                                onChange={(e) => updateExpense(index, 'amount', e.target.value)}
-                              />
-                            </div>
-                            <div className="flex gap-3">
-                              <Input
-                                placeholder="Deskripsi (opsional)"
-                                value={expense.description}
-                                onChange={(e) => updateExpense(index, 'description', e.target.value)}
-                                className="flex-1"
-                              />
-                              {operationalExpenses.length > 1 && (
-                                <Button
-                                  variant="destructive"
-                                  size="sm"
-                                  onClick={() => removeExpense(index)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        ))}
+                         {operationalExpenses.map((expense, index) => (
+                           <div key={index} className="border rounded-lg p-3 space-y-3">
+                             <div className="grid grid-cols-2 gap-3">
+                               <Input
+                                 placeholder="Jenis beban"
+                                 value={expense.type}
+                                 onChange={(e) => updateExpense(index, 'type', e.target.value)}
+                               />
+                               <Input
+                                 type="number"
+                                 placeholder="Jumlah"
+                                 value={expense.amount}
+                                 onChange={(e) => updateExpense(index, 'amount', e.target.value)}
+                               />
+                             </div>
+                             <div className="flex gap-3">
+                               <Input
+                                 placeholder="Deskripsi (opsional)"
+                                 value={expense.description}
+                                 onChange={(e) => updateExpense(index, 'description', e.target.value)}
+                                 className="flex-1"
+                               />
+                               <input
+                                 type="file"
+                                 accept="image/*"
+                                 capture="environment"
+                                 style={{ display: 'none' }}
+                                 id={`receipt-${index}`}
+                                 onChange={(e) => {
+                                   const file = e.target.files?.[0];
+                                   if (file) {
+                                     toast.success("Foto struk berhasil diupload!");
+                                   }
+                                 }}
+                               />
+                               <Button
+                                 variant="outline"
+                                 size="sm"
+                                 onClick={() => document.getElementById(`receipt-${index}`)?.click()}
+                                 title="Upload foto struk/nota"
+                               >
+                                 <Camera className="h-4 w-4" />
+                               </Button>
+                               {operationalExpenses.length > 1 && (
+                                 <Button
+                                   variant="destructive"
+                                   size="sm"
+                                   onClick={() => removeExpense(index)}
+                                 >
+                                   <Trash2 className="h-4 w-4" />
+                                 </Button>
+                               )}
+                             </div>
+                           </div>
+                         ))}
                         
                         <Button
                           variant="outline"

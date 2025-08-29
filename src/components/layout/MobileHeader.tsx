@@ -29,8 +29,12 @@ interface MobileHeaderProps {
 }
 
 export const MobileHeader = ({ onToggleSidebar, profile, branch }: MobileHeaderProps) => {
+  const handleProfileClick = () => {
+    window.location.href = '/mobile-seller?tab=profile';
+  };
+
   return (
-    <header className="bg-white border-b border-gray-200 px-4 py-3">
+    <header className="fixed top-0 left-0 right-0 bg-white border-b border-gray-200 px-4 py-3 z-40">
       <div className="flex items-center justify-between">
         {/* Left side */}
         <div className="flex items-center gap-3">
@@ -84,7 +88,12 @@ export const MobileHeader = ({ onToggleSidebar, profile, branch }: MobileHeaderP
                 {profile?.role || 'Rider'}
               </p>
             </div>
-            <Button variant="ghost" size="sm" className="rounded-full">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="rounded-full"
+              onClick={handleProfileClick}
+            >
               <User className="h-5 w-5" />
             </Button>
           </div>

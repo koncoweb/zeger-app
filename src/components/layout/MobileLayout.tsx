@@ -3,6 +3,8 @@ import { Outlet } from "react-router-dom";
 import { MobileSidebar } from "./MobileSidebar";
 import { MobileHeader } from "./MobileHeader";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { Button } from "@/components/ui/button";
+import { ShoppingCart } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -90,9 +92,20 @@ export const MobileLayout = ({ children }: MobileLayoutProps) => {
             branch={branch}
           />
           
-          <main className="flex-1 overflow-auto">
+          <main className="flex-1 overflow-auto pb-16">
             {children || <Outlet />}
           </main>
+          
+          {/* Fixed Shopping Cart Shortcut */}
+          <div className="fixed bottom-4 right-4 z-50">
+            <Button
+              size="lg"
+              className="rounded-full w-14 h-14 bg-red-600 hover:bg-red-700 shadow-lg"
+              onClick={() => window.location.href = '/mobile-seller?tab=selling'}
+            >
+              <ShoppingCart className="h-6 w-6 text-white" />
+            </Button>
+          </div>
         </div>
       </div>
     </SidebarProvider>
