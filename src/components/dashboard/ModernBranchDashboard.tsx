@@ -3,6 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -57,6 +59,8 @@ const COLORS = ['#DC2626', '#EF4444', '#F87171', '#FCA5A5', '#FECACA'];
 export const ModernBranchDashboard = () => {
   const [selectedUser, setSelectedUser] = useState<string>("");
   const [salesFilter, setSalesFilter] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
   const [riders, setRiders] = useState<Rider[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
     totalSales: 0,
@@ -77,7 +81,7 @@ export const ModernBranchDashboard = () => {
 
   useEffect(() => {
     fetchDashboardData();
-  }, [selectedUser, salesFilter]);
+  }, [selectedUser, salesFilter, startDate, endDate]);
 
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -185,34 +189,96 @@ export const ModernBranchDashboard = () => {
 
   const fetchSalesChart = async () => {
     try {
-      // Fetch real sales data for the last 12 months
-      const salesByMonth = [];
-      const currentDate = new Date();
+      const salesByPeriod = [];
       
-      for (let i = 11; i >= 0; i--) {
-        const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
-        const monthStr = date.toLocaleDateString('en', { month: 'short' });
-        const startDate = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-01`;
-        const endDate = `${date.getFullYear()}-${(date.getMonth() + 2).toString().padStart(2, '0')}-01`;
-
-        let query = supabase
-          .from('transactions')
-          .select('final_amount')
-          .eq('status', 'completed')
-          .gte('transaction_date', startDate)
-          .lt('transaction_date', endDate);
-
-        if (selectedUser !== "all") {
-          query = query.eq('rider_id', selectedUser);
-        }
-
-        const { data } = await query;
-        const monthSales = data?.reduce((sum, t) => sum + (t.final_amount || 0), 0) || 0;
+      if (startDate && endDate) {
+        // Date range mode
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        const diffTime = Math.abs(end.getTime() - start.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         
-        salesByMonth.push({ month: monthStr, sales: monthSales });
+        if (diffDays <= 31) {
+          // Show daily data for up to 31 days
+          for (let i = 0; i <= diffDays; i++) {
+            const date = new Date(start);
+            date.setDate(start.getDate() + i);
+            const dateStr = date.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' });
+            const queryDate = date.toISOString().split('T')[0];
+            
+            let query = supabase
+              .from('transactions')
+              .select('final_amount')
+              .eq('status', 'completed')
+              .gte('transaction_date', `${queryDate}T00:00:00`)
+              .lt('transaction_date', `${queryDate}T23:59:59`);
+
+            if (selectedUser !== "all") {
+              query = query.eq('rider_id', selectedUser);
+            }
+
+            const { data } = await query;
+            const daySales = data?.reduce((sum, t) => sum + (t.final_amount || 0), 0) || 0;
+            
+            salesByPeriod.push({ month: dateStr, sales: daySales });
+          }
+        } else {
+          // Show weekly data for longer periods
+          const weeks = Math.ceil(diffDays / 7);
+          for (let i = 0; i < weeks; i++) {
+            const weekStart = new Date(start);
+            weekStart.setDate(start.getDate() + (i * 7));
+            const weekEnd = new Date(weekStart);
+            weekEnd.setDate(weekStart.getDate() + 6);
+            
+            const weekStr = `${weekStart.getDate()}/${weekStart.getMonth() + 1} - ${weekEnd.getDate()}/${weekEnd.getMonth() + 1}`;
+            
+            let query = supabase
+              .from('transactions')
+              .select('final_amount')
+              .eq('status', 'completed')
+              .gte('transaction_date', weekStart.toISOString())
+              .lte('transaction_date', weekEnd.toISOString());
+
+            if (selectedUser !== "all") {
+              query = query.eq('rider_id', selectedUser);
+            }
+
+            const { data } = await query;
+            const weekSales = data?.reduce((sum, t) => sum + (t.final_amount || 0), 0) || 0;
+            
+            salesByPeriod.push({ month: weekStr, sales: weekSales });
+          }
+        }
+      } else {
+        // Default behavior: last 12 months
+        const currentDate = new Date();
+        
+        for (let i = 11; i >= 0; i--) {
+          const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+          const monthStr = date.toLocaleDateString('en', { month: 'short' });
+          const queryStartDate = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-01`;
+          const queryEndDate = `${date.getFullYear()}-${(date.getMonth() + 2).toString().padStart(2, '0')}-01`;
+
+          let query = supabase
+            .from('transactions')
+            .select('final_amount')
+            .eq('status', 'completed')
+            .gte('transaction_date', queryStartDate)
+            .lt('transaction_date', queryEndDate);
+
+          if (selectedUser !== "all") {
+            query = query.eq('rider_id', selectedUser);
+          }
+
+          const { data } = await query;
+          const monthSales = data?.reduce((sum, t) => sum + (t.final_amount || 0), 0) || 0;
+          
+          salesByPeriod.push({ month: monthStr, sales: monthSales });
+        }
       }
       
-      setSalesData(salesByMonth);
+      setSalesData(salesByPeriod);
     } catch (error) {
       console.error("Error fetching sales chart:", error);
     }
@@ -485,24 +551,53 @@ export const ModernBranchDashboard = () => {
 
   return (
     <div className="space-y-6">
-      {/* User Filter */}
+      {/* Filters */}
       <Card className="dashboard-card">
         <CardContent className="p-4">
-          <div className="flex items-center gap-4">
-            <label className="text-sm font-medium text-gray-700">Filter by User:</label>
-            <Select value={selectedUser} onValueChange={setSelectedUser}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Pilih user" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua User</SelectItem>
-                {riders.map((rider) => (
-                  <SelectItem key={rider.id} value={rider.id}>
-                    {rider.full_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <div>
+              <Label htmlFor="user-filter" className="text-sm font-medium">Filter by User:</Label>
+              <Select value={selectedUser} onValueChange={setSelectedUser}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Pilih user" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua User</SelectItem>
+                  {riders.map((rider) => (
+                    <SelectItem key={rider.id} value={rider.id}>
+                      {rider.full_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label htmlFor="start-date" className="text-sm font-medium">Tanggal Awal:</Label>
+              <Input 
+                id="start-date"
+                type="date" 
+                value={startDate} 
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="end-date" className="text-sm font-medium">Tanggal Akhir:</Label>
+              <Input 
+                id="end-date"
+                type="date" 
+                value={endDate} 
+                onChange={(e) => setEndDate(e.target.value)}
+              />
+            </div>
+            
+            <Button 
+              onClick={fetchDashboardData}
+              className="bg-primary hover:bg-primary/90"
+            >
+              Filter Data
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -633,12 +728,14 @@ export const ModernBranchDashboard = () => {
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle className="text-lg font-semibold">Sales Report</CardTitle>
-              <p className="text-sm text-muted-foreground">Monthly sales performance</p>
+              <p className="text-sm text-muted-foreground">
+                {startDate && endDate ? `Sales ${startDate} - ${endDate}` : 'Monthly sales performance'}
+              </p>
             </div>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={salesData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <ComposedChart data={salesData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                 <defs>
                   <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#DC2626" stopOpacity={0.3}/>
@@ -651,12 +748,15 @@ export const ModernBranchDashboard = () => {
                   axisLine={false}
                   tickLine={false}
                   tick={{ fontSize: 12, fill: '#9CA3AF' }}
+                  angle={startDate && endDate ? -45 : 0}
+                  textAnchor={startDate && endDate ? "end" : "middle"}
+                  height={startDate && endDate ? 80 : 60}
                 />
                 <YAxis 
                   axisLine={false}
                   tickLine={false}
                   tick={{ fontSize: 12, fill: '#9CA3AF' }}
-                  tickFormatter={(value) => `${value / 1000}k`}
+                  tickFormatter={(value) => `${(value / 1000000).toFixed(1)}M`}
                 />
                 <Tooltip 
                   formatter={(value) => [formatCurrency(Number(value)), 'Sales']}
@@ -677,7 +777,13 @@ export const ModernBranchDashboard = () => {
                   dot={false}
                   activeDot={{ r: 6, stroke: '#DC2626', strokeWidth: 2, fill: 'white' }}
                 />
-              </AreaChart>
+                <Bar 
+                  dataKey="sales" 
+                  fill="#DC2626" 
+                  fillOpacity={0.4} 
+                  radius={[2, 2, 0, 0]}
+                />
+              </ComposedChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>

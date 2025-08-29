@@ -37,7 +37,6 @@ export default function Inventory() {
   const [riders, setRiders] = useState<Record<string, Rider>>({});
   const [returns, setReturns] = useState<ReturnMovement[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
-  const [depositPhotos, setDepositPhotos] = useState<Record<string, File | undefined>>({});
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -170,25 +169,12 @@ export default function Inventory() {
         .lte('transaction_date', end);
       const cash = (tx||[]).filter(t => (t.payment_method||'').toLowerCase() === 'cash').reduce((s,t:any)=> s + Number(t.final_amount||0), 0);
 
-      // Optional photo upload
-      let proofUrl: string | undefined;
-      const file = depositPhotos[shift.id];
-      if (file) {
-        const ext = file.name.split('.').pop();
-        const name = `shift-${shift.id}-${Date.now()}.${ext}`;
-        const path = `shift-deposits/${userProfile.id}/${name}`;
-        const { error: upErr } = await supabase.storage.from('payment-proofs').upload(path, file, { upsert: true, cacheControl: '3600', contentType: file.type });
-        if (upErr) throw upErr;
-        const { data: { publicUrl } } = supabase.storage.from('payment-proofs').getPublicUrl(path);
-        proofUrl = publicUrl;
-      }
-
       // Create financial transaction record
       await supabase.from('financial_transactions').insert([{
         transaction_type: 'asset',
         account_type: 'cash',
         amount: cash,
-        description: `Shift cash deposit for shift ${shift.id}${proofUrl ? ' | proof: ' + proofUrl : ''}`,
+        description: `Shift cash deposit for shift ${shift.id}`,
         branch_id: userProfile.branch_id,
         created_by: userProfile.id,
         reference_number: `SHIFT-${shift.id}`
@@ -201,7 +187,6 @@ export default function Inventory() {
         .eq('id', shift.id);
 
       toast.success('Setoran tunai diterima');
-      setDepositPhotos(prev => ({ ...prev, [shift.id]: undefined }));
       fetchData();
     } catch (e: any) {
       toast.error('Gagal konfirmasi setoran: ' + e.message);
@@ -369,12 +354,6 @@ export default function Inventory() {
                       </Accordion>
                       
                       <div className="flex items-center gap-2">
-                        <Input 
-                          type="file" 
-                          accept="image/*" 
-                          placeholder="Foto konfirmasi (opsional)"
-                          onChange={(e) => setDepositPhotos(prev => ({ ...prev, [s.id]: e.target.files?.[0] }))} 
-                        />
                         <Button size="sm" disabled={loading} onClick={() => approveCashDeposit(s)}>
                           Terima
                         </Button>

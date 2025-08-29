@@ -200,9 +200,26 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
 
     setLoading(true);
     try {
+      // Check branch hub inventory before transfer
+      const { data: hubInventory, error: hubError } = await supabase
+        .from('inventory')
+        .select('*')
+        .eq('branch_id', branchId)
+        .eq('product_id', selectedProduct)
+        .is('rider_id', null)
+        .maybeSingle();
+
+      if (hubError) throw hubError;
+
+      const transferQuantity = parseInt(quantity);
+      if (!hubInventory || hubInventory.stock_quantity < transferQuantity) {
+        toast.error("Stok branch hub tidak mencukupi");
+        return;
+      }
+
       const transferData = {
         product_id: selectedProduct,
-        quantity: parseInt(quantity),
+        quantity: transferQuantity,
         movement_type: 'transfer' as const,
         branch_id: role === 'ho_admin' ? selectedToBranch : branchId,
         rider_id: role === 'branch_manager' ? selectedRider : null,
@@ -215,6 +232,17 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
         .insert([transferData]);
 
       if (error) throw error;
+
+      // Reduce branch hub stock when transferring to rider
+      if (role === 'branch_manager' && selectedRider) {
+        await supabase
+          .from('inventory')
+          .update({ 
+            stock_quantity: hubInventory.stock_quantity - transferQuantity,
+            last_updated: new Date().toISOString()
+          })
+          .eq('id', hubInventory.id);
+      }
 
       toast.success("Transfer stok berhasil dibuat!");
       setSelectedProduct("");
