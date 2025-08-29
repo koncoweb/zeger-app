@@ -130,7 +130,9 @@ const Auth = () => {
         <div className="flex-1 flex flex-col justify-center items-start px-8 lg:px-16 text-white max-w-2xl">
           <div className="space-y-8">
             <div className="space-y-6">
-              <ZegerLogo size="lg" className="text-white" />
+              <div className="flex justify-start">
+                <ZegerLogo size="lg" className="text-white" />
+              </div>
               <div>
                 <h1 className="text-6xl font-bold leading-tight mb-4">
                   Hey, Hello!

@@ -16,7 +16,7 @@ export const ZegerLogo: React.FC<ZegerLogoProps> = ({
   };
 
   return (
-    <div className={`flex items-center justify-center ${className}`}>
+    <div className={className}>
       <img 
         src="/lovable-uploads/d4a2c054-62a4-4959-91f5-e3fcd06dda7d.png" 
         alt="Zeger Coffee Logo"
