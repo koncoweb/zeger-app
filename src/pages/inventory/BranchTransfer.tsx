@@ -52,6 +52,8 @@ export default function InventoryBranchTransfer() {
       .map(([productId, qty]) => ({ productId, qty }))
       .filter(r => (r.qty || 0) > 0);
 
+    const totalItems = rows.reduce((sum, row) => sum + row.qty, 0);
+
     if (!selectedBranch) { toast.error('Pilih small branch'); return; }
     if (rows.length === 0) { toast.error('Isi jumlah minimal 1 produk'); return; }
 
@@ -75,7 +77,7 @@ export default function InventoryBranchTransfer() {
       const { error } = await supabase.from('stock_movements').insert(payload);
       if (error) throw error;
 
-      toast.success('Stok berhasil dikirim ke small branch');
+      toast.success(`Stok berhasil dikirim ke small branch! Total: ${totalItems} items`);
       setQuantities({});
       setSelectedBranch("");
     } catch (e: any) {
@@ -130,6 +132,18 @@ export default function InventoryBranchTransfer() {
                 />
               </div>
             ))}
+          </div>
+
+          {/* Transfer Summary */}
+          <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+            <div className="text-sm font-medium text-blue-800">
+              Transfer Summary:
+            </div>
+            <div className="text-sm text-blue-600">
+              Total items to transfer: {
+                Object.values(quantities).reduce((sum, qty) => sum + (qty || 0), 0)
+              } items
+            </div>
           </div>
 
           <Button onClick={sendToBranch} disabled={loading} className="w-full">Kirim</Button>

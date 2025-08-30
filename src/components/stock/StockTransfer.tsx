@@ -276,6 +276,8 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
       return;
     }
 
+    const totalItems = rows.reduce((sum, row) => sum + row.qty, 0);
+
     setLoading(true);
     try {
       // Check branch hub inventory before transfer
@@ -340,7 +342,7 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
         }
       }
 
-      toast.success("Transfer stok ke rider berhasil dikirim!");
+      toast.success(`Transfer stok ke rider berhasil dikirim! Total: ${totalItems} items`);
       setProductQuantities({});
       setSelectedRider("");
       await fetchTransfers();
