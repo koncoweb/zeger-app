@@ -147,32 +147,32 @@ export const StatsOverview = ({ role }: StatsOverviewProps) => {
           <a
             key={stat.title}
             href={path}
-            className="glass-card-intense rounded-3xl p-6 group hover:scale-105 hover:shadow-floating transition-all duration-300 cursor-pointer block fade-in"
-            style={{ animationDelay: `${index * 100}ms` }}
+            className="glass-card-oval p-8 group hover:scale-105 hover:glow-effect transition-all duration-500 cursor-pointer block fade-in wave-overlay"
+            style={{ animationDelay: `${index * 150}ms` }}
           >
-            <div className="flex items-start justify-between mb-4">
-              <div className={`p-3 rounded-2xl ${
-                isPositive ? 'bg-success/20 text-success border border-success/30' :
-                isNegative ? 'bg-destructive/20 text-destructive border border-destructive/30' :
-                'bg-primary/20 text-primary border border-primary/30'
-              } backdrop-blur-sm`}>
-                <Icon className="w-6 h-6" />
+            <div className="flex items-start justify-between mb-6">
+              <div className={`p-4 rounded-[1.2rem] glass-card-oval ${
+                isPositive ? 'bg-success/30 text-success border border-success/40 glow-effect' :
+                isNegative ? 'bg-destructive/30 text-destructive border border-destructive/40' :
+                'bg-primary/30 text-primary border border-primary/40 glow-effect'
+              } backdrop-blur-lg relative overflow-hidden`}>
+                <Icon className="w-7 h-7 relative z-10" />
               </div>
-              <div className={`pill-${isPositive ? 'active' : isNegative ? 'inactive' : 'inactive'} text-xs font-medium`}>
-                {isPositive && <TrendingUp className="w-3 h-3" />}
-                {isNegative && <TrendingDown className="w-3 h-3" />}
+              <div className={`pill-${isPositive ? 'active' : isNegative ? 'inactive' : 'neutral'} text-sm font-bold`}>
+                {isPositive && <TrendingUp className="w-4 h-4" />}
+                {isNegative && <TrendingDown className="w-4 h-4" />}
                 {stat.change}
               </div>
             </div>
             
-            <div>
-              <p className="text-2xl font-bold text-foreground mb-1 group-hover:gradient-text transition-all">
+            <div className="space-y-3">
+              <p className="text-3xl font-bold text-foreground group-hover:gradient-text transition-all duration-300">
                 {stat.value}
               </p>
-              <p className="text-sm font-semibold text-muted-foreground mb-1">
+              <p className="text-base font-bold text-muted-foreground">
                 {stat.title}
               </p>
-              <p className="text-xs text-muted-foreground/80">
+              <p className="text-sm text-muted-foreground/70 leading-relaxed">
                 {stat.description}
               </p>
             </div>

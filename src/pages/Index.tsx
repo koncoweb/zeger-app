@@ -15,18 +15,19 @@ const Index = () => {
   const navigate = useNavigate();
   const location = useLocation();
   return (
-    <div className="min-h-screen wave-gradient-bg">
-      <div className="content-overlay min-h-screen">
-        <div className="container mx-auto px-4 py-6 space-y-6">
-          {/* Modern Header */}
-          <div className="text-center py-6">
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <div className="p-3 rounded-2xl bg-gradient-primary glass-card">
-                <Coffee className="h-10 w-10 text-white" />
+    <div className="min-h-screen relative">
+      <div className="min-h-screen relative z-10">
+        <div className="container mx-auto px-8 py-8 space-y-8">
+          {/* Modern Glassmorphism Header */}
+          <div className="text-center py-8">
+            <div className="flex items-center justify-center gap-4 mb-6">
+              <div className="p-5 rounded-[1.5rem] glass-card-oval bg-gradient-primary relative overflow-hidden">
+                <Coffee className="h-12 w-12 text-white relative z-10" />
+                <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent"></div>
               </div>
-              <h1 className="text-4xl font-bold gradient-text">Zeger Coffee ERP</h1>
+              <h1 className="text-5xl font-bold gradient-text">Zeger Coffee ERP</h1>
             </div>
-            <p className="text-lg text-muted-foreground font-medium">
+            <p className="text-xl text-muted-foreground font-semibold">
               Sistem Manajemen Terpadu Coffee Shop & Mobile Seller
             </p>
           </div>
@@ -34,12 +35,12 @@ const Index = () => {
           {/* Dashboard Header with Role Switcher */}
           <DashboardHeader activeRole={activeRole} onRoleChange={setActiveRole} />
           
-          {/* Modern Dashboard Layout - Similar to Reference Image */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Modern Glassmorphism Dashboard Layout */}
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
             {/* Left Column - Main Content */}
-            <div className="lg:col-span-8 space-y-6">
-              {/* Hero Stats Card - Like the Balance Card in Reference */}
-              <div className="glass-card-intense p-8 rounded-3xl bg-gradient-primary text-white relative overflow-hidden">
+            <div className="xl:col-span-8 space-y-8">
+              {/* Hero Glass Card - Premium Red Gradient */}
+              <div className="glass-card-intense p-10 rounded-[2.5rem] bg-gradient-primary text-white relative overflow-hidden shadow-2xl">
                 <div className="relative z-10">
                   <div className="flex justify-between items-start mb-6">
                     <div>
@@ -65,104 +66,111 @@ const Index = () => {
               {/* Stats Grid - Oval Cards */}
               <StatsOverview role={activeRole} />
               
-              {/* Charts Section */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Sales Chart - Oval Shape */}
-                <div className="glass-card-intense rounded-3xl p-6">
-                  <h3 className="text-lg font-semibold mb-4 text-foreground">History</h3>
-                  <SalesChart />
+              {/* Charts Section - Modern Glassmorphism */}
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                {/* Sales Chart - Glass Oval */}
+                <div className="glass-card-oval p-8">
+                  <h3 className="text-xl font-bold mb-6 gradient-text">Sales History</h3>
+                  <div className="relative">
+                    <SalesChart />
+                  </div>
                 </div>
                 
-                {/* Efficiency Chart - Oval Shape */}
-                <div className="glass-card-intense rounded-3xl p-6">
-                  <h3 className="text-lg font-semibold mb-4 text-foreground">Efficiency</h3>
-                  <div className="flex items-center justify-center h-48">
+                {/* Efficiency Chart - Glass Oval */}
+                <div className="glass-card-oval p-8">
+                  <h3 className="text-xl font-bold mb-6 gradient-text">Performance</h3>
+                  <div className="flex items-center justify-center h-56">
                     <div className="relative">
-                      <div className="w-32 h-32 rounded-full border-8 border-primary/20 relative">
-                        <div className="absolute inset-2 rounded-full border-4 border-primary flex items-center justify-center">
+                      <div className="w-40 h-40 rounded-full border-8 border-primary/20 relative shadow-lg">
+                        <div className="absolute inset-3 rounded-full border-6 border-primary flex items-center justify-center bg-gradient-to-br from-primary/10 to-transparent backdrop-blur-sm">
                           <div className="text-center">
-                            <div className="text-2xl font-bold text-primary">$1,700</div>
-                            <div className="text-xs text-muted-foreground">84.5%</div>
+                            <div className="text-3xl font-bold gradient-text">$1,700</div>
+                            <div className="text-sm text-muted-foreground font-semibold">84.5% Efficiency</div>
                           </div>
                         </div>
                       </div>
+                      <div className="absolute -inset-4 bg-gradient-to-r from-primary/5 to-transparent rounded-full blur-xl"></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
             
-            {/* Right Column - Sidebar */}
-            <div className="lg:col-span-4 space-y-6">
-              {/* Exchange Rates Card */}
-              <div className="glass-card rounded-3xl p-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold">Exchange rates</h3>
-                  <div className="text-sm text-muted-foreground">USD → IDR</div>
+            {/* Right Column - Glass Sidebar */}
+            <div className="xl:col-span-4 space-y-8">
+              {/* Exchange Rates Glass Card */}
+              <div className="glass-card-oval p-8">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-xl font-bold gradient-text">Exchange Rates</h3>
+                  <div className="text-sm text-muted-foreground font-semibold">USD → IDR</div>
                 </div>
-                <div className="h-20 flex items-center justify-center">
-                  <div className="w-full h-8 bg-gradient-to-r from-primary/20 to-accent-orange/20 rounded-full flex items-center">
-                    <div className="h-full w-3/4 bg-gradient-primary rounded-full"></div>
+                <div className="h-24 flex items-center justify-center">
+                  <div className="w-full h-10 glass-card-oval bg-gradient-to-r from-primary/20 to-accent-orange/20 flex items-center p-1">
+                    <div className="h-full w-3/4 bg-gradient-primary rounded-full shadow-lg relative overflow-hidden">
+                      <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent"></div>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Profile Card */}
-              <div className="glass-card rounded-3xl p-6">
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="w-12 h-12 rounded-full bg-gradient-primary flex items-center justify-center">
-                    <Coffee className="w-6 h-6 text-white" />
+              {/* Profile Glass Card */}
+              <div className="glass-card-oval p-8">
+                <div className="flex items-center gap-5 mb-8">
+                  <div className="w-16 h-16 rounded-full bg-gradient-primary flex items-center justify-center shadow-lg relative overflow-hidden">
+                    <Coffee className="w-8 h-8 text-white relative z-10" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent"></div>
                   </div>
                   <div>
-                    <h3 className="font-semibold">Jonas Kanwald</h3>
-                    <p className="text-sm text-muted-foreground">Manager</p>
+                    <h3 className="font-bold text-lg gradient-text">Jonas Kanwald</h3>
+                    <p className="text-muted-foreground font-semibold">Branch Manager</p>
                   </div>
                 </div>
                 
-                {/* Action Buttons - Oval */}
-                <div className="grid grid-cols-4 gap-2 mb-6">
-                  <button className="glass-card rounded-2xl p-3 flex flex-col items-center gap-1 hover:scale-105 transition-transform">
-                    <div className="w-6 h-6 bg-primary/20 rounded-full flex items-center justify-center">
-                      <Users className="w-3 h-3 text-primary" />
+                {/* Action Buttons - Modern Glass Oval */}
+                <div className="grid grid-cols-4 gap-3 mb-8">
+                  <button className="glass-card-oval p-4 flex flex-col items-center gap-2 hover:scale-110 transition-all duration-300 group">
+                    <div className="w-8 h-8 bg-primary/30 rounded-full flex items-center justify-center group-hover:bg-primary/40 transition-colors">
+                      <Users className="w-4 h-4 text-primary" />
                     </div>
-                    <span className="text-xs">Top Up</span>
+                    <span className="text-xs font-semibold">Top Up</span>
                   </button>
-                  <button className="glass-card rounded-2xl p-3 flex flex-col items-center gap-1 hover:scale-105 transition-transform">
-                    <div className="w-6 h-6 bg-success/20 rounded-full flex items-center justify-center">
-                      <Package className="w-3 h-3 text-success" />
+                  <button className="glass-card-oval p-4 flex flex-col items-center gap-2 hover:scale-110 transition-all duration-300 group">
+                    <div className="w-8 h-8 bg-success/30 rounded-full flex items-center justify-center group-hover:bg-success/40 transition-colors">
+                      <Package className="w-4 h-4 text-success" />
                     </div>
-                    <span className="text-xs">Pay</span>
+                    <span className="text-xs font-semibold">Pay</span>
                   </button>
-                  <button className="glass-card rounded-2xl p-3 flex flex-col items-center gap-1 hover:scale-105 transition-transform">
-                    <div className="w-6 h-6 bg-warning/20 rounded-full flex items-center justify-center">
-                      <TrendingUp className="w-3 h-3 text-warning" />
+                  <button className="glass-card-oval p-4 flex flex-col items-center gap-2 hover:scale-110 transition-all duration-300 group">
+                    <div className="w-8 h-8 bg-warning/30 rounded-full flex items-center justify-center group-hover:bg-warning/40 transition-colors">
+                      <TrendingUp className="w-4 h-4 text-warning" />
                     </div>
-                    <span className="text-xs">Send</span>
+                    <span className="text-xs font-semibold">Send</span>
                   </button>
-                  <button className="glass-card rounded-2xl p-3 flex flex-col items-center gap-1 hover:scale-105 transition-transform">
-                    <div className="w-6 h-6 bg-destructive/20 rounded-full flex items-center justify-center">
-                      <Smartphone className="w-3 h-3 text-destructive" />
+                  <button className="glass-card-oval p-4 flex flex-col items-center gap-2 hover:scale-110 transition-all duration-300 group">
+                    <div className="w-8 h-8 bg-destructive/30 rounded-full flex items-center justify-center group-hover:bg-destructive/40 transition-colors">
+                      <Smartphone className="w-4 h-4 text-destructive" />
                     </div>
-                    <span className="text-xs">Request</span>
+                    <span className="text-xs font-semibold">Request</span>
                   </button>
                 </div>
               </div>
 
-              {/* Recent Transactions - Oval List */}
-              <div className="glass-card rounded-3xl p-6">
-                <h3 className="text-lg font-semibold mb-4">Recent Transaction</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-primary flex items-center justify-center">
-                        <Coffee className="w-5 h-5 text-white" />
+              {/* Recent Transactions - Modern Glass List */}
+              <div className="glass-card-oval p-8">
+                <h3 className="text-xl font-bold mb-6 gradient-text">Recent Transactions</h3>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-3 glass-card-oval hover:scale-[1.02] transition-all duration-300">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-full bg-gradient-primary flex items-center justify-center shadow-lg relative overflow-hidden">
+                        <Coffee className="w-6 h-6 text-white relative z-10" />
+                        <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent"></div>
                       </div>
                       <div>
-                        <p className="font-medium text-sm">Tom Holland</p>
-                        <p className="text-xs text-muted-foreground">Payment received</p>
+                        <p className="font-bold text-sm">Tom Holland</p>
+                        <p className="text-xs text-muted-foreground font-medium">Payment received</p>
                       </div>
                     </div>
-                    <p className="font-semibold text-success">+$250</p>
+                    <p className="font-bold text-success text-lg">+$250</p>
                   </div>
                   
                   <div className="flex items-center justify-between">
