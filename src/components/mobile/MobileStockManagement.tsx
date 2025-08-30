@@ -96,19 +96,9 @@ const StockReturnTab = ({ userProfile, activeShift, onRefresh, onGoToShift }: {
     try {
       const today = new Date().toISOString().split('T')[0];
 
-      // Check if there are active shifts from previous days (same-day validation)
-      const { data: activeShifts } = await supabase
-        .from('shift_management')
-        .select('shift_date')
-        .eq('rider_id', userProfile.id)
-        .eq('status', 'active')
-        .neq('shift_date', today);
-
-      if (activeShifts && activeShifts.length > 0) {
-        toast.error('Selesaikan shift dari hari sebelumnya terlebih dahulu. Pengembalian stok harus di hari yang sama untuk mencegah fraud.');
-        setLoading(false);
-        return;
-      }
+      // NOTE: Previously we blocked returns if there were active shifts from previous days.
+      // This caused a deadlock with shift reporting. We now allow returns regardless of
+      // previous-day shift state to decouple attendance/shift logic from stock returns.
 
       // Improved camera/gallery functionality with native mobile support
       const showImageSourceModal = () => {
