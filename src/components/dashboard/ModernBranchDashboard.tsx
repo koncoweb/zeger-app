@@ -20,7 +20,7 @@ import {
   ChefHat,
   Building
 } from "lucide-react";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ComposedChart, Bar } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ComposedChart, Bar, BarChart } from 'recharts';
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 
