@@ -575,17 +575,17 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
               <h3 className="text-lg font-semibold">Kirim Stok ke Rider</h3>
               
               <Select value={selectedRider} onValueChange={setSelectedRider}>
-                <SelectTrigger className="bg-background border-input hover:bg-accent">
+                <SelectTrigger className="bg-background/95 backdrop-blur-md border-red-500 hover:bg-red-50 rounded-full">
                   <SelectValue placeholder="Pilih rider" />
                 </SelectTrigger>
-                <SelectContent className="bg-background border-input shadow-lg z-50">
+                <SelectContent className="bg-background/95 backdrop-blur-md border-red-500 shadow-lg z-50 rounded-2xl">
                   {riders
                     .filter(rider => rider.branch_id === branchId)
                     .map((rider) => (
                       <SelectItem 
                         key={rider.id} 
                         value={rider.id}
-                        className="hover:bg-red-50 hover:text-red-700 focus:bg-red-100 focus:text-red-800"
+                        className="hover:bg-red-50 hover:text-red-700 focus:bg-red-100 focus:text-red-800 rounded-full"
                       >
                         <div className="flex items-center justify-between w-full">
                           <span>{rider.full_name}</span>

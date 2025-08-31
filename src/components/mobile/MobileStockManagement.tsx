@@ -820,15 +820,15 @@ const MobileStockManagement = () => {
     <div className="min-h-screen bg-gradient-to-br from-white via-red-50/30 to-white overflow-x-hidden">
       <div className="w-full max-w-md mx-auto space-y-6 px-4 py-4">
         {/* Sticky Header - Enhanced for lock */}
-        <div className="sticky top-0 z-50 bg-white border-b shadow-md p-4 -mx-4 mb-2">
+        <div className="sticky top-0 z-50 bg-white border-b shadow-md p-4 -mx-4 mb-2 rounded-b-2xl">
           <div className="flex items-center gap-2 mb-4">
             <Package className="h-5 w-5" />
             <h1 className="text-lg font-semibold">Kelola Stok & Shift</h1>
           </div>
           
           <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="w-full">
-            <TabsList className="grid w-full grid-cols-4 text-xs bg-muted">
-              <TabsTrigger value="receive">
+            <TabsList className="grid w-full grid-cols-4 text-xs bg-muted rounded-full">
+              <TabsTrigger value="receive" className="rounded-full">
                 Terima
                 {pendingStock.length > 0 && (
                   <Badge variant="destructive" className="ml-1 text-xs">
@@ -871,22 +871,22 @@ const MobileStockManagement = () => {
                 <ScrollArea className="h-96">
                   <div className="space-y-4">
                      {pendingStock.map((item) => (
-                       <Card key={item.id} className="border-l-4 border-l-orange-500">
-                         <CardContent className="p-4">
-                           <div className="space-y-3">
-                             <div className="flex items-center justify-between">
-                               <div className="flex items-center gap-3">
-                                 <input
-                                   type="checkbox"
-                                   className="w-4 h-4 rounded border-2 border-primary"
-                                   checked={selectedStockIds.has(item.id)}
-                                   onChange={(e) => {
-                                     const newSelected = new Set(selectedStockIds);
-                                     if (e.target.checked) {
-                                       newSelected.add(item.id);
-                                     } else {
-                                       newSelected.delete(item.id);
-                                     }
+                       <Card key={item.id} className="border-l-4 border-l-orange-500 table-row-highlight">
+                          <CardContent className="p-4">
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                  <input
+                                    type="checkbox"
+                                    className="w-4 h-4 rounded-full border-2 border-primary"
+                                    checked={selectedStockIds.has(item.id)}
+                                    onChange={(e) => {
+                                      const newSelected = new Set(selectedStockIds);
+                                      if (e.target.checked) {
+                                        newSelected.add(item.id);
+                                      } else {
+                                        newSelected.delete(item.id);
+                                      }
                                      setSelectedStockIds(newSelected);
                                    }}
                                  />

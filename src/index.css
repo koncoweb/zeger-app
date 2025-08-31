@@ -172,18 +172,18 @@
            placeholder:text-muted-foreground/70;
   }
 
-  /* Enhanced Button Styles */
+  /* Enhanced Button Styles - All Oval Shape */
   .btn-glass {
-    @apply glass-button rounded-xl px-6 py-3 font-medium;
+    @apply glass-button rounded-full px-6 py-3 font-medium;
   }
 
   .btn-glass-outline {
     @apply backdrop-blur-sm bg-white/10 border border-primary/30 text-primary
            hover:bg-primary/10 hover:border-primary/50
-           transition-all duration-200;
+           transition-all duration-200 rounded-full;
   }
 
-  /* Card Enhancements */
+  /* Card Enhancements - Oval Highlights */
   .dashboard-card {
     @apply glass-card rounded-2xl p-6 hover:shadow-xl transition-all duration-300
            border border-border/50 hover:border-primary/20;
@@ -195,14 +195,29 @@
            transform hover:scale-[1.02] transition-all duration-200;
   }
 
+  /* Oval Table Row Highlights */
+  .table-row-highlight {
+    @apply hover:bg-primary/5 hover:shadow-md transition-all duration-200 rounded-full;
+  }
+
+  /* Oval Badge Styles */
+  .badge-oval {
+    @apply rounded-full;
+  }
+
   /* Navigation */
   .nav-glass {
     @apply backdrop-blur-xl bg-white/80 border-b border-white/20 shadow-sm;
   }
 
-  /* Form Elements */
+  /* Form Elements - Oval Shape */
   .form-glass {
-    @apply glass-input rounded-xl;
+    @apply glass-input rounded-full;
+  }
+
+  /* Dropdown Enhancements */
+  .dropdown-content {
+    @apply bg-background/95 backdrop-blur-md border border-border/50 shadow-lg z-50 rounded-2xl;
   }
 
   /* Animations */

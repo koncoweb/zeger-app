@@ -582,12 +582,12 @@ export default function StockManagement() {
 
       {/* Stock Management Tabs */}
       <Tabs defaultValue="stock-in" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="stock-in">Stok Masuk</TabsTrigger>
-          <TabsTrigger value="waste">Waste Stock</TabsTrigger>
-          <TabsTrigger value="inventory-adjustment">Inventory Adjustment</TabsTrigger>
-          <TabsTrigger value="movements">Riwayat Pergerakan</TabsTrigger>
-          <TabsTrigger value="transfer-history">Riwayat Transfer Stock</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-5 rounded-full">
+          <TabsTrigger value="stock-in" className="rounded-full">Stok Masuk</TabsTrigger>
+          <TabsTrigger value="waste" className="rounded-full">Waste Stock</TabsTrigger>
+          <TabsTrigger value="inventory-adjustment" className="rounded-full">Inventory Adjustment</TabsTrigger>
+          <TabsTrigger value="movements" className="rounded-full">Riwayat Pergerakan</TabsTrigger>
+          <TabsTrigger value="transfer-history" className="rounded-full">Riwayat Transfer Stock</TabsTrigger>
         </TabsList>
 
         <TabsContent value="stock-in">
@@ -635,7 +635,7 @@ export default function StockManagement() {
                   placeholder="Keterangan opsional"
                 />
               </div>
-              <Button onClick={handleStockIn} className="w-full">
+              <Button onClick={handleStockIn} className="w-full rounded-full">
                 <Plus className="w-4 h-4 mr-2" />
                 Tambah Stok
               </Button>
@@ -688,7 +688,7 @@ export default function StockManagement() {
                   placeholder="Alasan atau keterangan waste"
                 />
               </div>
-              <Button onClick={handleWasteInput} variant="destructive" className="w-full">
+              <Button onClick={handleWasteInput} variant="destructive" className="w-full rounded-full">
                 <Trash2 className="w-4 h-4 mr-2" />
                 Catat Waste
               </Button>
@@ -711,7 +711,7 @@ export default function StockManagement() {
                   </div>
                 ) : (
                   movements.map((movement) => (
-                    <div key={movement.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div key={movement.id} className="flex items-center justify-between p-4 border rounded-2xl table-row-highlight">
                       <div className="flex items-center gap-4">
                         <div className={cn(
                           "w-10 h-10 rounded-full flex items-center justify-center",
@@ -739,7 +739,7 @@ export default function StockManagement() {
                         <Badge variant={
                           movement.movement_type === 'in' ? 'default' :
                           movement.movement_type === 'adjustment' ? 'destructive' : 'secondary'
-                        }>
+                        } className="badge-oval">
                           {movement.movement_type === 'in' ? '+' : '-'}{movement.quantity}
                         </Badge>
                         {movement.profiles && (
@@ -780,7 +780,7 @@ export default function StockManagement() {
                     </thead>
                     <tbody>
                       {inventoryItems.map((item) => (
-                        <tr key={item.id}>
+                        <tr key={item.id} className="table-row-highlight">
                           <td className="border border-border p-2">
                             <div>
                               <p className="font-medium">{item.products?.name}</p>
@@ -840,7 +840,7 @@ export default function StockManagement() {
                 <Button 
                   onClick={handleInventoryAdjustment}
                   disabled={loading || inventoryItems.filter(item => item.variance !== 0).length === 0}
-                  className="w-full"
+                  className="w-full rounded-full"
                 >
                   <Package className="w-4 h-4 mr-2" />
                   Proses Penyesuaian Inventory
@@ -869,7 +869,7 @@ export default function StockManagement() {
                           <p className="text-xs text-muted-foreground">{adjustment.notes}</p>
                         </div>
                         <div className="text-right">
-                          <Badge variant={adjustment.movement_type === 'in' ? 'default' : 'destructive'}>
+                           <Badge variant={adjustment.movement_type === 'in' ? 'default' : 'destructive'} className="badge-oval">
                             {adjustment.movement_type === 'in' ? '+' : '-'}{adjustment.quantity}
                           </Badge>
                           <p className="text-xs text-muted-foreground mt-1">
