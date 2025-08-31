@@ -38,7 +38,7 @@ interface Product {
 interface StockTransferItem {
   id: string;
   product_id: string;
-  product?: Product;
+  product?: Product & { price?: number };
   quantity: number;
   movement_type: 'in' | 'out' | 'transfer' | 'adjustment' | 'return';
   created_at: string;
@@ -50,6 +50,9 @@ interface StockTransferItem {
   expected_delivery_date?: string;
   actual_delivery_date?: string;
   reference_id?: string;
+  item_value?: number;
+  profiles?: { full_name: string };
+  branches?: { name: string; branch_type: string };
 }
 
 interface StockTransferGroup {
@@ -60,6 +63,10 @@ interface StockTransferGroup {
   rider_id?: string;
   branch_id?: string;
   total_quantity: number;
+  total_value?: number;
+  rider_name?: string;
+  branch_name?: string;
+  branch_type?: string;
   items: StockTransferItem[];
 }
 
@@ -179,7 +186,9 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
         .from('stock_movements')
         .select(`
           *,
-          products(id, name, category)
+          products(id, name, category, price),
+          profiles!stock_movements_rider_id_fkey(id, full_name),
+          branches!stock_movements_branch_id_fkey(id, name, branch_type)
         `)
         .eq('movement_type', 'transfer')
         .order('created_at', { ascending: false });
@@ -209,12 +218,21 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
             rider_id: transfer.rider_id,
             branch_id: transfer.branch_id,
             total_quantity: 0,
+            total_value: 0,
+            rider_name: transfer.profiles?.full_name || 'Unknown Rider',
+            branch_name: transfer.branches?.name || 'Unknown Branch',
+            branch_type: transfer.branches?.branch_type || 'hub',
             items: []
           };
         }
         
-        groupedTransfers[groupKey].items.push(transfer);
+        const itemValue = (transfer.products?.price || 0) * transfer.quantity;
+        groupedTransfers[groupKey].items.push({
+          ...transfer,
+          item_value: itemValue
+        });
         groupedTransfers[groupKey].total_quantity += transfer.quantity;
+        groupedTransfers[groupKey].total_value += itemValue;
       });
 
       setTransfers(Object.values(groupedTransfers));
@@ -649,23 +667,31 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
               {transfers.map((transferGroup) => (
                 <Card key={transferGroup.id} className="border-l-4 border-l-primary">
                   <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Badge variant="outline" className="mb-1">
-                          {transferGroup.transaction_id}
-                        </Badge>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(transferGroup.created_at).toLocaleDateString('id-ID')} - 
-                          {transferGroup.items.length} item(s)
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        {getStatusBadge(transferGroup.status)}
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Total: {transferGroup.total_quantity} unit
-                        </p>
-                      </div>
-                    </div>
+                     <div className="flex items-center justify-between">
+                       <div>
+                         <Badge variant="outline" className="mb-1">
+                           {transferGroup.transaction_id}
+                         </Badge>
+                         <p className="text-sm text-muted-foreground">
+                           {new Date(transferGroup.created_at).toLocaleDateString('id-ID')} - 
+                           {transferGroup.items.length} item(s)
+                         </p>
+                         <p className="text-sm font-medium text-blue-600">
+                           {transferGroup.branch_name} → {transferGroup.rider_name || 'Branch Tujuan'}
+                         </p>
+                       </div>
+                       <div className="text-right">
+                         {getStatusBadge(transferGroup.status)}
+                         <p className="text-xs text-muted-foreground mt-1">
+                           Total: {transferGroup.total_quantity} unit
+                         </p>
+                         {transferGroup.total_value && (
+                           <p className="text-xs font-medium text-green-600">
+                             Nilai: Rp {transferGroup.total_value.toLocaleString('id-ID')}
+                           </p>
+                         )}
+                       </div>
+                     </div>
                   </CardHeader>
                   <CardContent>
                     <Accordion type="single" collapsible className="w-full">
@@ -675,15 +701,22 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
                         </AccordionTrigger>
                         <AccordionContent className="pt-2">
                           <div className="space-y-2 text-sm">
-                            {transferGroup.items.map((item, index) => (
-                              <div key={index} className="flex justify-between py-2 border-b last:border-b-0">
-                                <div>
-                                  <span className="font-medium">{item.product?.name || 'Unknown Product'}</span>
-                                  <p className="text-xs text-muted-foreground">{item.product?.category}</p>
-                                </div>
-                                <span className="font-medium">{item.quantity} unit</span>
-                              </div>
-                            ))}
+                             {transferGroup.items.map((item, index) => (
+                               <div key={index} className="flex justify-between items-center py-3 border-b last:border-b-0">
+                                 <div className="flex-1">
+                                   <span className="font-medium">{item.product?.name || 'Unknown Product'}</span>
+                                   <p className="text-xs text-muted-foreground">{item.product?.category}</p>
+                                 </div>
+                                 <div className="text-right">
+                                   <p className="font-medium">{item.quantity} unit</p>
+                                   {item.item_value && (
+                                     <p className="text-xs text-green-600 font-medium">
+                                       Rp {item.item_value.toLocaleString('id-ID')}
+                                     </p>
+                                   )}
+                                 </div>
+                               </div>
+                             ))}
                           </div>
                           {role === 'rider' && transferGroup.status === 'sent' && transferGroup.rider_id === userId && (
                             <div className="mt-4 pt-3 border-t">
