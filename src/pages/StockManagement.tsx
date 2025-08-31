@@ -338,10 +338,10 @@ export default function StockManagement() {
       const adjustmentMovements = itemsToAdjust.map(item => ({
         product_id: item.product_id,
         quantity: Math.abs(item.variance),
-        movement_type: item.variance > 0 ? 'in' : 'adjustment',
+        movement_type: (item.variance > 0 ? 'in' : 'adjustment') as 'in' | 'adjustment',
         notes: `Stock opname adjustment: ${item.variance > 0 ? 'tambah' : 'kurang'} ${Math.abs(item.variance)} items`,
-        reference_type: 'inventory_adjustment',
-        branch_id: 'your-branch-id' // Replace with actual branch ID
+        reference_type: 'inventory_adjustment' as string,
+        branch_id: 'your-branch-id' as string // Replace with actual branch ID
       }));
 
       const { error: movementError } = await supabase
