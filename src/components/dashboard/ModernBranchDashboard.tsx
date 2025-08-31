@@ -21,6 +21,7 @@ import {
   Building
 } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ComposedChart, Bar, BarChart } from 'recharts';
+import { PieChart3D } from '@/components/charts/PieChart3D';
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 
@@ -60,10 +61,9 @@ export const ModernBranchDashboard = () => {
   const [selectedUser, setSelectedUser] = useState<string>("all");
   const [salesFilter, setSalesFilter] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
   
-  // Set default to month-to-date (from 1st of current month to current date)
+  // Set default to today's date
   const currentDate = new Date();
-  const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-  const [startDate, setStartDate] = useState<string>(firstDayOfMonth.toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState<string>(currentDate.toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState<string>(currentDate.toISOString().split('T')[0]);
   const [riders, setRiders] = useState<Rider[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
@@ -80,6 +80,7 @@ export const ModernBranchDashboard = () => {
   const [productSales, setProductSales] = useState<ProductSales[]>([]);
   const [riderExpenses, setRiderExpenses] = useState<{rider_name: string, total_expenses: number}[]>([]);
   const [riderStockData, setRiderStockData] = useState<{rider_name: string, initial_stock: number, sold: number, remaining: number}[]>([]);
+  const [hourlyData, setHourlyData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -96,12 +97,65 @@ export const ModernBranchDashboard = () => {
         fetchSalesChart(),
         fetchProductSales(),
         fetchRiderExpenses(),
-        fetchRiderStockData()
+        fetchRiderStockData(),
+        fetchHourlyData()
       ]);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchHourlyData = async () => {
+    try {
+      const { data: transactions } = await supabase
+        .from('transactions')
+        .select(`
+          transaction_date,
+          transaction_items(
+            product_id,
+            quantity,
+            products(name, category)
+          )
+        `)
+        .eq('status', 'completed')
+        .gte('transaction_date', `${startDate}T00:00:00`)
+        .lte('transaction_date', `${endDate}T23:59:59`);
+
+      if (transactions) {
+        const hourlyStats: Record<string, number> = {};
+        
+        transactions.forEach((transaction: any) => {
+          const hour = new Date(transaction.transaction_date).getHours();
+          const hourKey = `${hour}:00`;
+          
+          transaction.transaction_items?.forEach((item: any) => {
+            hourlyStats[hourKey] = (hourlyStats[hourKey] || 0) + item.quantity;
+          });
+        });
+
+        const formattedData = Object.entries(hourlyStats)
+          .map(([hour, quantity]) => ({
+            name: hour,
+            value: quantity,
+            percentage: 0,
+            color: ''
+          }))
+          .sort((a, b) => parseInt(a.name) - parseInt(b.name));
+
+        const total = formattedData.reduce((sum, item) => sum + item.value, 0);
+        const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'];
+        
+        formattedData.forEach((item, index) => {
+          item.percentage = (item.value / total) * 100;
+          item.color = colors[index % colors.length];
+        });
+
+        setHourlyData(formattedData.filter(item => item.value > 0));
+      }
+    } catch (error) {
+      console.error('Error fetching hourly data:', error);
     }
   };
 
@@ -661,6 +715,24 @@ export const ModernBranchDashboard = () => {
             </Card>
           );
         })}
+      </div>
+
+      {/* Modern 3D Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <PieChart3D 
+          data={productSales.slice(0, 8).map((product, index) => ({
+            name: product.name,
+            value: product.quantity,
+            percentage: (product.quantity / productSales.reduce((sum, p) => sum + p.quantity, 0)) * 100,
+            color: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'][index % 8]
+          }))}
+          title="Menu Terjual (Top Products)"
+        />
+        
+        <PieChart3D 
+          data={hourlyData}
+          title="Jam Terjual (Sales by Hour)"
+        />
       </div>
 
       {/* Rider Performance */}
