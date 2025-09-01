@@ -736,23 +736,195 @@ export const ModernBranchDashboard = () => {
           ))}
         </div>
 
-        {/* Modern 3D Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <PieChart3D 
-          data={productSales.slice(0, 8).map((product, index) => ({
-            name: product.name,
-            value: product.quantity,
-            percentage: (product.quantity / productSales.reduce((sum, p) => sum + p.quantity, 0)) * 100,
-            color: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'][index % 8]
-          }))}
-          title="Menu Terjual (Top Products)"
-        />
-        
-        <PieChart3D 
-          data={hourlyData}
-          title="Jam Terjual (Sales by Hour)"
-        />
-      </div>
+        {/* Product Statistic and Customer Habits Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Product Statistic - Main Circle Chart */}
+          <Card className="bg-white rounded-3xl shadow-sm border-0 hover:shadow-lg transition-all">
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg font-semibold text-gray-900">Product Statistic</CardTitle>
+                  <p className="text-sm text-gray-500">Track your product sales</p>
+                </div>
+                <Select defaultValue="today">
+                  <SelectTrigger className="w-20 h-8 text-xs border-gray-200">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="today">Today</SelectItem>
+                    <SelectItem value="week">Week</SelectItem>
+                    <SelectItem value="month">Month</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {/* Main Circle Chart */}
+              <div className="relative flex items-center justify-center mb-6">
+                <div className="relative w-48 h-48">
+                  <svg className="w-full h-full transform -rotate-90" viewBox="0 0 120 120">
+                    {/* Background circles */}
+                    <circle cx="60" cy="60" r="50" fill="none" stroke="#f1f5f9" strokeWidth="8" />
+                    <circle cx="60" cy="60" r="40" fill="none" stroke="#f1f5f9" strokeWidth="8" />
+                    <circle cx="60" cy="60" r="30" fill="none" stroke="#f1f5f9" strokeWidth="8" />
+                    
+                    {/* Progress circles */}
+                    <circle 
+                      cx="60" cy="60" r="50" 
+                      fill="none" 
+                      stroke="#3b82f6" 
+                      strokeWidth="8" 
+                      strokeLinecap="round"
+                      strokeDasharray={`${2 * Math.PI * 50 * 0.7} ${2 * Math.PI * 50}`}
+                      className="transition-all duration-1000"
+                    />
+                    <circle 
+                      cx="60" cy="60" r="40" 
+                      fill="none" 
+                      stroke="#ef4444" 
+                      strokeWidth="8" 
+                      strokeLinecap="round"
+                      strokeDasharray={`${2 * Math.PI * 40 * 0.4} ${2 * Math.PI * 40}`}
+                      className="transition-all duration-1000"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <div className="text-3xl font-bold text-gray-900">9.829</div>
+                    <div className="text-sm text-gray-500">Products Sales</div>
+                    <div className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full mt-1">+5,34%</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Category List */}
+              <div className="space-y-3">
+                {productSales.slice(0, 3).map((product, index) => {
+                  const icons = ['💻', '🎮', '🪑'];
+                  const colors = ['text-gray-700', 'text-blue-600', 'text-green-600'];
+                  const changes = ['+1,5%', '+2,3%', '-1,04%'];
+                  const changeColors = ['text-green-600', 'text-green-600', 'text-red-600'];
+                  
+                  return (
+                    <div key={product.name} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className={`text-lg ${colors[index]}`}>{icons[index]}</span>
+                        <span className="font-medium text-gray-700">{product.name.substring(0, 10)}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-gray-900">{product.quantity}</span>
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          index === 2 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                        }`}>
+                          {changes[index]}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Sales by Hour - Customer Habits Style */}
+          <Card className="bg-white rounded-3xl shadow-sm border-0 hover:shadow-lg transition-all">
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg font-semibold text-gray-900">Customer Habits</CardTitle>
+                  <p className="text-sm text-gray-500">Track your customer habits</p>
+                </div>
+                <Select defaultValue="thisyear">
+                  <SelectTrigger className="w-24 h-8 text-xs border-gray-200">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="thisyear">This year</SelectItem>
+                    <SelectItem value="lastmonth">Last month</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {/* Legend */}
+              <div className="flex items-center gap-6 mb-6">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-gray-300"></div>
+                  <span className="text-sm text-gray-500">Seen product</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                  <span className="text-sm text-gray-500">Sales</span>
+                </div>
+              </div>
+
+              {/* Tooltip Display */}
+              <div className="bg-gray-900 text-white p-3 rounded-xl mb-4 text-sm">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-2 h-2 rounded-full bg-gray-400"></div>
+                  <span>43.787 Products</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                  <span>39.784 Products</span>
+                </div>
+              </div>
+
+              {/* Bar Chart */}
+              <div className="h-48">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={hourlyData.slice(0, 7)} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                    <XAxis 
+                      dataKey="name" 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 10, fill: '#9CA3AF' }}
+                    />
+                    <YAxis hide />
+                    <Bar 
+                      dataKey="value" 
+                      fill="#3b82f6" 
+                      radius={4}
+                      background={{ fill: '#e5e7eb' }}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Rider Performance - Smaller Card */}
+          <Card className="bg-white rounded-3xl shadow-sm border-0 hover:shadow-lg transition-all">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg font-semibold text-gray-900">Rider Performance</CardTitle>
+              <p className="text-sm text-gray-500">Track rider performance</p>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="space-y-3">
+                {riderExpenses.slice(0, 4).map((rider, index) => (
+                  <div key={rider.rider_name} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                        <span className="text-xs font-semibold text-red-600">
+                          {rider.rider_name.substring(0, 2).toUpperCase()}
+                        </span>
+                      </div>
+                      <span className="text-sm font-medium text-gray-700">{rider.rider_name}</span>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-semibold text-gray-900">
+                        {formatCurrency(rider.total_expenses)}
+                      </div>
+                      <div className="text-xs text-gray-500">expenses</div>
+                    </div>
+                  </div>
+                ))}
+                {riderExpenses.length === 0 && (
+                  <p className="text-center text-gray-500 py-4 text-sm">No data available</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
       {/* Rider Performance */}
       <Card className="col-span-1 lg:col-span-2">
