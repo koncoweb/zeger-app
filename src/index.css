@@ -201,7 +201,7 @@
 
   /* Oval Table Row Highlights */
   .table-row-highlight {
-    @apply hover:bg-primary/5 hover:shadow-md transition-all duration-200 rounded-full;
+    @apply hover:bg-primary/5 hover:shadow-md transition-all duration-200 rounded-3xl;
   }
 
   /* Oval Badge Styles */
@@ -209,9 +209,9 @@
     @apply rounded-full;
   }
 
-  /* Navigation */
+  /* Navigation - Oval Header */
   .nav-glass {
-    @apply backdrop-blur-xl bg-white/80 border-b border-white/20 shadow-sm;
+    @apply backdrop-blur-xl bg-white/80 border-b border-white/20 shadow-sm rounded-3xl mx-4 mt-2 mb-2;
   }
 
   /* Form Elements - Oval Shape */

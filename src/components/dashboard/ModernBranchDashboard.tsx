@@ -353,35 +353,59 @@ export const ModernBranchDashboard = () => {
 
   const fetchProductSales = async () => {
     try {
-      // Fetch top selling products
-      const { data: transactionItems } = await supabase
-        .from('transaction_items')
+      // Build query based on date range and selected user
+      const { data: transactions } = await supabase
+        .from('transactions')
         .select(`
-          quantity,
-          products!inner(name)
-        `);
+          transaction_date,
+          rider_id,
+          status,
+          transaction_items(
+            quantity,
+            products!inner(name)
+          )
+        `)
+        .eq('status', 'completed')
+        .gte('transaction_date', `${startDate}T00:00:00`)
+        .lte('transaction_date', `${endDate}T23:59:59`);
 
-      const productQuantities: { [key: string]: number } = {};
-      transactionItems?.forEach(item => {
-        const productName = item.products?.name || 'Unknown';
-        productQuantities[productName] = (productQuantities[productName] || 0) + item.quantity;
+      if (!transactions) {
+        setProductSales([]);
+        return;
+      }
+
+      // Filter by rider if selected
+      const filteredTransactions = selectedUser === "all" 
+        ? transactions 
+        : transactions.filter(t => t.rider_id === selectedUser);
+
+      const productQuantities: { [key: string]: { quantity: number, revenue: number } } = {};
+      filteredTransactions.forEach(transaction => {
+        transaction.transaction_items?.forEach((item: any) => {
+          const productName = item.products?.name || 'Unknown';
+          if (!productQuantities[productName]) {
+            productQuantities[productName] = { quantity: 0, revenue: 0 };
+          }
+          productQuantities[productName].quantity += item.quantity;
+          productQuantities[productName].revenue += item.quantity * 25000; // Estimate price
+        });
       });
 
       const sortedProducts = Object.entries(productQuantities)
-        .sort(([,a], [,b]) => b - a)
+        .sort(([,a], [,b]) => b.quantity - a.quantity)
         .slice(0, 5);
 
-      const total = sortedProducts.reduce((sum, [,qty]) => sum + qty, 0);
+      const total = sortedProducts.reduce((sum, [,data]) => sum + data.quantity, 0);
       
-      const mockProductSales = sortedProducts.map(([name, qty], index) => ({
+      const productSalesData = sortedProducts.map(([name, data], index) => ({
         name,
-        value: Math.round((qty / total) * 100),
+        value: total > 0 ? Math.round((data.quantity / total) * 100) : 0,
         color: COLORS[index],
-        quantity: qty,
-        revenue: qty * 25000 // Estimate
+        quantity: data.quantity,
+        revenue: data.revenue
       }));
 
-      setProductSales(mockProductSales);
+      setProductSales(productSalesData);
     } catch (error) {
       console.error("Error fetching product sales:", error);
       // Fallback to mock data
@@ -633,16 +657,16 @@ export const ModernBranchDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b p-6">
+      {/* Header - Oval Design */}
+      <div className="bg-white shadow-sm border-b p-6 mx-4 mt-4 mb-2 rounded-3xl">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Sales Report</h1>
-            <p className="text-sm text-gray-500">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+            <h1 className="text-xl font-bold text-gray-900">Sales Report</h1>
+            <p className="text-xs text-gray-500">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <Select value={selectedUser} onValueChange={setSelectedUser}>
-              <SelectTrigger className="w-40">
+              <SelectTrigger className="w-36 h-8 rounded-full text-xs">
                 <SelectValue placeholder="All Users" />
               </SelectTrigger>
               <SelectContent>
@@ -658,13 +682,13 @@ export const ModernBranchDashboard = () => {
               type="date" 
               value={startDate} 
               onChange={(e) => setStartDate(e.target.value)}
-              className="w-40"
+              className="w-32 h-8 rounded-full text-xs"
             />
             <Input 
               type="date" 
               value={endDate} 
               onChange={(e) => setEndDate(e.target.value)}
-              className="w-40"
+              className="w-32 h-8 rounded-full text-xs"
             />
           </div>
         </div>
@@ -716,13 +740,13 @@ export const ModernBranchDashboard = () => {
               route: "/finance/operational-expenses"
             }
           ].map((item, index) => (
-            <Card key={index} className={`${item.bgColor} ${item.textColor} rounded-2xl border-0 shadow-sm hover:shadow-lg transition-all cursor-pointer`} onClick={() => navigate(item.route)}>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className={`p-3 rounded-xl ${index === 0 ? 'bg-white/20' : 'bg-gray-100'}`}>
-                    <item.icon className={`h-6 w-6 ${index === 0 ? 'text-white' : 'text-gray-600'}`} />
+            <Card key={index} className={`${item.bgColor} ${item.textColor} rounded-3xl border-0 shadow-sm hover:shadow-lg transition-all cursor-pointer`} onClick={() => navigate(item.route)}>
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className={`p-2.5 rounded-full ${index === 0 ? 'bg-white/20' : 'bg-gray-100'}`}>
+                    <item.icon className={`h-5 w-5 ${index === 0 ? 'text-white' : 'text-gray-600'}`} />
                   </div>
-                  <div className={`text-sm font-medium px-3 py-1 rounded-full ${
+                  <div className={`text-xs font-medium px-2.5 py-1 rounded-full ${
                     item.changeColor === 'text-red-500' 
                       ? 'bg-red-100 text-red-700' 
                       : 'bg-green-100 text-green-700'
@@ -731,9 +755,9 @@ export const ModernBranchDashboard = () => {
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <p className={`text-3xl font-bold ${index === 0 ? 'text-white' : 'text-gray-900'}`}>{item.value}</p>
-                  <p className={`text-lg font-medium ${index === 0 ? 'text-white' : 'text-gray-700'}`}>{item.title}</p>
-                  <p className={`text-sm ${index === 0 ? 'text-white/80' : 'text-gray-500'}`}>{item.description}</p>
+                  <p className={`text-2xl font-bold ${index === 0 ? 'text-white' : 'text-gray-900'}`}>{item.value}</p>
+                  <p className={`text-base font-medium ${index === 0 ? 'text-white' : 'text-gray-700'}`}>{item.title}</p>
+                  <p className={`text-xs ${index === 0 ? 'text-white/80' : 'text-gray-500'}`}>{item.description}</p>
                 </div>
               </CardContent>
             </Card>
@@ -785,13 +809,13 @@ export const ModernBranchDashboard = () => {
               route: "/riders"
             }
           ].map((item, index) => (
-            <Card key={index} className={`${item.bgColor} ${item.textColor} rounded-2xl border-0 shadow-sm hover:shadow-lg transition-all cursor-pointer`} onClick={() => navigate(item.route)}>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="p-3 rounded-xl bg-gray-100">
-                    <item.icon className="h-6 w-6 text-gray-600" />
+            <Card key={index} className={`${item.bgColor} ${item.textColor} rounded-3xl border-0 shadow-sm hover:shadow-lg transition-all cursor-pointer`} onClick={() => navigate(item.route)}>
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="p-2.5 rounded-full bg-gray-100">
+                    <item.icon className="h-5 w-5 text-gray-600" />
                   </div>
-                  <div className={`text-sm font-medium px-3 py-1 rounded-full ${
+                  <div className={`text-xs font-medium px-2.5 py-1 rounded-full ${
                     item.changeColor === 'text-red-500' 
                       ? 'bg-red-100 text-red-700' 
                       : 'bg-green-100 text-green-700'
@@ -800,9 +824,9 @@ export const ModernBranchDashboard = () => {
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-3xl font-bold text-gray-900">{item.value}</p>
-                  <p className="text-lg font-medium text-gray-700">{item.title}</p>
-                  <p className="text-sm text-gray-500">{item.description}</p>
+                  <p className="text-2xl font-bold text-gray-900">{item.value}</p>
+                  <p className="text-base font-medium text-gray-700">{item.title}</p>
+                  <p className="text-xs text-gray-500">{item.description}</p>
                 </div>
               </CardContent>
             </Card>
@@ -812,7 +836,7 @@ export const ModernBranchDashboard = () => {
         {/* Menu Terjual and Jam Terjual Section */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Menu Terjual - Main Circle Chart */}
-          <Card className="bg-white rounded-3xl shadow-sm border-0 hover:shadow-lg transition-all cursor-pointer" onClick={() => navigate('/transactions')}>
+          <Card className="bg-white rounded-3xl shadow-sm border-0 hover:shadow-lg transition-all cursor-pointer" onClick={() => handleCardClick('transactions')}>
             <CardHeader className="pb-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -820,7 +844,7 @@ export const ModernBranchDashboard = () => {
                   <p className="text-sm text-gray-500">Track your product sales</p>
                 </div>
                 <Select defaultValue="today">
-                  <SelectTrigger className="w-20 h-8 text-xs border-gray-200">
+                  <SelectTrigger className="w-18 h-7 text-xs border-gray-200 rounded-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -899,7 +923,7 @@ export const ModernBranchDashboard = () => {
           </Card>
 
           {/* Jam Terjual - Sales by Hour Style */}
-          <Card className="bg-white rounded-3xl shadow-sm border-0 hover:shadow-lg transition-all cursor-pointer" onClick={() => navigate('/transactions')}>
+          <Card className="bg-white rounded-3xl shadow-sm border-0 hover:shadow-lg transition-all cursor-pointer" onClick={() => handleCardClick('transactions')}>
             <CardHeader className="pb-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -907,7 +931,7 @@ export const ModernBranchDashboard = () => {
                   <p className="text-sm text-gray-500">Track your sales by hour</p>
                 </div>
                 <Select defaultValue="thisyear">
-                  <SelectTrigger className="w-24 h-8 text-xs border-gray-200">
+                  <SelectTrigger className="w-22 h-7 text-xs border-gray-200 rounded-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -966,7 +990,7 @@ export const ModernBranchDashboard = () => {
           </Card>
 
           {/* Performa Rider - Smaller Card */}
-          <Card className="bg-white rounded-3xl shadow-sm border-0 hover:shadow-lg transition-all cursor-pointer" onClick={() => navigate('/riders')}>
+          <Card className="bg-white rounded-3xl shadow-sm border-0 hover:shadow-lg transition-all cursor-pointer" onClick={() => handleCardClick('riders')}>
             <CardHeader className="pb-4">
               <CardTitle className="text-lg font-semibold text-gray-900">Performa Rider</CardTitle>
               <p className="text-sm text-gray-500">Track rider performance</p>

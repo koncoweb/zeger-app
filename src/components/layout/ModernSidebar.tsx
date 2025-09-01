@@ -162,13 +162,13 @@ export const ModernSidebar = ({ userRole, isOpen, onToggle }: ModernSidebarProps
               e.preventDefault();
             }
           }}
-          className={({ isActive }) => cn(
-            "flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 group",
-            isChild && "ml-4",
-            (isActive && item.path) 
-              ? "bg-white/20 text-white shadow-lg" 
-              : "text-primary-foreground/80 hover:bg-white/10 hover:text-white"
-          )}
+           className={({ isActive }) => cn(
+             "flex items-center gap-3 px-3 py-3 rounded-full transition-all duration-200 group",
+             isChild && "ml-4",
+             (isActive && item.path) 
+               ? "bg-white/20 text-white shadow-lg" 
+               : "text-primary-foreground/80 hover:bg-white/10 hover:text-white"
+           )}
         >
           <Icon className="h-5 w-5 flex-shrink-0" />
           {isOpen && (
@@ -242,7 +242,7 @@ export const ModernSidebar = ({ userRole, isOpen, onToggle }: ModernSidebarProps
           <button
             onClick={handleSignOut}
             className={cn(
-              "flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 w-full text-left group",
+              "flex items-center gap-3 px-3 py-3 rounded-full transition-all duration-200 w-full text-left group",
               "text-primary-foreground/80 hover:bg-white/10 hover:text-white"
             )}
           >
