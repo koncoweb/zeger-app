@@ -42,15 +42,21 @@ export const ModernBranchDashboard = () => {
   const [selectedUser, setSelectedUser] = useState<string>("all");
   const [salesFilter, setSalesFilter] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
 
-  // Set default dates: start of month to today - updates dynamically
-  const getCurrentDate = () => new Date();
+  // Set default dates using Asia/Jakarta timezone
+  const getJakartaNow = () => new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+  const formatYMD = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
   const getFirstOfMonth = () => {
-    const now = getCurrentDate();
+    const now = getJakartaNow();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   };
   
-  const [startDate, setStartDate] = useState<string>(getFirstOfMonth().toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState<string>(getCurrentDate().toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState<string>(formatYMD(getFirstOfMonth()));
+  const [endDate, setEndDate] = useState<string>(formatYMD(getJakartaNow()));
   const [dateFilter, setDateFilter] = useState<'today' | 'weekly' | 'monthly'>('monthly');
 
   // Individual filters for each section
@@ -86,17 +92,18 @@ export const ModernBranchDashboard = () => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   useEffect(() => {
-    // Update dates automatically based on dateFilter
-    const today = getCurrentDate().toISOString().split('T')[0];
-    const firstOfThisMonth = getFirstOfMonth().toISOString().split('T')[0];
+    // Update dates automatically based on dateFilter (Asia/Jakarta)
+    const now = getJakartaNow();
+    const today = formatYMD(now);
+    const firstOfThisMonth = formatYMD(getFirstOfMonth());
     
     if (dateFilter === 'today') {
       setStartDate(today);
       setEndDate(today);
     } else if (dateFilter === 'weekly') {
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      setStartDate(weekAgo.toISOString().split('T')[0]);
+      const weekAgo = new Date(now);
+      weekAgo.setDate(now.getDate() - 7);
+      setStartDate(formatYMD(weekAgo));
       setEndDate(today);
     } else if (dateFilter === 'monthly') {
       setStartDate(firstOfThisMonth);
@@ -108,26 +115,25 @@ export const ModernBranchDashboard = () => {
     fetchDashboardData();
   }, [selectedUser, salesFilter, startDate, endDate, menuFilter, hourlyFilter, riderFilter]);
   const getDateRange = (filter: 'today' | 'week' | 'month') => {
-    const today = new Date();
+    const today = getJakartaNow();
     let start = startDate;
     let end = endDate;
     if (filter === 'today') {
-      start = end = today.toISOString().split('T')[0];
+      const t = formatYMD(today);
+      start = t;
+      end = t;
     } else if (filter === 'week') {
       const weekStart = new Date(today);
       weekStart.setDate(today.getDate() - 7);
-      start = weekStart.toISOString().split('T')[0];
-      end = today.toISOString().split('T')[0];
+      start = formatYMD(weekStart);
+      end = formatYMD(today);
     } else if (filter === 'month') {
       const monthStart = new Date(today);
       monthStart.setDate(today.getDate() - 30);
-      start = monthStart.toISOString().split('T')[0];
-      end = today.toISOString().split('T')[0];
+      start = formatYMD(monthStart);
+      end = formatYMD(today);
     }
-    return {
-      start,
-      end
-    };
+    return { start, end };
   };
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -143,7 +149,7 @@ export const ModernBranchDashboard = () => {
     try {
       const {
         data
-      } = await supabase.from('profiles').select('id, full_name, is_active').eq('role', 'rider').eq('is_active', true);
+      } = await supabase.from('profiles').select('id, full_name, is_active').eq('role', 'rider').order('full_name', { ascending: true });
       setRiders(data || []);
     } catch (error) {
       console.error("Error fetching riders:", error);
@@ -392,7 +398,7 @@ export const ModernBranchDashboard = () => {
         count: 0
       }];
       filteredTransactions.forEach(transaction => {
-        const transactionHour = new Date(transaction.transaction_date).getHours();
+        const transactionHour = new Date(new Date(transaction.transaction_date).toLocaleString('en-US', { timeZone: 'Asia/Jakarta' })).getHours();
         const totalItems = transaction.transaction_items?.reduce((sum: number, item: any) => sum + item.quantity, 0) || 0;
         shifts.forEach(shift => {
           if (transactionHour >= shift.start && transactionHour < shift.end) {
@@ -620,7 +626,8 @@ export const ModernBranchDashboard = () => {
                 weekday: 'long', 
                 year: 'numeric', 
                 month: 'long', 
-                day: 'numeric' 
+                day: 'numeric',
+                timeZone: 'Asia/Jakarta'
               })}</p>
             </div>
             

@@ -97,10 +97,24 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
   const [productQuantities, setProductQuantities] = useState<Record<string, number>>({});
   const [riderShifts, setRiderShifts] = useState<Record<string, ShiftInfo>>({});
   const [activeShift, setActiveShift] = useState<ShiftInfo | null>(null);
+  const [historyType, setHistoryType] = useState<'transfer' | 'return'>('transfer');
+
+  // Timezone helpers (Asia/Jakarta)
+  const getJakartaNow = () => new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+  const formatYMD = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    fetchTransfers();
+  }, [historyType]);
 
   const fetchData = async () => {
     try {
@@ -191,7 +205,7 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
           profiles!stock_movements_rider_id_fkey(id, full_name),
           branches!stock_movements_branch_id_fkey(id, name, branch_type)
         `)
-        .eq('movement_type', 'transfer')
+        .eq('movement_type', historyType)
         .order('created_at', { ascending: false });
 
       if (role === 'branch_manager' && branchId) {
