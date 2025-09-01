@@ -65,6 +65,12 @@ export const ModernBranchDashboard = () => {
   const currentDate = new Date();
   const [startDate, setStartDate] = useState<string>(currentDate.toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState<string>(currentDate.toISOString().split('T')[0]);
+  
+  // Individual filters for each section
+  const [menuFilter, setMenuFilter] = useState<'today' | 'week' | 'month'>('today');
+  const [hourlyFilter, setHourlyFilter] = useState<'today' | 'week' | 'month'>('today');
+  const [riderFilter, setRiderFilter] = useState<'today' | 'week' | 'month'>('today');
+  
   const [riders, setRiders] = useState<Rider[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
     totalSales: 0,
@@ -86,7 +92,29 @@ export const ModernBranchDashboard = () => {
 
   useEffect(() => {
     fetchDashboardData();
-  }, [selectedUser, salesFilter, startDate, endDate]);
+  }, [selectedUser, salesFilter, startDate, endDate, menuFilter, hourlyFilter, riderFilter]);
+
+  const getDateRange = (filter: 'today' | 'week' | 'month') => {
+    const today = new Date();
+    let start = startDate;
+    let end = endDate;
+    
+    if (filter === 'today') {
+      start = end = today.toISOString().split('T')[0];
+    } else if (filter === 'week') {
+      const weekStart = new Date(today);
+      weekStart.setDate(today.getDate() - 7);
+      start = weekStart.toISOString().split('T')[0];
+      end = today.toISOString().split('T')[0];
+    } else if (filter === 'month') {
+      const monthStart = new Date(today);
+      monthStart.setDate(today.getDate() - 30);
+      start = monthStart.toISOString().split('T')[0];
+      end = today.toISOString().split('T')[0];
+    }
+    
+    return { start, end };
+  };
 
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -101,84 +129,20 @@ export const ModernBranchDashboard = () => {
         fetchHourlyData()
       ]);
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
+      console.error("Error fetching dashboard data:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchHourlyData = async () => {
-    try {
-      let transactionQuery = supabase
-        .from('transactions')
-        .select(`
-          transaction_date,
-          rider_id,
-          transaction_items(
-            quantity,
-            products(name, category)
-          )
-        `)
-        .eq('status', 'completed')
-        .gte('transaction_date', `${startDate}T00:00:00`)
-        .lte('transaction_date', `${endDate}T23:59:59`);
-
-      if (selectedUser !== "all") {
-        transactionQuery = transactionQuery.eq('rider_id', selectedUser);
-      }
-
-      const { data: transactions } = await transactionQuery;
-
-      if (transactions) {
-        // Define shift periods
-        const shiftStats = {
-          'Shift 1 (06:00-10:00)': 0,
-          'Shift 2 (10:00-15:00)': 0,
-          'Shift 3 (15:00-21:00)': 0
-        };
-        
-        transactions.forEach((transaction: any) => {
-          const hour = new Date(transaction.transaction_date).getHours();
-          
-          transaction.transaction_items?.forEach((item: any) => {
-            if (hour >= 6 && hour < 10) {
-              shiftStats['Shift 1 (06:00-10:00)'] += item.quantity;
-            } else if (hour >= 10 && hour < 15) {
-              shiftStats['Shift 2 (10:00-15:00)'] += item.quantity;
-            } else if (hour >= 15 && hour < 21) {
-              shiftStats['Shift 3 (15:00-21:00)'] += item.quantity;
-            }
-          });
-        });
-
-        const formattedData = Object.entries(shiftStats).map(([shift, quantity], index) => ({
-          name: shift,
-          value: quantity,
-          percentage: 0,
-          color: ['#DC2626', '#EF4444', '#F87171'][index]
-        }));
-
-        const total = formattedData.reduce((sum, item) => sum + item.value, 0);
-        formattedData.forEach((item) => {
-          item.percentage = total > 0 ? (item.value / total) * 100 : 0;
-        });
-
-        setHourlyData(formattedData);
-      }
-    } catch (error) {
-      console.error('Error fetching hourly data:', error);
-    }
-  };
-
   const fetchRiders = async () => {
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('profiles')
         .select('id, full_name, is_active')
         .eq('role', 'rider')
         .eq('is_active', true);
-
-      if (error) throw error;
+      
       setRiders(data || []);
     } catch (error) {
       console.error("Error fetching riders:", error);
@@ -187,68 +151,33 @@ export const ModernBranchDashboard = () => {
 
   const fetchStats = async () => {
     try {
-      // Build query based on date range and selected user
-      let transactionQuery = supabase
+      // Fetch completed transactions for the date range
+      const { data: transactions } = await supabase
         .from('transactions')
         .select('final_amount, id')
         .eq('status', 'completed')
-        .gte('transaction_date', startDate)
-        .lte('transaction_date', endDate);
+        .gte('transaction_date', `${startDate}T00:00:00`)
+        .lte('transaction_date', `${endDate}T23:59:59`);
 
-      if (selectedUser !== "all") {
-        transactionQuery = transactionQuery.eq('rider_id', selectedUser);
-      }
+      // Fetch active customers
+      const { data: customers } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('is_active', true);
 
-      const { data: salesData, error: salesError } = await transactionQuery;
-      if (salesError) throw salesError;
-
-      const totalSales = salesData?.reduce((sum, transaction) => sum + (transaction.final_amount || 0), 0) || 0;
-      const totalTransactions = salesData?.length || 0;
-      const avgTransactionValue = totalTransactions > 0 ? totalSales / totalTransactions : 0;
-
-      // Fetch operational expenses - use date range filter
-      let expenseQuery = supabase
+      // Fetch operational expenses
+      const { data: expenses } = await supabase
         .from('daily_operational_expenses')
         .select('amount')
         .gte('expense_date', startDate)
         .lte('expense_date', endDate);
 
-      if (selectedUser !== "all") {
-        const { data: riderProfile } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('id', selectedUser)
-          .single();
-        
-        if (riderProfile) {
-          expenseQuery = expenseQuery.eq('rider_id', selectedUser);
-        }
-      }
-
-      const { data: expenseData } = await expenseQuery;
-      const totalOperationalExpenses = expenseData?.reduce((sum, expense) => sum + (expense.amount || 0), 0) || 0;
-
-      // Calculate food cost (estimate 35% of sales)
-      const totalFoodCost = totalSales * 0.35;
-      
-      // Calculate profit
+      const totalSales = transactions?.reduce((sum, t) => sum + parseFloat(t.final_amount.toString()), 0) || 0;
+      const totalTransactions = transactions?.length || 0;
+      const avgTransactionValue = totalTransactions > 0 ? totalSales / totalTransactions : 0;
+      const totalOperationalExpenses = expenses?.reduce((sum, e) => sum + parseFloat(e.amount.toString()), 0) || 0;
+      const totalFoodCost = totalSales * 0.4; // 40% estimate
       const totalProfit = totalSales - totalFoodCost - totalOperationalExpenses;
-
-      // Fetch member count
-      const { data: memberData } = await supabase
-        .from('customers')
-        .select('id')
-        .eq('is_active', true);
-
-      const totalMembers = memberData?.length || 0;
-      // Count active riders with shifts today
-      const { data: activeShiftData } = await supabase
-        .from('shift_management')
-        .select('rider_id')
-        .eq('shift_date', new Date().toISOString().split('T')[0])
-        .eq('status', 'active');
-
-      const activeRiders = activeShiftData?.length || 0;
 
       setStats({
         totalSales,
@@ -257,8 +186,8 @@ export const ModernBranchDashboard = () => {
         totalFoodCost,
         totalOperationalExpenses,
         totalProfit,
-        totalMembers,
-        activeRiders
+        totalMembers: customers?.length || 0,
+        activeRiders: riders.length
       });
     } catch (error) {
       console.error("Error fetching stats:", error);
@@ -267,96 +196,64 @@ export const ModernBranchDashboard = () => {
 
   const fetchSalesChart = async () => {
     try {
-      const salesByPeriod = [];
+      // Generate chart data based on the date range
+      const chartData = [];
+      const start = new Date(startDate);
+      const end = new Date(endDate);
       
-      if (startDate && endDate) {
-        // Date range mode
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        const diffTime = Math.abs(end.getTime() - start.getTime());
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
-        if (diffDays <= 31) {
-          // Show daily data for up to 31 days
-          for (let i = 0; i <= diffDays; i++) {
-            const date = new Date(start);
-            date.setDate(start.getDate() + i);
-            const dateStr = date.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' });
-            const queryDate = date.toISOString().split('T')[0];
-            
-            let query = supabase
-              .from('transactions')
-              .select('final_amount')
-              .eq('status', 'completed')
-              .gte('transaction_date', `${queryDate}T00:00:00`)
-              .lt('transaction_date', `${queryDate}T23:59:59`);
-
-            if (selectedUser !== "all") {
-              query = query.eq('rider_id', selectedUser);
-            }
-
-            const { data } = await query;
-            const daySales = data?.reduce((sum, t) => sum + (t.final_amount || 0), 0) || 0;
-            
-            salesByPeriod.push({ month: dateStr, sales: daySales });
-          }
-        } else {
-          // Show weekly data for longer periods
-          const weeks = Math.ceil(diffDays / 7);
-          for (let i = 0; i < weeks; i++) {
-            const weekStart = new Date(start);
-            weekStart.setDate(start.getDate() + (i * 7));
-            const weekEnd = new Date(weekStart);
-            weekEnd.setDate(weekStart.getDate() + 6);
-            
-            const weekStr = `${weekStart.getDate()}/${weekStart.getMonth() + 1} - ${weekEnd.getDate()}/${weekEnd.getMonth() + 1}`;
-            
-            let query = supabase
-              .from('transactions')
-              .select('final_amount')
-              .eq('status', 'completed')
-              .gte('transaction_date', weekStart.toISOString())
-              .lte('transaction_date', weekEnd.toISOString());
-
-            if (selectedUser !== "all") {
-              query = query.eq('rider_id', selectedUser);
-            }
-
-            const { data } = await query;
-            const weekSales = data?.reduce((sum, t) => sum + (t.final_amount || 0), 0) || 0;
-            
-            salesByPeriod.push({ month: weekStr, sales: weekSales });
-          }
-        }
-      } else {
-        // Default behavior: last 12 months
-        const currentDate = new Date();
-        
-        for (let i = 11; i >= 0; i--) {
-          const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
-          const monthStr = date.toLocaleDateString('en', { month: 'short' });
-          const queryStartDate = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-01`;
-          const queryEndDate = `${date.getFullYear()}-${(date.getMonth() + 2).toString().padStart(2, '0')}-01`;
-
-          let query = supabase
+      // If date range is small, show daily data; otherwise monthly
+      const diffTime = Math.abs(end.getTime() - start.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays <= 7) {
+        // Show daily data
+        for (let i = 0; i <= diffDays; i++) {
+          const date = new Date(start);
+          date.setDate(start.getDate() + i);
+          const dateStr = date.toISOString().split('T')[0];
+          
+          const { data: dailyTransactions } = await supabase
             .from('transactions')
             .select('final_amount')
             .eq('status', 'completed')
-            .gte('transaction_date', queryStartDate)
-            .lt('transaction_date', queryEndDate);
-
-          if (selectedUser !== "all") {
-            query = query.eq('rider_id', selectedUser);
-          }
-
-          const { data } = await query;
-          const monthSales = data?.reduce((sum, t) => sum + (t.final_amount || 0), 0) || 0;
+            .gte('transaction_date', `${dateStr}T00:00:00`)
+            .lte('transaction_date', `${dateStr}T23:59:59`);
           
-          salesByPeriod.push({ month: monthStr, sales: monthSales });
+          const dailySales = dailyTransactions?.reduce((sum, t) => sum + parseFloat(t.final_amount.toString()), 0) || 0;
+          
+          chartData.push({
+            month: date.toLocaleDateString('id-ID', { month: 'short', day: 'numeric' }),
+            sales: dailySales
+          });
+        }
+      } else {
+        // Show monthly data for larger ranges
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        for (let i = 0; i < 6; i++) {
+          const monthStart = new Date(end);
+          monthStart.setMonth(end.getMonth() - i);
+          monthStart.setDate(1);
+          const monthEnd = new Date(monthStart);
+          monthEnd.setMonth(monthStart.getMonth() + 1);
+          monthEnd.setDate(0);
+          
+          const { data: monthlyTransactions } = await supabase
+            .from('transactions')
+            .select('final_amount')
+            .eq('status', 'completed')
+            .gte('transaction_date', monthStart.toISOString())
+            .lte('transaction_date', monthEnd.toISOString());
+          
+          const monthlySales = monthlyTransactions?.reduce((sum, t) => sum + parseFloat(t.final_amount.toString()), 0) || 0;
+          
+          chartData.unshift({
+            month: months[monthStart.getMonth()],
+            sales: monthlySales
+          });
         }
       }
       
-      setSalesData(salesByPeriod);
+      setSalesData(chartData);
     } catch (error) {
       console.error("Error fetching sales chart:", error);
     }
@@ -364,7 +261,8 @@ export const ModernBranchDashboard = () => {
 
   const fetchProductSales = async () => {
     try {
-      // Build query based on date range and selected user
+      const dateRange = getDateRange(menuFilter);
+      
       const { data: transactions } = await supabase
         .from('transactions')
         .select(`
@@ -377,8 +275,8 @@ export const ModernBranchDashboard = () => {
           )
         `)
         .eq('status', 'completed')
-        .gte('transaction_date', `${startDate}T00:00:00`)
-        .lte('transaction_date', `${endDate}T23:59:59`);
+        .gte('transaction_date', `${dateRange.start}T00:00:00`)
+        .lte('transaction_date', `${dateRange.end}T23:59:59`);
 
       if (!transactions) {
         setProductSales([]);
@@ -419,85 +317,113 @@ export const ModernBranchDashboard = () => {
       setProductSales(productSalesData);
     } catch (error) {
       console.error("Error fetching product sales:", error);
-      // Fallback to mock data
-      const mockProductSales = [
-        { name: 'Classic Latte', value: 40, color: COLORS[0], quantity: 100, revenue: 2500000 },
-        { name: 'Americano', value: 30, color: COLORS[1], quantity: 75, revenue: 1875000 },
-        { name: 'Dolce Latte', value: 15, color: COLORS[2], quantity: 37, revenue: 925000 },
-        { name: 'Caramel Latte', value: 10, color: COLORS[3], quantity: 25, revenue: 625000 },
-        { name: 'Others', value: 5, color: COLORS[4], quantity: 12, revenue: 300000 }
-      ];
-      setProductSales(mockProductSales);
+      setProductSales([]);
     }
   };
 
   const fetchRiderExpenses = async () => {
     try {
-      const { data: userProfile } = await supabase.auth.getUser();
-      if (!userProfile.user) return;
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('branch_id')
-        .eq('user_id', userProfile.user.id)
-        .single();
-
-      if (!profile) return;
-
-      // Use the selected date range instead of fixed 30 days
-      let expenseQuery = supabase
+      // Simplified approach - just fetch operational expenses without joins
+      const { data: expenses } = await supabase
         .from('daily_operational_expenses')
-        .select(`
-          amount,
-          rider_id,
-          profiles!inner(full_name, branch_id)
-        `)
-        .eq('profiles.branch_id', profile.branch_id)
+        .select('amount, rider_id')
         .gte('expense_date', startDate)
         .lte('expense_date', endDate);
 
-      // Apply user filter if specific rider is selected
-      if (selectedUser !== "all") {
-        expenseQuery = expenseQuery.eq('rider_id', selectedUser);
+      if (!expenses) {
+        setRiderExpenses([]);
+        return;
       }
 
-      const { data: expenses, error } = await expenseQuery;
-      if (error) throw error;
+      // Get rider names separately
+      const riderIds = [...new Set(expenses.map(e => e.rider_id).filter(Boolean))];
+      const { data: riderProfiles } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', riderIds);
 
-      const riderExpenseMap: Record<string, number> = {};
-      expenses?.forEach((expense: any) => {
-        const riderName = expense.profiles.full_name;
-        riderExpenseMap[riderName] = (riderExpenseMap[riderName] || 0) + Number(expense.amount);
+      // Group expenses by rider
+      const riderExpenseMap: { [key: string]: number } = {};
+      expenses.forEach((expense: any) => {
+        const rider = riderProfiles?.find(r => r.id === expense.rider_id);
+        const riderName = rider?.full_name || 'Unknown';
+        riderExpenseMap[riderName] = (riderExpenseMap[riderName] || 0) + parseFloat(expense.amount);
       });
 
-      const riderExpensesList = Object.entries(riderExpenseMap).map(([rider_name, total_expenses]) => ({
+      const riderExpenseData = Object.entries(riderExpenseMap).map(([rider_name, total_expenses]) => ({
         rider_name,
         total_expenses
       }));
 
-      setRiderExpenses(riderExpensesList);
+      setRiderExpenses(riderExpenseData);
     } catch (error) {
-      console.error('Error fetching rider expenses:', error);
+      console.error("Error fetching rider expenses:", error);
+      setRiderExpenses([]);
+    }
+  };
+
+  const fetchHourlyData = async () => {
+    try {
+      const dateRange = getDateRange(hourlyFilter);
+      
+      const { data: transactions } = await supabase
+        .from('transactions')
+        .select(`
+          transaction_date,
+          rider_id,
+          transaction_items(
+            quantity,
+            products!inner(name)
+          )
+        `)
+        .eq('status', 'completed')
+        .gte('transaction_date', `${dateRange.start}T00:00:00`)
+        .lte('transaction_date', `${dateRange.end}T23:59:59`);
+
+      if (!transactions) {
+        setHourlyData([]);
+        return;
+      }
+
+      // Filter by rider if selected
+      const filteredTransactions = selectedUser === "all" 
+        ? transactions 
+        : transactions.filter(t => t.rider_id === selectedUser);
+
+      // Group by time shifts
+      const shifts = [
+        { name: 'Shift 1', hours: '06:00 - 10:00', start: 6, end: 10, count: 0 },
+        { name: 'Shift 2', hours: '10:00 - 15:00', start: 10, end: 15, count: 0 },
+        { name: 'Shift 3', hours: '15:00 - 21:00', start: 15, end: 21, count: 0 }
+      ];
+
+      filteredTransactions.forEach(transaction => {
+        const transactionHour = new Date(transaction.transaction_date).getHours();
+        const totalItems = transaction.transaction_items?.reduce((sum: number, item: any) => sum + item.quantity, 0) || 0;
+        
+        shifts.forEach(shift => {
+          if (transactionHour >= shift.start && transactionHour < shift.end) {
+            shift.count += totalItems;
+          }
+        });
+      });
+
+      setHourlyData(shifts);
+    } catch (error) {
+      console.error("Error fetching hourly data:", error);
+      setHourlyData([
+        { name: 'Shift 1', hours: '06:00 - 10:00', start: 6, end: 10, count: 0 },
+        { name: 'Shift 2', hours: '10:00 - 15:00', start: 10, end: 15, count: 0 },
+        { name: 'Shift 3', hours: '15:00 - 21:00', start: 15, end: 21, count: 0 }
+      ]);
     }
   };
 
   const fetchRiderStockData = async () => {
     try {
-      const { data: userProfile } = await supabase.auth.getUser();
-      if (!userProfile.user) return;
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('branch_id')
-        .eq('user_id', userProfile.user.id)
-        .single();
-
-      if (!profile) return;
-
-      // Get today's riders with their initial stock and sales
-      const today = new Date().toISOString().split('T')[0];
+      const dateRange = getDateRange(riderFilter);
       
-      const { data: riderData, error } = await supabase
+      const { data: ridersData } = await supabase
         .from('profiles')
         .select(`
           id,
@@ -505,32 +431,37 @@ export const ModernBranchDashboard = () => {
           inventory(stock_quantity),
           transactions!rider_id(final_amount)
         `)
-        .eq('branch_id', profile.branch_id)
+        .eq('branch_id', '485c5e77-9c30-4429-ba16-90b92d3a5124')
         .eq('role', 'rider')
         .eq('is_active', true);
 
-      if (error) throw error;
+      if (!ridersData) {
+        setRiderStockData([]);
+        return;
+      }
 
-      const riderStockList = riderData?.map((rider: any) => {
-        const totalInitialStock = rider.inventory?.reduce((sum: number, inv: any) => sum + inv.stock_quantity, 0) || 0;
-        const totalSalesValue = rider.transactions?.reduce((sum: number, tx: any) => sum + Number(tx.final_amount), 0) || 0;
-        
-        // Rough estimation: assuming average item price for stock calculation
-        const estimatedItemPrice = 15000; // Average price assumption
-        const estimatedSoldItems = Math.floor(totalSalesValue / estimatedItemPrice);
-        const remainingStock = Math.max(0, totalInitialStock - estimatedSoldItems);
+      const stockData = ridersData.map((rider: any) => {
+        const totalStock = rider.inventory?.reduce((sum: number, inv: any) => sum + inv.stock_quantity, 0) || 0;
+        const totalSales = rider.transactions?.reduce((sum: number, t: any) => sum + parseFloat(t.final_amount), 0) || 0;
         
         return {
           rider_name: rider.full_name,
-          initial_stock: totalInitialStock,
-          sold: estimatedSoldItems,
-          remaining: remainingStock
+          initial_stock: totalStock + Math.floor(totalSales / 20000), // Estimate initial stock
+          sold: Math.floor(totalSales / 20000), // Estimate items sold
+          remaining: totalStock
         };
-      }) || [];
+      });
 
-      setRiderStockData(riderStockList);
+      setRiderStockData(stockData);
     } catch (error) {
-      console.error('Error fetching rider stock data:', error);
+      console.error("Error fetching rider stock data:", error);
+      setRiderStockData([]);
+    }
+  };
+
+  const handleCardClick = (type: string) => {
+    if (type === 'transactions') {
+      navigate('/transactions');
     }
   };
 
@@ -538,310 +469,175 @@ export const ModernBranchDashboard = () => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
       currency: 'IDR',
-      minimumFractionDigits: 0
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(amount);
   };
 
-  const handleCardClick = (cardType: string) => {
-    const params = new URLSearchParams();
-    if (selectedUser !== "all") {
-      params.set('rider', selectedUser);
+  const formatNumber = (num: number) => {
+    if (num >= 1000000) {
+      return (num / 1000000).toFixed(1) + 'M';
+    } else if (num >= 1000) {
+      return (num / 1000).toFixed(1) + 'K';
     }
-    
-    switch (cardType) {
-      case 'sales':
-      case 'transactions':
-      case 'avg':
-        navigate(`/transactions?${params.toString()}`);
-        break;
-      case 'members':
-        navigate('/customers');
-        break;
-      case 'riders':
-        navigate('/riders');
-        break;
-      case 'operational-expenses':
-        navigate('/finance/rider-expenses');
-        break;
-      default:
-        break;
-    }
+    return num.toString();
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
-  const statsCards = [
+  const kpiData = [
     {
-      title: "Total Sales",
+      title: "Total Pendapatan",
       value: formatCurrency(stats.totalSales),
-      change: "+12%",
-      trend: "up",
-      subtitle: "Revenue bulan ini",
       icon: DollarSign,
-      color: "text-primary",
-      onClick: () => handleCardClick('sales')
+      change: "+2.08%",
+      isPositive: true,
+      description: "Revenue bulan ini",
+      color: "bg-red-500"
     },
     {
-      title: "Total Transaksi",
+      title: "Total Transaksi", 
       value: stats.totalTransactions.toString(),
-      change: "+8%",
-      trend: "up", 
-      subtitle: "Jumlah transaksi",
       icon: Receipt,
-      color: "text-blue-600",
-      onClick: () => handleCardClick('transactions')
+      change: "+12.4%",
+      isPositive: true,
+      description: "Jumlah transaksi",
+      color: "bg-gray-600"
     },
     {
       title: "Rata-rata per Transaksi",
       value: formatCurrency(stats.avgTransactionValue),
-      change: "+5%",
-      trend: "up",
-      subtitle: "Nilai rata-rata", 
       icon: Calculator,
-      color: "text-purple-600",
-      onClick: () => handleCardClick('avg')
+      change: "-2.08%",
+      isPositive: false,
+      description: "Nilai rata-rata",
+      color: "bg-gray-600"
     },
     {
       title: "Total Food Cost",
       value: formatCurrency(stats.totalFoodCost),
-      change: "+3%",
-      trend: "up",
-      subtitle: "Biaya bahan",
       icon: ChefHat,
-      color: "text-orange-600",
-      onClick: () => {}
+      change: "+12.1%",
+      isPositive: true,
+      description: "Biaya bahan",
+      color: "bg-gray-600"
     },
     {
       title: "Total Beban Operasional",
       value: formatCurrency(stats.totalOperationalExpenses),
-      change: "-2%",
-      trend: "down",
-      subtitle: "Biaya operasional",
       icon: Building,
-      color: "text-red-600",
-      onClick: () => handleCardClick('operational-expenses')
+      change: "-2%",
+      isPositive: false,
+      description: "Biaya operasional",
+      color: "bg-gray-600"
     },
     {
       title: "Total Profit",
       value: formatCurrency(stats.totalProfit),
-      change: "+15%",
-      trend: "up",
-      subtitle: "Keuntungan bersih",
       icon: TrendingUp,
-      color: "text-green-600",
-      onClick: () => {}
+      change: "+15%",
+      isPositive: true,
+      description: "Keuntungan bersih",
+      color: "bg-gray-600"
     },
     {
       title: "Total Member",
       value: stats.totalMembers.toString(),
-      change: "+25%",
-      trend: "up",
-      subtitle: "Pelanggan terdaftar",
       icon: Users,
-      color: "text-indigo-600",
-      onClick: () => handleCardClick('members')
+      change: "+25%",
+      isPositive: true,
+      description: "Pelanggan terdaftar",
+      color: "bg-gray-600"
     },
     {
       title: "Rider Aktif",
       value: stats.activeRiders.toString(),
-      change: "0%",
-      trend: "up",
-      subtitle: "Mobile seller online",
       icon: UserCheck,
-      color: "text-teal-600",
-      onClick: () => handleCardClick('riders')
+      change: "0%",
+      isPositive: true,
+      description: "Mobile seller online",
+      color: "bg-gray-600"
     }
   ];
 
-  // Calculate real rider performance data
-  const riderPerformanceData = riderStockData.map((rider, index) => {
-    // Get rider's total sales from stats
-    const riderSales = rider.sold * 25000; // Estimate average price
-    const riderOrders = Math.floor(rider.sold / 3); // Estimate orders based on sold items
-    
-    return {
-      rider: rider.rider_name.substring(0, 10),
-      sales: riderSales,
-      orders: riderOrders,
-      growth: [12.5, 8.3, -2.1, 15.7][index % 4] // Sample growth percentages
-    };
-  }).slice(0, 4);
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg">Loading dashboard...</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header - Oval Design */}
-      <div className="bg-white shadow-sm border-b p-6 mx-4 mt-4 mb-2 rounded-3xl">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">Sales Report</h1>
-            <p className="text-xs text-gray-500">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Select value={selectedUser} onValueChange={setSelectedUser}>
-              <SelectTrigger className="w-36 h-8 rounded-full text-xs">
-                <SelectValue placeholder="All Users" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Users</SelectItem>
-                {riders.map((rider) => (
-                  <SelectItem key={rider.id} value={rider.id}>
-                    {rider.full_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Input 
-              type="date" 
-              value={startDate} 
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-32 h-8 rounded-full text-xs"
-            />
-            <Input 
-              type="date" 
-              value={endDate} 
-              onChange={(e) => setEndDate(e.target.value)}
-              className="w-32 h-8 rounded-full text-xs"
-            />
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="bg-white rounded-3xl shadow-sm border-0 p-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Sales Report</h1>
+              <p className="text-sm text-gray-500">Monday, September 1, 2025</p>
+            </div>
+            
+            <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+              <Select value={selectedUser} onValueChange={setSelectedUser}>
+                <SelectTrigger className="w-32 h-8 text-xs border-gray-200 rounded-full">
+                  <SelectValue placeholder="All Users" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Users</SelectItem>
+                  {riders.map((rider) => (
+                    <SelectItem key={rider.id} value={rider.id}>
+                      {rider.full_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              <div className="flex items-center gap-2">
+                <Label htmlFor="start-date" className="text-xs text-gray-600">From:</Label>
+                <Input
+                  id="start-date"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-32 h-8 text-xs border-gray-200 rounded-full"
+                />
+                
+                <Label htmlFor="end-date" className="text-xs text-gray-600">To:</Label>
+                <Input
+                  id="end-date"
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-32 h-8 text-xs border-gray-200 rounded-full"
+                />
+              </div>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="p-6 space-y-6">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            {
-              title: "Total Pendapatan",
-              value: formatCurrency(stats.totalSales),
-              change: "+2.08%",
-              icon: DollarSign,
-              description: "Revenue bulan ini",
-              bgColor: "bg-gradient-to-br from-red-500 to-red-600",
-              textColor: "text-white",
-              route: "/transactions"
-            },
-            {
-              title: "Total Transaksi", 
-              value: stats.totalTransactions.toString(),
-              change: "+12.4%",
-              icon: Receipt,
-              description: "Jumlah transaksi",
-              bgColor: "bg-white",
-              textColor: "text-gray-900",
-              route: "/transactions"
-            },
-            {
-              title: "Rata-rata per Transaksi",
-              value: formatCurrency(stats.avgTransactionValue),
-              change: "-2.08%",
-              changeColor: "text-red-500",
-              icon: Calculator,
-              description: "Nilai rata-rata",
-              bgColor: "bg-white",
-              textColor: "text-gray-900",
-              route: "/transactions"
-            },
-            {
-              title: "Total Food Cost",
-              value: formatCurrency(stats.totalFoodCost),
-              change: "+12.1%",
-              icon: ChefHat,
-              description: "Biaya bahan",
-              bgColor: "bg-white",
-              textColor: "text-gray-900",
-              route: "/finance/operational-expenses"
-            }
-          ].map((item, index) => (
-            <Card key={index} className={`${item.bgColor} ${item.textColor} rounded-3xl border-0 shadow-sm hover:shadow-lg transition-all cursor-pointer`} onClick={() => navigate(item.route)}>
-              <CardContent className="p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <div className={`p-2.5 rounded-full ${index === 0 ? 'bg-white/20' : 'bg-gray-100'}`}>
-                    <item.icon className={`h-5 w-5 ${index === 0 ? 'text-white' : 'text-gray-600'}`} />
+        {/* KPI Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {kpiData.map((item, index) => (
+            <Card key={index} className="bg-white rounded-3xl shadow-sm border-0 hover:shadow-lg transition-all">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between">
+                  <div className={`p-3 rounded-2xl ${index === 0 ? 'bg-red-500' : 'bg-gray-600'}`}>
+                    <item.icon className="h-6 w-6 text-white" />
                   </div>
-                  <div className={`text-xs font-medium px-2.5 py-1 rounded-full ${
-                    item.changeColor === 'text-red-500' 
-                      ? 'bg-red-100 text-red-700' 
-                      : 'bg-green-100 text-green-700'
-                  }`}>
-                    {item.change}
+                  <div className="flex items-center">
+                    <Badge
+                      variant="secondary"
+                      className={`text-xs px-2 py-1 rounded-full ${
+                        item.isPositive 
+                          ? 'bg-green-100 text-green-700' 
+                          : 'bg-red-100 text-red-700'
+                      }`}
+                    >
+                      {item.change}
+                    </Badge>
                   </div>
                 </div>
-                <div className="space-y-1">
-                  <p className={`text-2xl font-bold ${index === 0 ? 'text-white' : 'text-gray-900'}`}>{item.value}</p>
-                  <p className={`text-base font-medium ${index === 0 ? 'text-white' : 'text-gray-700'}`}>{item.title}</p>
-                  <p className={`text-xs ${index === 0 ? 'text-white/80' : 'text-gray-500'}`}>{item.description}</p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {/* Second Row Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            {
-              title: "Total Beban Operasional",
-              value: formatCurrency(stats.totalOperationalExpenses),
-              change: "-2%",
-              changeColor: "text-red-500",
-              icon: Building,
-              description: "Biaya operasional",
-              bgColor: "bg-white",
-              textColor: "text-gray-900",
-              route: "/finance/operational-expenses"
-            },
-            {
-              title: "Total Profit", 
-              value: formatCurrency(stats.totalProfit),
-              change: "+15%",
-              icon: TrendingUp,
-              description: "Keuntungan bersih",
-              bgColor: "bg-white",
-              textColor: "text-gray-900",
-              route: "/finance/profit-loss"
-            },
-            {
-              title: "Total Member",
-              value: stats.totalMembers.toString(),
-              change: "+25%",
-              icon: Users,
-              description: "Pelanggan terdaftar",
-              bgColor: "bg-white",
-              textColor: "text-gray-900",
-              route: "/customers"
-            },
-            {
-              title: "Rider Aktif",
-              value: stats.activeRiders.toString(),
-              change: "0%",
-              icon: UserCheck,
-              description: "Mobile seller online",
-              bgColor: "bg-white",
-              textColor: "text-gray-900",
-              route: "/riders"
-            }
-          ].map((item, index) => (
-            <Card key={index} className={`${item.bgColor} ${item.textColor} rounded-3xl border-0 shadow-sm hover:shadow-lg transition-all cursor-pointer`} onClick={() => navigate(item.route)}>
-              <CardContent className="p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="p-2.5 rounded-full bg-gray-100">
-                    <item.icon className="h-5 w-5 text-gray-600" />
-                  </div>
-                  <div className={`text-xs font-medium px-2.5 py-1 rounded-full ${
-                    item.changeColor === 'text-red-500' 
-                      ? 'bg-red-100 text-red-700' 
-                      : 'bg-green-100 text-green-700'
-                  }`}>
-                    {item.change}
-                  </div>
-                </div>
-                <div className="space-y-1">
+                <div className="space-y-1 mt-4">
                   <p className="text-2xl font-bold text-gray-900">{item.value}</p>
                   <p className="text-base font-medium text-gray-700">{item.title}</p>
                   <p className="text-xs text-gray-500">{item.description}</p>
@@ -861,7 +657,7 @@ export const ModernBranchDashboard = () => {
                   <CardTitle className="text-lg font-semibold text-gray-900">Menu Terjual</CardTitle>
                   <p className="text-sm text-gray-500">Track your product sales</p>
                 </div>
-                <Select defaultValue="today">
+                <Select value={menuFilter} onValueChange={(value: any) => setMenuFilter(value)}>
                   <SelectTrigger className="w-18 h-7 text-xs border-gray-200 rounded-full">
                     <SelectValue />
                   </SelectTrigger>
@@ -916,10 +712,9 @@ export const ModernBranchDashboard = () => {
               {/* Category List */}
               <div className="space-y-3">
                 {productSales.slice(0, 3).map((product, index) => {
-                  const icons = ['💻', '🎮', '🪑'];
+                  const icons = ['☕', '🥤', '🧊'];
                   const colors = ['text-gray-700', 'text-blue-600', 'text-green-600'];
                   const changes = ['+1,5%', '+2,3%', '-1,04%'];
-                  const changeColors = ['text-green-600', 'text-green-600', 'text-red-600'];
                   
                   return (
                     <div key={product.name} className="flex items-center justify-between">
@@ -942,73 +737,66 @@ export const ModernBranchDashboard = () => {
             </CardContent>
           </Card>
 
-          {/* Jam Terjual - Sales by Hour Style */}
-          <Card className="bg-white rounded-3xl shadow-sm border-0 hover:shadow-lg transition-all cursor-pointer" onClick={() => handleCardClick('transactions')}>
+          {/* Jam Terjual */}
+          <Card className="bg-white rounded-3xl shadow-sm border-0">
             <CardHeader className="pb-4">
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-lg font-semibold text-gray-900">Jam Terjual</CardTitle>
                   <p className="text-sm text-gray-500">Track your sales by hour</p>
                 </div>
-                <Select defaultValue="thisyear">
-                  <SelectTrigger className="w-22 h-7 text-xs border-gray-200 rounded-full">
+                <Select value={hourlyFilter} onValueChange={(value: any) => setHourlyFilter(value)}>
+                  <SelectTrigger className="w-18 h-7 text-xs border-gray-200 rounded-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="thisyear">This year</SelectItem>
-                    <SelectItem value="lastmonth">Last month</SelectItem>
+                    <SelectItem value="today">Today</SelectItem>
+                    <SelectItem value="week">Week</SelectItem>
+                    <SelectItem value="month">Month</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </CardHeader>
             <CardContent className="pt-0">
-              {/* Legend */}
-              <div className="flex items-center gap-6 mb-6">
+              <div className="flex items-center gap-4 mb-6">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-gray-300"></div>
-                  <span className="text-sm text-gray-500">Seen product</span>
+                  <span className="text-xs text-gray-500">Seen product</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                  <span className="text-sm text-gray-500">Sales</span>
+                  <span className="text-xs text-gray-500">Sales</span>
                 </div>
               </div>
 
-              {/* Shift Data Display */}
               <div className="space-y-4">
                 {hourlyData.map((shift, index) => (
-                  <div key={shift.name} className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl">
+                  <div key={shift.name} className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div 
-                        className="w-4 h-4 rounded-full" 
-                        style={{ backgroundColor: shift.color }}
-                      ></div>
+                      <div className="w-3 h-3 rounded-full bg-red-500"></div>
                       <div>
-                        <div className="font-medium text-gray-700 text-sm">{shift.name}</div>
-                        <div className="text-xs text-gray-500">{shift.percentage.toFixed(1)}% of total</div>
+                        <p className="font-medium text-gray-700">{shift.name} ({shift.hours})</p>
+                        <p className="text-xs text-gray-500">{((shift.count / hourlyData.reduce((sum, s) => sum + s.count, 1)) * 100).toFixed(1)}% of total</p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="font-bold text-gray-900">{shift.value}</div>
-                      <div className="text-xs text-gray-500">products</div>
+                      <p className="font-semibold text-gray-900">{shift.count}</p>
+                      <p className="text-xs text-gray-500">products</p>
                     </div>
                   </div>
                 ))}
               </div>
 
-              {/* Summary Stats */}
-              <div className="mt-4 p-3 bg-red-50 rounded-2xl">
+              <div className="mt-6 p-4 bg-red-50 rounded-2xl">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-red-600">
-                    {hourlyData.reduce((sum, shift) => sum + shift.value, 0)}
-                  </div>
-                  <div className="text-sm text-gray-600">Total Produk Terjual</div>
+                  <p className="text-2xl font-bold text-red-600">{hourlyData.reduce((sum, shift) => sum + shift.count, 0)}</p>
+                  <p className="text-sm text-gray-600">Total Produk Terjual</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Performa Rider - Similar to uploaded image */}
+          {/* Performa Rider */}
           <Card className="bg-white rounded-3xl shadow-sm border-0">
             <CardHeader className="pb-4">
               <div className="flex items-center justify-between">
@@ -1016,315 +804,126 @@ export const ModernBranchDashboard = () => {
                   <CardTitle className="text-lg font-semibold text-gray-900">Performa Rider</CardTitle>
                   <p className="text-sm text-gray-500">Track your rider sales habits</p>
                 </div>
-                <Select defaultValue="thisyear">
-                  <SelectTrigger className="w-22 h-7 text-xs border-gray-200 rounded-full">
+                <Select value={riderFilter} onValueChange={(value: any) => setRiderFilter(value)}>
+                  <SelectTrigger className="w-18 h-7 text-xs border-gray-200 rounded-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="thisyear">This year</SelectItem>
-                    <SelectItem value="lastmonth">Last month</SelectItem>
+                    <SelectItem value="today">Today</SelectItem>
+                    <SelectItem value="week">Week</SelectItem>
+                    <SelectItem value="month">Month</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </CardHeader>
-            <CardContent>
-              {/* Chart Section */}
-              <div className="relative h-40 mb-6">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={riderPerformanceData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <CardContent className="pt-0">
+              {/* Chart */}
+              <div className="mb-6">
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={riderStockData.slice(0, 4)}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                     <XAxis 
-                      dataKey="rider" 
+                      dataKey="rider_name" 
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fontSize: 11, fill: '#64748b' }}
+                      tick={{ fontSize: 10, fill: '#6b7280' }}
+                      tickFormatter={(value) => value.split(' ')[0]} // Show only first name
                     />
                     <YAxis hide />
                     <Tooltip 
                       contentStyle={{
                         backgroundColor: 'white',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '8px',
-                        fontSize: '12px'
+                        border: 'none',
+                        borderRadius: '12px',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                       }}
-                      formatter={(value: any, name: string) => [
-                        name === 'sales' ? formatCurrency(value) : value + ' orders',
-                        name === 'sales' ? 'Sales' : 'Orders'
-                      ]}
                     />
-                    <Bar 
-                      dataKey="sales" 
-                      fill="#3b82f6"
-                      radius={[4, 4, 0, 0]}
-                      name="sales"
-                    />
+                    <Bar dataKey="sold" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
 
-              {/* Statistics Display */}
-              <div className="flex items-center justify-between text-center bg-gray-50 rounded-2xl p-4">
-                <div>
-                  <div className="text-xl font-bold text-blue-600">
-                    {(riderPerformanceData.reduce((sum, r) => sum + r.sales, 0) / 1000000).toFixed(1)}M
-                  </div>
-                  <div className="text-xs text-gray-500">Products</div>
+              {/* Summary */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-blue-600">
+                    {formatNumber(riderStockData.reduce((sum, rider) => sum + rider.sold, 0))}
+                  </p>
+                  <p className="text-sm text-gray-600">Products</p>
                 </div>
-                <div>
-                  <div className="text-xl font-bold text-red-600">
-                    {riderPerformanceData.reduce((sum, r) => sum + r.orders, 0)}
-                  </div>
-                  <div className="text-xs text-gray-500">Orders</div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-red-600">
+                    {riderStockData.reduce((sum, rider) => sum + rider.sold, 0)}
+                  </p>
+                  <p className="text-sm text-gray-600">Orders</p>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-      {/* Rider Performance */}
-      <Card className="col-span-1 lg:col-span-2">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Rider Performance</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="h-[400px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={riderPerformanceData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="rider" />
-                <YAxis />
-                <Tooltip 
-                  formatter={(value, name) => [
-                    name === 'sales' ? formatCurrency(Number(value)) : value,
-                    name === 'sales' ? 'Sales' : 'Orders'
-                  ]}
-                />
-                <defs>
-                  <linearGradient id="riderRedGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={`hsl(var(--primary))`} />
-                    <stop offset="100%" stopColor={`hsl(var(--primary-dark))`} />
-                  </linearGradient>
-                </defs>
-                <Bar dataKey="sales" fill="url(#riderRedGradient)" radius={[6,6,0,0]} />
-              </BarChart>
-            </ResponsiveContainer>
-            <div className="grid grid-cols-4 gap-2 mt-4">
-              {riderPerformanceData.map((r) => (
-                <div key={r.rider} className="text-center">
-                  <div className="font-medium text-sm">{r.rider}</div>
-                  <div className="text-xs text-muted-foreground">{formatCurrency(r.sales)}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Operational Expenses by Rider */}
-      <Card className="dashboard-card">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingDown className="w-5 h-5 text-red-600" />
-            Total Beban Operasional ({startDate} - {endDate})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {riderExpenses.map((expense, index) => (
-              <div key={expense.rider_name} className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <span className="w-6 h-6 bg-red-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
-                    {index + 1}
-                  </span>
-                  <span className="font-medium">{expense.rider_name}</span>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm font-semibold text-red-600">{formatCurrency(expense.total_expenses)}</div>
-                </div>
+        {/* Sales Chart */}
+        <Card className="bg-white rounded-3xl shadow-sm border-0">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-xl font-semibold text-gray-900">Sales Overview</CardTitle>
+                <p className="text-sm text-gray-500">Monthly sales performance</p>
               </div>
-            ))}
-            {riderExpenses.length === 0 && (
-              <p className="text-center text-muted-foreground py-4">Belum ada data beban operasional</p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Product Performance - Horizontal layout */}
-      <div className="col-span-1 lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Sales Report Chart */}
-        <Card className="stat-card cursor-pointer" onClick={() => handleCardClick('sales')}>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="text-lg font-semibold">Sales Report</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                {startDate && endDate ? `Sales ${startDate} - ${endDate}` : 'Monthly sales performance'}
-              </p>
+              <Select value={salesFilter} onValueChange={(value: any) => setSalesFilter(value)}>
+                <SelectTrigger className="w-32 h-8 text-xs border-gray-200 rounded-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="daily">Daily</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <ComposedChart data={salesData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <AreaChart data={salesData}>
                 <defs>
                   <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#DC2626" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#DC2626" stopOpacity={0.05}/>
+                    <stop offset="95%" stopColor="#DC2626" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                 <XAxis 
                   dataKey="month" 
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fontSize: 12, fill: '#9CA3AF' }}
-                  angle={startDate && endDate ? -45 : 0}
-                  textAnchor={startDate && endDate ? "end" : "middle"}
-                  height={startDate && endDate ? 80 : 60}
+                  tick={{ fontSize: 12, fill: '#6b7280' }}
                 />
                 <YAxis 
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fontSize: 12, fill: '#9CA3AF' }}
-                  tickFormatter={(value) => `${(value / 1000000).toFixed(1)}M`}
+                  tick={{ fontSize: 12, fill: '#6b7280' }}
+                  tickFormatter={(value) => formatNumber(value)}
                 />
                 <Tooltip 
-                  formatter={(value) => [formatCurrency(Number(value)), 'Sales']}
-                  labelStyle={{ color: '#374151', fontWeight: 'medium' }}
-                  contentStyle={{ 
-                    backgroundColor: 'white', 
-                    border: 'none', 
-                    borderRadius: '8px', 
-                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' 
+                  contentStyle={{
+                    backgroundColor: 'white',
+                    border: 'none',
+                    borderRadius: '12px',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                   }}
+                  formatter={(value: any) => [formatCurrency(value), 'Sales']}
                 />
                 <Area 
                   type="monotone" 
                   dataKey="sales" 
                   stroke="#DC2626" 
-                  strokeWidth={2}
-                  fill="url(#salesGradient)"
-                  dot={false}
-                  activeDot={{ r: 6, stroke: '#DC2626', strokeWidth: 2, fill: 'white' }}
+                  strokeWidth={3}
+                  fill="url(#salesGradient)" 
                 />
-                <Bar 
-                  dataKey="sales" 
-                  fill="#DC2626" 
-                  fillOpacity={0.4} 
-                  radius={[2, 2, 0, 0]}
-                />
-              </ComposedChart>
+              </AreaChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
-
-        {/* Top & Worst Selling Products */}
-        <Card className="dashboard-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-green-600" />
-              Product Performance
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              {/* Top 5 Selling */}
-              <div>
-                <h4 className="font-semibold text-green-600 mb-3 flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4" />
-                  Top 5 Selling Products
-                </h4>
-                <div className="space-y-2">
-                  {productSales.slice(0, 5).map((product, index) => (
-                    <div key={product.name} className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <span className="w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
-                          {index + 1}
-                        </span>
-                        <span className="font-medium">{product.name}</span>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm font-semibold text-green-600">{product.value}%</div>
-                        <div className="text-xs text-gray-500">{product.quantity} sold</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Worst 5 Selling */}
-              <div>
-                <h4 className="font-semibold text-red-600 mb-3 flex items-center gap-2">
-                  <TrendingDown className="w-4 h-4" />
-                  Worst 5 Selling Products
-                </h4>
-                <div className="space-y-2">
-                  {productSales.slice(-5).reverse().map((product, index) => (
-                    <div key={product.name} className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <span className="w-6 h-6 bg-red-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
-                          {index + 1}
-                        </span>
-                        <span className="font-medium">{product.name}</span>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm font-semibold text-red-600">{product.value}%</div>
-                        <div className="text-xs text-gray-500">{product.quantity} sold</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Live Rider Status with Stock Performance */}
-      <Card className="dashboard-card">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle className="text-lg font-semibold">Live Rider Status</CardTitle>
-            <p className="text-sm text-muted-foreground">Sales vs Stock Performance</p>
-          </div>
-          <Button onClick={() => navigate('/riders')} className="bg-primary hover:bg-primary-dark">
-            View All Riders
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {riderStockData.slice(0, 6).map((rider) => {
-              const stockPercentage = rider.initial_stock > 0 ? Math.round((rider.remaining / rider.initial_stock) * 100) : 0;
-              const soldPercentage = rider.initial_stock > 0 ? Math.round((rider.sold / rider.initial_stock) * 100) : 0;
-              
-              return (
-                <div key={rider.rider_name} className="p-3 bg-gray-50 rounded-lg space-y-2">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-3 h-3 rounded-full animate-pulse ${stockPercentage > 50 ? 'bg-green-500' : stockPercentage > 20 ? 'bg-yellow-500' : 'bg-red-500'}`}></div>
-                    <p className="font-medium text-sm">{rider.rider_name}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-xs text-gray-600">
-                      Stok: {rider.remaining}/{rider.initial_stock} ({stockPercentage}%)
-                    </p>
-                    <p className="text-xs text-gray-600">
-                      Terjual: {soldPercentage}% ({rider.sold} item)
-                    </p>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className={`h-2 rounded-full ${stockPercentage > 50 ? 'bg-green-500' : stockPercentage > 20 ? 'bg-yellow-500' : 'bg-red-500'}`} 
-                        style={{ width: `${stockPercentage}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-            {riderStockData.length === 0 && (
-              <p className="text-center text-muted-foreground py-4 col-span-full">Belum ada data rider</p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
       </div>
     </div>
   );
