@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ZegerLogo } from "@/components/ui/zeger-logo";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useAuth } from "@/hooks/useAuth";
+
 const cleanupAuthState = () => {
   try {
     Object.keys(localStorage).forEach(key => {
@@ -27,9 +29,11 @@ const cleanupAuthState = () => {
     // ignore
   }
 };
+
 const Auth = () => {
   const isMobile = useIsMobile();
-  const [loading, setLoading] = useState(false);
+  const { user, userProfile, loading } = useAuth();
+  const [authLoading, setAuthLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -37,15 +41,33 @@ const Auth = () => {
     phone: ""
   });
   const navigate = useNavigate();
+
+  // Redirect authenticated users to their dashboard
+  useEffect(() => {
+    if (!loading && user && userProfile) {
+      const roleRedirects = {
+        'rider': '/mobile-seller',
+        'customer': '/customer-app', 
+        'ho_admin': '/',
+        'branch_manager': '/',
+        'finance': '/'
+      };
+      
+      const targetUrl = roleRedirects[userProfile.role as keyof typeof roleRedirects] || '/';
+      window.location.replace(targetUrl);
+    }
+  }, [user, userProfile, loading]);
+
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
   };
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setAuthLoading(true);
     try {
       // Clean limbo state then attempt global sign out
       cleanupAuthState();
@@ -91,12 +113,13 @@ const Auth = () => {
     } catch (error: any) {
       toast.error(error.message || "Gagal membuat akun");
     } finally {
-      setLoading(false);
+      setAuthLoading(false);
     }
   };
+
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setAuthLoading(true);
     try {
       // Clean limbo state then attempt global sign out
       cleanupAuthState();
@@ -115,14 +138,38 @@ const Auth = () => {
       if (error) throw error;
       if (data.user) {
         toast.success("Login berhasil!");
-        window.location.href = '/';
+        // The useEffect above will handle the redirect based on user role
       }
     } catch (error: any) {
       toast.error(error.message || "Gagal login");
     } finally {
-      setLoading(false);
+      setAuthLoading(false);
     }
   };
+
+  // Show loading while checking authentication status
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-600 via-red-500 to-red-400">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-white text-lg font-medium">Memuat...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If user is already authenticated, show loading (will redirect via useEffect)
+  if (user && userProfile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-600 via-red-500 to-red-400">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-white text-lg font-medium">Mengarahkan ke dashboard...</p>
+        </div>
+      </div>
+    );
+  }
   return <div className="min-h-screen bg-gradient-to-br from-red-600 via-red-500 to-red-400 relative overflow-hidden">
       <div className={`flex min-h-screen items-center justify-center relative ${isMobile ? 'p-4' : ''}`}>
         {/* Left Side - Brand Content - Hidden on mobile */}
@@ -205,8 +252,8 @@ const Auth = () => {
                         Forgot Password?
                       </a>
                     </div>
-                    <Button type="submit" className="w-full bg-red-600 hover:bg-red-700 text-white rounded-full py-6 text-lg font-semibold" disabled={loading}>
-                      {loading ? "Signing in..." : "Login"}
+                    <Button type="submit" className="w-full bg-red-600 hover:bg-red-700 text-white rounded-full py-6 text-lg font-semibold" disabled={authLoading}>
+                      {authLoading ? "Signing in..." : "Login"}
                     </Button>
                   </form>
                 </TabsContent>
@@ -255,8 +302,8 @@ const Auth = () => {
                         required 
                       />
                     </div>
-                    <Button type="submit" className="w-full bg-red-600 hover:bg-red-700 text-white rounded-full py-6 text-lg font-semibold" disabled={loading}>
-                      {loading ? "Creating Account..." : "Sign Up"}
+                    <Button type="submit" className="w-full bg-red-600 hover:bg-red-700 text-white rounded-full py-6 text-lg font-semibold" disabled={authLoading}>
+                      {authLoading ? "Creating Account..." : "Sign Up"}
                     </Button>
                     <p className="text-xs text-gray-500 text-center">
                       *Sign up is only available for customers. Employee accounts are managed internally.

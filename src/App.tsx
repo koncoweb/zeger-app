@@ -40,6 +40,13 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/" element={
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'finance']}>
+                <ModernLayout>
+                  <AdminDashboard />
+                </ModernLayout>
+              </RoleBasedRoute>
+            } />
             <Route path="/mobile-seller" element={
               <RoleBasedRoute allowedRoles={['rider']}>
                 <MobileSeller />
@@ -48,13 +55,6 @@ const App = () => (
             <Route path="/customer-app" element={
               <RoleBasedRoute allowedRoles={['customer']}>
                 <CustomerApp />
-              </RoleBasedRoute>
-            } />
-            <Route path="/" element={
-              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'finance']}>
-                <ModernLayout>
-                  <AdminDashboard />
-                </ModernLayout>
               </RoleBasedRoute>
             } />
             <Route path="/admin" element={

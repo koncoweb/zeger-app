@@ -15,12 +15,14 @@ export const RoleBasedRoute = ({
   const { user, userProfile, loading } = useAuth();
 
   useEffect(() => {
+    // Redirect unauthenticated users immediately
     if (!loading && !user) {
-      window.location.href = '/auth';
+      window.location.replace('/auth');
       return;
     }
 
-    if (!loading && userProfile && allowedRoles.length > 0) {
+    // Wait for both user and profile to be loaded before checking roles
+    if (!loading && user && userProfile && allowedRoles.length > 0) {
       if (!allowedRoles.includes(userProfile.role)) {
         // Redirect based on user role
         const roleRedirects = {
@@ -33,27 +35,42 @@ export const RoleBasedRoute = ({
         
         const targetUrl = roleRedirects[userProfile.role as keyof typeof roleRedirects] || '/';
         if (window.location.pathname !== targetUrl) {
-          window.location.href = targetUrl;
+          window.location.replace(targetUrl);
         }
       }
     }
   }, [user, userProfile, loading, allowedRoles, redirectTo]);
 
+  // Show loading while authentication state is being determined
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-secondary/5">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p>Memuat...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-lg font-medium">Memuat...</p>
         </div>
       </div>
     );
   }
 
-  if (!user || !userProfile) {
+  // Don't render anything if no user (will redirect via useEffect)
+  if (!user) {
     return null;
   }
 
+  // Don't render if user profile is still loading
+  if (!userProfile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-secondary/5">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-lg font-medium">Memuat profil pengguna...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Check role permissions
   if (allowedRoles.length > 0 && !allowedRoles.includes(userProfile.role)) {
     return null;
   }
