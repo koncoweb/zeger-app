@@ -42,9 +42,10 @@ export const ModernBranchDashboard = () => {
   const [selectedUser, setSelectedUser] = useState<string>("all");
   const [salesFilter, setSalesFilter] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
 
-  // Set default to today's date
+  // Set default dates: start of month to today
   const currentDate = new Date();
-  const [startDate, setStartDate] = useState<string>(currentDate.toISOString().split('T')[0]);
+  const firstOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+  const [startDate, setStartDate] = useState<string>(firstOfMonth.toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState<string>(currentDate.toISOString().split('T')[0]);
 
   // Individual filters for each section
@@ -80,6 +81,11 @@ export const ModernBranchDashboard = () => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   useEffect(() => {
+    // Update end date to today automatically
+    const today = new Date().toISOString().split('T')[0];
+    if (endDate !== today) {
+      setEndDate(today);
+    }
     fetchDashboardData();
   }, [selectedUser, salesFilter, startDate, endDate, menuFilter, hourlyFilter, riderFilter]);
   const getDateRange = (filter: 'today' | 'week' | 'month') => {
@@ -613,6 +619,14 @@ export const ModernBranchDashboard = () => {
                 
                 <Label htmlFor="end-date" className="text-xs text-gray-600">To:</Label>
                 <Input id="end-date" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-32 h-8 text-xs border-gray-200 rounded-full" />
+                
+                <Button 
+                  onClick={fetchDashboardData}
+                  size="sm" 
+                  className="h-8 px-3 text-xs bg-primary hover:bg-primary/90 rounded-full"
+                >
+                  Apply Filter
+                </Button>
               </div>
             </div>
           </div>

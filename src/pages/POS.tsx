@@ -14,9 +14,11 @@ import {
   CreditCard,
   DollarSign,
   Smartphone,
-  Printer
+  Printer,
+  Percent
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -40,6 +42,13 @@ const POS = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [loading, setLoading] = useState(true);
+  
+  // Discount states
+  const [discountType, setDiscountType] = useState<'percentage' | 'amount'>('percentage');
+  const [discountValue, setDiscountValue] = useState<number>(0);
+  
+  // Voucher states
+  const [voucherCode, setVoucherCode] = useState("");
 
   useEffect(() => {
     fetchProducts();
@@ -166,8 +175,15 @@ const POS = () => {
   };
 
   const subtotal = cart.reduce((sum, item) => sum + item.total, 0);
-  const tax = subtotal * 0.1; // 10% tax
-  const total = subtotal + tax;
+  
+  // Calculate discount
+  const discountAmount = discountType === 'percentage' 
+    ? (subtotal * discountValue / 100) 
+    : Math.min(discountValue, subtotal);
+  
+  const subtotalAfterDiscount = subtotal - discountAmount;
+  const tax = subtotalAfterDiscount * 0.1; // 10% tax
+  const total = subtotalAfterDiscount + tax;
 
   const processPayment = async () => {
     if (cart.length === 0) {
@@ -187,9 +203,11 @@ const POS = () => {
         .insert({
           transaction_number: transactionNumber,
           total_amount: subtotal,
+          discount_amount: discountAmount,
           final_amount: total,
-          payment_method: paymentMethod,
-          status: 'completed'
+          payment_method: paymentMethod === 'voucher' ? `voucher_${voucherCode}` : paymentMethod,
+          status: 'completed',
+          notes: discountAmount > 0 ? `Discount applied: ${discountType === 'percentage' ? `${discountValue}%` : `Rp ${discountValue.toLocaleString('id-ID')}`}` : null
         })
         .select()
         .single();
@@ -401,6 +419,46 @@ const POS = () => {
               <span>Subtotal:</span>
               <span>Rp {subtotal.toLocaleString('id-ID')}</span>
             </div>
+            
+            {/* Discount Section */}
+            <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
+              <Label className="text-sm font-medium">Diskon:</Label>
+              <div className="flex items-center gap-2">
+                <Select value={discountType} onValueChange={(value: 'percentage' | 'amount') => setDiscountType(value)}>
+                  <SelectTrigger className="w-20">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="percentage">
+                      <Percent className="h-4 w-4" />
+                    </SelectItem>
+                    <SelectItem value="amount">Rp</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={discountValue || ''}
+                  onChange={(e) => setDiscountValue(Number(e.target.value) || 0)}
+                  className="flex-1"
+                  min="0"
+                  max={discountType === 'percentage' ? 100 : subtotal}
+                />
+              </div>
+              {discountAmount > 0 && (
+                <div className="flex justify-between text-sm text-green-600">
+                  <span>Diskon ({discountType === 'percentage' ? `${discountValue}%` : `Rp ${discountValue.toLocaleString('id-ID')}`}):</span>
+                  <span>-Rp {discountAmount.toLocaleString('id-ID')}</span>
+                </div>
+              )}
+            </div>
+            
+            {discountAmount > 0 && (
+              <div className="flex justify-between">
+                <span>Subtotal setelah diskon:</span>
+                <span>Rp {subtotalAfterDiscount.toLocaleString('id-ID')}</span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span>Pajak (10%):</span>
               <span>Rp {tax.toLocaleString('id-ID')}</span>
@@ -438,8 +496,27 @@ const POS = () => {
                     Transfer
                   </div>
                 </SelectItem>
+                <SelectItem value="voucher">
+                  <div className="flex items-center gap-2">
+                    <Percent className="h-4 w-4" />
+                    Voucher
+                  </div>
+                </SelectItem>
               </SelectContent>
             </Select>
+            
+            {/* Voucher Code Input */}
+            {paymentMethod === 'voucher' && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Kode Voucher:</Label>
+                <Input
+                  placeholder="Masukkan kode voucher"
+                  value={voucherCode}
+                  onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
+                  className="uppercase"
+                />
+              </div>
+            )}
           </div>
 
           {/* Action Buttons */}
@@ -448,7 +525,7 @@ const POS = () => {
               className="w-full" 
               size="lg"
               onClick={processPayment}
-              disabled={cart.length === 0 || loading}
+              disabled={cart.length === 0 || loading || (paymentMethod === 'voucher' && !voucherCode.trim())}
             >
               {loading ? "Memproses..." : `Bayar - Rp ${total.toLocaleString('id-ID')}`}
             </Button>
