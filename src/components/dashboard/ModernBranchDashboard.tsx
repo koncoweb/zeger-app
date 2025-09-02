@@ -36,7 +36,7 @@ interface Rider {
   full_name: string;
   is_active: boolean;
 }
-const COLORS = ['#3B82F6', '#DC2626', '#EF4444', '#F87171', '#FCA5A5']; // Blue, Red, Orange, Pink, Light Pink
+const COLORS = ['#3B82F6', '#DC2626', '#10B981', '#F87171', '#FCA5A5']; // Blue, Red, Green, Pink, Light Pink
 const SHIFT_COLORS = ['#10B981', '#3B82F6', '#DC2626']; // Green, Blue, Red
 export const ModernBranchDashboard = () => {
   const [selectedUser, setSelectedUser] = useState<string>("all");
@@ -867,7 +867,7 @@ export const ModernBranchDashboard = () => {
               {/* Chart */}
               <div className="mb-6">
                 <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={riderStockData.slice(0, 4)}>
+                  <BarChart data={riderStockData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                     <XAxis dataKey="rider_name" axisLine={false} tickLine={false} tick={{
                     fontSize: 10,
