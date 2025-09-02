@@ -264,8 +264,7 @@ export const EnhancedShiftReport = ({ userProfileId, branchId, riders }: Enhance
           cash_collected,
           report_verified,
           verified_by,
-          verified_at,
-          profiles!shift_management_rider_id_fkey(full_name)
+          verified_at
         `)
         .eq('branch_id', branchId)
         .eq('report_verified', true)
@@ -321,7 +320,7 @@ export const EnhancedShiftReport = ({ userProfileId, branchId, riders }: Enhance
         const productsReturned = items.reduce((sum: number, it: any) => sum + (it.quantity || 0), 0);
         return {
           ...shift,
-          rider_name: (shift as any).profiles?.full_name || 'Unknown Rider',
+          rider_name: riders[shift.rider_id]?.full_name || 'Unknown Rider',
           return_items: items,
           products_returned: productsReturned,
           deposit_photos: photosByShift[shift.id] || []
@@ -552,7 +551,7 @@ export const EnhancedShiftReport = ({ userProfileId, branchId, riders }: Enhance
           </Button>
 
           <div className="hidden md:grid grid-cols-6 gap-2 mb-2 p-2 rounded-lg bg-muted/30">
-            <div>Id Trx</div>
+            <div>No. Transaksi</div>
             <div>Sales</div>
             <div>Produk tidak terjual</div>
             <div>Produk Kembali</div>
@@ -569,7 +568,7 @@ export const EnhancedShiftReport = ({ userProfileId, branchId, riders }: Enhance
                     <span>{Number(shift.products_returned || 0)}</span>
                     <span>{Number(shift.products_returned || 0)}</span>
                     <span className="font-semibold text-green-600">Rp {Number(shift.cash_collected || 0).toLocaleString('id-ID')}</span>
-                    <Badge variant="default">Terverifikasi</Badge>
+                    <Badge variant="default">Telah diterima</Badge>
                   </div>
                 </AccordionTrigger>
                 <AccordionContent>
