@@ -317,105 +317,105 @@ export const TransactionsEnhanced = () => {
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-7 gap-4 mb-6">
         <Card className="dashboard-card">
-          <CardContent className="p-4">
+          <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div className="p-2 rounded-lg bg-gray-100 text-primary">
                 <DollarSign className="h-4 w-4" />
               </div>
-              <div className="text-right">
-                <p className="text-lg font-bold text-gray-900">{formatCurrency(summary.totalSales)}</p>
-                <p className="text-xs font-medium text-gray-900">Total Penjualan</p>
-                <p className="text-xs text-gray-500">Omset periode ini</p>
+              <div className="text-right flex-1 min-w-0">
+                <p className="text-sm font-bold text-gray-900 truncate">{formatCurrency(summary.totalSales)}</p>
+                <p className="text-xs font-medium text-gray-900 truncate">Total Penjualan</p>
+                <p className="text-xs text-gray-500 truncate">Omset periode</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="dashboard-card">
-          <CardContent className="p-4">
+          <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div className="p-2 rounded-lg bg-gray-100 text-blue-600">
                 <Receipt className="h-4 w-4" />
               </div>
-              <div className="text-right">
-                <p className="text-lg font-bold text-gray-900">{summary.totalTransactions}</p>
-                <p className="text-xs font-medium text-gray-900">Total Transaksi</p>
-                <p className="text-xs text-gray-500">Jumlah transaksi</p>
+              <div className="text-right flex-1 min-w-0">
+                <p className="text-sm font-bold text-gray-900">{summary.totalTransactions}</p>
+                <p className="text-xs font-medium text-gray-900 truncate">Total Transaksi</p>
+                <p className="text-xs text-gray-500 truncate">Jumlah transaksi</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="dashboard-card">
-          <CardContent className="p-4">
+          <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div className="p-2 rounded-lg bg-gray-100 text-purple-600">
                 <Calculator className="h-4 w-4" />
               </div>
-              <div className="text-right">
-                <p className="text-lg font-bold text-gray-900">{formatCurrency(summary.avgPerTransaction)}</p>
-                <p className="text-xs font-medium text-gray-900">Rata-rata per Transaksi</p>
-                <p className="text-xs text-gray-500">Nilai rata-rata</p>
+              <div className="text-right flex-1 min-w-0">
+                <p className="text-sm font-bold text-gray-900 truncate">{formatCurrency(summary.avgPerTransaction)}</p>
+                <p className="text-xs font-medium text-gray-900 truncate">Rata-rata per Transaksi</p>
+                <p className="text-xs text-gray-500 truncate">Nilai rata-rata</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="dashboard-card">
-          <CardContent className="p-4">
+          <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div className="p-2 rounded-lg bg-gray-100 text-green-600">
                 <Package className="h-4 w-4" />
               </div>
-              <div className="text-right">
-                <p className="text-lg font-bold text-gray-900">{summary.totalItemsSold}</p>
-                <p className="text-xs font-medium text-gray-900">Total Item Terjual</p>
-                <p className="text-xs text-gray-500">Jumlah item terjual</p>
+              <div className="text-right flex-1 min-w-0">
+                <p className="text-sm font-bold text-gray-900">{summary.totalItemsSold}</p>
+                <p className="text-xs font-medium text-gray-900 truncate">Total Item</p>
+                <p className="text-xs text-gray-500 truncate">Jumlah terjual</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="dashboard-card">
-          <CardContent className="p-4">
+          <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div className="p-2 rounded-lg bg-gray-100 text-red-600">
                 <DollarSign className="h-4 w-4" />
               </div>
-              <div className="text-right">
-                <p className="text-lg font-bold text-gray-900">{formatCurrency(summary.totalFoodCost)}</p>
-                <p className="text-xs font-medium text-gray-900">Biaya Bahan Baku</p>
-                <p className="text-xs text-gray-500">Food cost periode ini</p>
+              <div className="text-right flex-1 min-w-0">
+                <p className="text-sm font-bold text-gray-900 truncate">{formatCurrency(summary.totalFoodCost)}</p>
+                <p className="text-xs font-medium text-gray-900 truncate">Biaya Bahan Baku</p>
+                <p className="text-xs text-gray-500 truncate">Food cost periode</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="dashboard-card">
-          <CardContent className="p-4">
+          <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div className="p-2 rounded-lg bg-gray-100 text-green-600">
                 <DollarSign className="h-4 w-4" />
               </div>
-              <div className="text-right">
-                <p className="text-lg font-bold text-gray-900">{formatCurrency(summary.cashSales)}</p>
-                <p className="text-xs font-medium text-gray-900">Penjualan Tunai</p>
-                <p className="text-xs text-gray-500">Pembayaran cash</p>
+              <div className="text-right flex-1 min-w-0">
+                <p className="text-sm font-bold text-gray-900 truncate">{formatCurrency(summary.cashSales)}</p>
+                <p className="text-xs font-medium text-gray-900 truncate">Penjualan Tunai</p>
+                <p className="text-xs text-gray-500 truncate">Pembayaran cash</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="dashboard-card">
-          <CardContent className="p-4">
+          <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <div className="p-2 rounded-lg bg-gray-100 text-blue-600">
                 <DollarSign className="h-4 w-4" />
               </div>
-              <div className="text-right">
-                <p className="text-lg font-bold text-gray-900">{formatCurrency(summary.nonCashSales)}</p>
-                <p className="text-xs font-medium text-gray-900">Non Tunai</p>
-                <p className="text-xs text-gray-500">QRIS + Transfer</p>
+              <div className="text-right flex-1 min-w-0">
+                <p className="text-sm font-bold text-gray-900 truncate">{formatCurrency(summary.nonCashSales)}</p>
+                <p className="text-xs font-medium text-gray-900 truncate">Non Tunai</p>
+                <p className="text-xs text-gray-500 truncate">QRIS + Transfer</p>
               </div>
             </div>
           </CardContent>

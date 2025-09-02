@@ -132,6 +132,7 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
         .select('id, full_name, branch_id')
         .eq('role', 'rider')
         .eq('is_active', true)
+        .not('branch_id', 'is', null)
         .order('full_name');
       
       if (ridersError) {
