@@ -647,7 +647,7 @@ export const EnhancedShiftReport = ({ userProfileId, branchId, riders }: Enhance
                     {shift.return_items?.length > 0 && (
                       <div>
                         <h4 className="font-semibold mb-2">Pengembalian Barang</h4>
-                        <div className="space-y-3">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                           {shift.return_items.map((item: any) => (
                             <div key={item.id} className="flex items-center gap-3 p-3 rounded-lg border bg-muted/20">
                               {item.verification_photo_url && (
@@ -664,12 +664,34 @@ export const EnhancedShiftReport = ({ userProfileId, branchId, riders }: Enhance
                     )}
                     <div>
                       <h4 className="font-semibold mb-2">Setoran Tunai</h4>
-                      <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/20">
-                        <span className="font-medium">Total Setoran</span>
-                        <span className="font-bold text-green-600">Rp {Number(shift.cash_collected || 0).toLocaleString('id-ID')}</span>
-                      </div>
+                      {shift.sales_breakdown && (
+                        <div className="space-y-2">
+                          <div className="grid grid-cols-3 gap-4 text-sm">
+                            <div className="p-2 bg-green-50 rounded">
+                              <div className="font-medium">Tunai</div>
+                              <div className="text-green-600">Rp {Number(shift.sales_breakdown.cash || 0).toLocaleString('id-ID')}</div>
+                            </div>
+                            <div className="p-2 bg-blue-50 rounded">
+                              <div className="font-medium">QRIS</div>
+                              <div className="text-blue-600">Rp {Number(shift.sales_breakdown.qris || 0).toLocaleString('id-ID')}</div>
+                            </div>
+                            <div className="p-2 bg-purple-50 rounded">
+                              <div className="font-medium">Transfer</div>
+                              <div className="text-purple-600">Rp {Number(shift.sales_breakdown.transfer || 0).toLocaleString('id-ID')}</div>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between p-3 rounded-lg border bg-yellow-50">
+                            <span className="font-medium">Total Penjualan</span>
+                            <span className="font-bold text-yellow-700">Rp {Number(shift.sales_breakdown.total || 0).toLocaleString('id-ID')}</span>
+                          </div>
+                          <div className="flex items-center justify-between p-3 rounded-lg border bg-green-50">
+                            <span className="font-medium">Setoran Tunai (Tunai - Operasional)</span>
+                            <span className="font-bold text-green-700">Rp {Number(shift.calculated_cash_deposit || 0).toLocaleString('id-ID')}</span>
+                          </div>
+                        </div>
+                      )}
                       {shift.deposit_photos?.length > 0 && (
-                        <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div className="mt-3 grid grid-cols-3 gap-3">
                           {shift.deposit_photos.map((url: string, idx: number) => (
                             <img key={idx} src={url} alt={`Foto setoran ${idx + 1}`} className="w-full h-24 object-cover rounded-md border" loading="lazy" />
                           ))}

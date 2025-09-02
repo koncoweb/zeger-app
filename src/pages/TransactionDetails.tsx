@@ -35,15 +35,18 @@ export const TransactionDetails = () => {
     totalQuantity: 0
   });
   
-  // Filter states
+  // Filter states from URL params or defaults
   const [startDate, setStartDate] = useState(() => {
-    const date = new Date();
-    date.setDate(1); // First day of current month
-    return date.toISOString().split('T')[0];
+    const params = new URLSearchParams(window.location.search);
+    return params.get('start_date') || (() => {
+      const date = new Date();
+      date.setDate(1); // First day of current month
+      return date.toISOString().split('T')[0];
+    })();
   });
   const [endDate, setEndDate] = useState(() => {
-    const date = new Date();
-    return date.toISOString().split('T')[0];
+    const params = new URLSearchParams(window.location.search);
+    return params.get('end_date') || new Date().toISOString().split('T')[0];
   });
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);

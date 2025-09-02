@@ -157,7 +157,7 @@ export default function Inventory() {
       // Riders map - include ALL riders with activity, not just from current branch
       const { data: riderProfiles } = await supabase
         .from('profiles')
-        .select('id, full_name')
+        .select('id, full_name, branch_id')
         .eq('role', 'rider')
         .eq('is_active', true);
       const map: Record<string, Rider> = {};
@@ -459,8 +459,12 @@ export default function Inventory() {
               </CardHeader>
               <CardContent>
                 <Accordion type="multiple" className="w-full">
-                  {/* Show all riders who have inventory, even if not in the riders map */}
-                  {[...new Set([...Object.keys(riders), ...riderInventory.map(i => i.rider_id), ...returns.map(r => r.rider_id)])].map(rid => (
+                  {/* Show all active riders with their stock status */}
+                  {Object.keys(riders).sort((a, b) => {
+                    const nameA = riders[a]?.full_name || '';
+                    const nameB = riders[b]?.full_name || '';
+                    return nameA.localeCompare(nameB);
+                  }).map(rid => (
                     <AccordionItem key={rid} value={rid}>
                       <AccordionTrigger className="hover:no-underline">
                         <div className="flex items-center justify-between w-full">
@@ -483,8 +487,8 @@ export default function Inventory() {
                       </AccordionContent>
                     </AccordionItem>
                   ))}
-                  {[...new Set([...Object.keys(riders), ...riderInventory.map(i => i.rider_id), ...returns.map(r => r.rider_id)])].length === 0 && (
-                    <p className="text-sm text-muted-foreground">Tidak ada stok rider</p>
+                  {Object.keys(riders).length === 0 && (
+                    <p className="text-sm text-muted-foreground">Tidak ada rider ditemukan</p>
                   )}
                 </Accordion>
               </CardContent>

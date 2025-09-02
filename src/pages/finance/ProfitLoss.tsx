@@ -95,7 +95,7 @@ export default function ProfitLoss() {
       if (transactionIds.length > 0) {
         const { data: itemCosts } = await supabase
           .from('transaction_items')
-          .select('quantity, product_id, products:product_id (cost_price)')
+          .select('quantity, products (cost_price)')
           .in('transaction_id', transactionIds);
         rawMaterialCost = (itemCosts || []).reduce((sum: number, item: any) => {
           const qty = Number(item.quantity || 0);
@@ -302,19 +302,21 @@ export default function ProfitLoss() {
               <div>
                 <h3 className="text-lg font-semibold mb-3">BEBAN OPERASIONAL</h3>
                 <div className="space-y-2 pl-4">
-                  <div className="flex justify-between">
-                    <span 
-                      className="cursor-pointer text-blue-600 hover:text-blue-800 hover:underline"
-                      onClick={() => {
-                        const params = new URLSearchParams();
-                        if (selectedRider !== 'all') params.set('rider', selectedRider);
-                        navigate(`/transactions?${params.toString()}`);
-                      }}
-                    >
-                      Beban Bahan Baku
-                    </span>
-                    <span className="font-medium">({currency.format(expenses.rawMaterial)})</span>
-                  </div>
+                   <div className="flex justify-between">
+                     <span 
+                       className="cursor-pointer text-blue-600 hover:text-blue-800 hover:underline"
+                       onClick={() => {
+                         const params = new URLSearchParams();
+                         if (selectedRider !== 'all') params.set('rider', selectedRider);
+                         params.set('start_date', format(startDate, 'yyyy-MM-dd'));
+                         params.set('end_date', format(endDate, 'yyyy-MM-dd'));
+                         navigate(`/transaction-details?${params.toString()}`);
+                       }}
+                     >
+                       Beban Bahan Baku
+                     </span>
+                     <span className="font-medium">({currency.format(expenses.rawMaterial)})</span>
+                   </div>
                   <div className="flex justify-between">
                     <span>Beban Operasional Harian</span>
                     <span className="font-medium">({currency.format(expenses.operationalDaily)})</span>
