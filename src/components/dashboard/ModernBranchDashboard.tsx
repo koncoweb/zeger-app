@@ -157,30 +157,51 @@ export const ModernBranchDashboard = () => {
   };
   const fetchStats = async () => {
     try {
-      // Fetch completed transactions for the date range
-      const {
-        data: transactions
-      } = await supabase.from('transactions').select('final_amount, id').eq('status', 'completed').gte('transaction_date', `${startDate}T00:00:00`).lte('transaction_date', `${endDate}T23:59:59`);
+      // Fetch completed transactions for the date range, optionally filter by rider
+      let txQuery = supabase
+        .from('transactions')
+        .select('final_amount, id, rider_id')
+        .eq('status', 'completed')
+        .gte('transaction_date', `${startDate}T00:00:00`)
+        .lte('transaction_date', `${endDate}T23:59:59`);
+      if (selectedUser !== 'all') {
+        txQuery = txQuery.eq('rider_id', selectedUser);
+      }
+      const { data: transactions } = await txQuery;
 
       // Fetch active customers
-      const {
-        data: customers
-      } = await supabase.from('customers').select('id').eq('is_active', true);
+      const { data: customers } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('is_active', true);
 
-      // Fetch total items sold from transaction_items
+      // Compute total items sold and total food cost (COGS) from transaction_items joined with products.cost_price
       const transactionIds = transactions?.map(t => t.id) || [];
       let totalItemsSold = 0;
+      let totalFoodCost = 0;
       if (transactionIds.length > 0) {
-        const {
-          data: items
-        } = await supabase.from('transaction_items').select('quantity').in('transaction_id', transactionIds);
-        totalItemsSold = items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+        const { data: items } = await supabase
+          .from('transaction_items')
+          .select('quantity, products!inner(cost_price)')
+          .in('transaction_id', transactionIds);
+        totalItemsSold = items?.reduce((sum, item: any) => sum + (item.quantity || 0), 0) || 0;
+        totalFoodCost = items?.reduce((sum, item: any) => sum + (item.quantity || 0) * (Number(item.products?.cost_price) || 0), 0) || 0;
       }
+
       const totalSales = transactions?.reduce((sum, t) => sum + parseFloat(t.final_amount.toString()), 0) || 0;
       const totalTransactions = transactions?.length || 0;
       const avgTransactionValue = totalTransactions > 0 ? totalSales / totalTransactions : 0;
-      const totalFoodCost = totalSales * 0.4; // 40% estimate
       const totalProfit = totalSales - totalFoodCost;
+
+      // Active riders = riders with active shift today
+      const today = new Date().toISOString().split('T')[0];
+      const { data: activeShifts } = await supabase
+        .from('shift_management')
+        .select('id')
+        .eq('shift_date', today)
+        .eq('status', 'active');
+      const activeRiders = activeShifts?.length || 0;
+
       setStats({
         totalSales,
         totalTransactions,
@@ -189,7 +210,7 @@ export const ModernBranchDashboard = () => {
         totalItemsSold,
         totalProfit,
         totalMembers: customers?.length || 0,
-        activeRiders: riders.length
+        activeRiders
       });
     } catch (error) {
       console.error("Error fetching stats:", error);
@@ -211,9 +232,14 @@ export const ModernBranchDashboard = () => {
           const date = new Date(start);
           date.setDate(start.getDate() + i);
           const dateStr = date.toISOString().split('T')[0];
-          const {
-            data: dailyTransactions
-          } = await supabase.from('transactions').select('final_amount').eq('status', 'completed').gte('transaction_date', `${dateStr}T00:00:00`).lte('transaction_date', `${dateStr}T23:59:59`);
+          let dailyQuery = supabase
+            .from('transactions')
+            .select('final_amount')
+            .eq('status', 'completed')
+            .gte('transaction_date', `${dateStr}T00:00:00`)
+            .lte('transaction_date', `${dateStr}T23:59:59`);
+          if (selectedUser !== 'all') dailyQuery = dailyQuery.eq('rider_id', selectedUser);
+          const { data: dailyTransactions } = await dailyQuery;
           const dailySales = dailyTransactions?.reduce((sum, t) => sum + parseFloat(t.final_amount.toString()), 0) || 0;
           chartData.push({
             month: date.toLocaleDateString('id-ID', {
@@ -233,9 +259,14 @@ export const ModernBranchDashboard = () => {
           const monthEnd = new Date(monthStart);
           monthEnd.setMonth(monthStart.getMonth() + 1);
           monthEnd.setDate(0);
-          const {
-            data: monthlyTransactions
-          } = await supabase.from('transactions').select('final_amount').eq('status', 'completed').gte('transaction_date', monthStart.toISOString()).lte('transaction_date', monthEnd.toISOString());
+          let monthlyQuery = supabase
+            .from('transactions')
+            .select('final_amount')
+            .eq('status', 'completed')
+            .gte('transaction_date', monthStart.toISOString())
+            .lte('transaction_date', monthEnd.toISOString());
+          if (selectedUser !== 'all') monthlyQuery = monthlyQuery.eq('rider_id', selectedUser);
+          const { data: monthlyTransactions } = await monthlyQuery;
           const monthlySales = monthlyTransactions?.reduce((sum, t) => sum + parseFloat(t.final_amount.toString()), 0) || 0;
           chartData.unshift({
             month: months[monthStart.getMonth()],
@@ -322,10 +353,14 @@ export const ModernBranchDashboard = () => {
   };
   const fetchRiderExpenses = async () => {
     try {
-      // Simplified approach - just fetch operational expenses without joins
-      const {
-        data: expenses
-      } = await supabase.from('daily_operational_expenses').select('amount, rider_id').gte('expense_date', startDate).lte('expense_date', endDate);
+      // Fetch expenses within date range, optionally filter by rider
+      let expQuery = supabase
+        .from('daily_operational_expenses')
+        .select('amount, rider_id')
+        .gte('expense_date', startDate)
+        .lte('expense_date', endDate);
+      if (selectedUser !== 'all') expQuery = expQuery.eq('rider_id', selectedUser);
+      const { data: expenses } = await expQuery;
       if (!expenses) {
         setRiderExpenses([]);
         return;
@@ -333,23 +368,19 @@ export const ModernBranchDashboard = () => {
 
       // Get rider names separately
       const riderIds = [...new Set(expenses.map(e => e.rider_id).filter(Boolean))];
-      const {
-        data: riderProfiles
-      } = await supabase.from('profiles').select('id, full_name').in('id', riderIds);
+      const { data: riderProfiles } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', riderIds);
 
       // Group expenses by rider
-      const riderExpenseMap: {
-        [key: string]: number;
-      } = {};
+      const riderExpenseMap: { [key: string]: number } = {};
       expenses.forEach((expense: any) => {
         const rider = riderProfiles?.find(r => r.id === expense.rider_id);
         const riderName = rider?.full_name || 'Unknown';
         riderExpenseMap[riderName] = (riderExpenseMap[riderName] || 0) + parseFloat(expense.amount);
       });
-      const riderExpenseData = Object.entries(riderExpenseMap).map(([rider_name, total_expenses]) => ({
-        rider_name,
-        total_expenses
-      }));
+      const riderExpenseData = Object.entries(riderExpenseMap).map(([rider_name, total_expenses]) => ({ rider_name, total_expenses }));
       setRiderExpenses(riderExpenseData);
     } catch (error) {
       console.error("Error fetching rider expenses:", error);
@@ -432,27 +463,35 @@ export const ModernBranchDashboard = () => {
   };
   const fetchRiderStockData = async () => {
     try {
-      // Use the main date filters instead of separate riderFilter
-      // Fetch riders and their transactions
-      const {
-        data: ridersData
-      } = await supabase.from('profiles').select('id, full_name').eq('role', 'rider').eq('is_active', true);
+      // Fetch riders; if a rider is selected, only fetch that rider
+      let ridersQuery = supabase
+        .from('profiles')
+        .select('id, full_name')
+        .eq('role', 'rider')
+        .eq('is_active', true);
+      if (selectedUser !== 'all') ridersQuery = ridersQuery.eq('id', selectedUser);
+      const { data: ridersData } = await ridersQuery;
       if (!ridersData) {
         setRiderStockData([]);
         return;
       }
       const stockData = await Promise.all(ridersData.map(async (rider: any) => {
         // Fetch transactions for this rider in the date range
-        const {
-          data: transactions
-        } = await supabase.from('transactions').select('id, final_amount').eq('rider_id', rider.id).eq('status', 'completed').gte('transaction_date', `${startDate}T00:00:00`).lte('transaction_date', `${endDate}T23:59:59`);
+        const { data: transactions } = await supabase
+          .from('transactions')
+          .select('id, final_amount')
+          .eq('rider_id', rider.id)
+          .eq('status', 'completed')
+          .gte('transaction_date', `${startDate}T00:00:00`)
+          .lte('transaction_date', `${endDate}T23:59:59`);
         const transactionIds = transactions?.map(t => t.id) || [];
         let totalItemsSold = 0;
         let totalOrders = transactions?.length || 0;
         if (transactionIds.length > 0) {
-          const {
-            data: items
-          } = await supabase.from('transaction_items').select('quantity').in('transaction_id', transactionIds);
+          const { data: items } = await supabase
+            .from('transaction_items')
+            .select('quantity')
+            .in('transaction_id', transactionIds);
           totalItemsSold = items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
         }
         const totalRevenue = transactions?.reduce((sum, t) => sum + parseFloat(t.final_amount.toString()), 0) || 0;
@@ -482,7 +521,7 @@ export const ModernBranchDashboard = () => {
         navigate('/finance/profit-loss');
         break;
       case 'foodCost':
-        navigate('/finance/operational-expenses');
+        navigate('/transactions');
         break;
       case 'members':
         navigate('/customers');

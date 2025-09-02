@@ -444,12 +444,12 @@ export default function Inventory() {
               </CardHeader>
               <CardContent>
                 <Accordion type="multiple" className="w-full">
-                  {Object.keys(riderTotalsByRider).map(rid => (
+                  {Object.keys(riders).map(rid => (
                     <AccordionItem key={rid} value={rid}>
                       <AccordionTrigger>
                         <div className="flex items-center justify-between w-full">
                           <span>{riders[rid]?.full_name || rid}</span>
-                          <Badge variant="secondary">{riderTotalsByRider[rid]} item</Badge>
+                          <Badge variant="secondary">{riderTotalsByRider[rid] || 0} item</Badge>
                         </div>
                       </AccordionTrigger>
                       <AccordionContent>
@@ -467,7 +467,7 @@ export default function Inventory() {
                       </AccordionContent>
                     </AccordionItem>
                   ))}
-                  {Object.keys(riderTotalsByRider).length === 0 && (
+                  {Object.keys(riders).length === 0 && (
                     <p className="text-sm text-muted-foreground">Tidak ada stok rider</p>
                   )}
                 </Accordion>
