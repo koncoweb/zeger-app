@@ -7,10 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Check, ChevronDown, Package, AlertCircle, CalendarIcon, History } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Check, Package, CalendarIcon, History, DollarSign, Eye } from "lucide-react";
 import { format } from "date-fns";
+import { id } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -31,21 +31,6 @@ interface StockMovement {
   profiles: {
     full_name: string;
   };
-  branches: {
-    name: string;
-  };
-}
-
-interface GroupedStockReturn {
-  reference_id: string;
-  transaction_title: string;
-  date: string;
-  time: string;
-  rider_name: string;
-  branch_name: string;
-  total_items: number;
-  items: StockMovement[];
-  verification_quantities: Record<string, number>;
 }
 
 interface Shift {
@@ -68,14 +53,12 @@ interface Rider {
   full_name: string;
 }
 
-interface ShiftHistoryItem {
-  id: string;
-  transaction_id: string;
-  created_at: string;
-  rider_name: string;
-  type: 'stock_return' | 'cash_deposit';
-  details: any;
-  status: string;
+interface CombinedRiderReport {
+  riderId: string;
+  riderName: string;
+  stockReturns: StockMovement[];
+  cashDeposit?: Shift;
+  verificationQuantities: Record<string, number>;
 }
 
 interface EnhancedShiftReportProps {
@@ -85,9 +68,8 @@ interface EnhancedShiftReportProps {
 }
 
 export const EnhancedShiftReport = ({ userProfileId, branchId, riders }: EnhancedShiftReportProps) => {
-  const [groupedReturns, setGroupedReturns] = useState<GroupedStockReturn[]>([]);
-  const [shifts, setShifts] = useState<Shift[]>([]);
-  const [shiftHistory, setShiftHistory] = useState<ShiftHistoryItem[]>([]);
+  const [combinedReports, setCombinedReports] = useState<CombinedRiderReport[]>([]);
+  const [shiftHistory, setShiftHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   
   // History filters
@@ -96,13 +78,13 @@ export const EnhancedShiftReport = ({ userProfileId, branchId, riders }: Enhance
   const [endDate, setEndDate] = useState<Date>(new Date());
 
   useEffect(() => {
-    fetchPendingReturns();
-    fetchPendingShifts();
+    fetchCombinedReports();
   }, [branchId]);
 
-  const fetchPendingReturns = async () => {
+  const fetchCombinedReports = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch stock returns
+      const { data: stockData, error: stockError } = await supabase
         .from('stock_movements')
         .select(`
           id,
@@ -115,56 +97,17 @@ export const EnhancedShiftReport = ({ userProfileId, branchId, riders }: Enhance
           status,
           verification_photo_url,
           products!inner(name, category),
-          profiles!stock_movements_rider_id_fkey(full_name),
-          branches!stock_movements_branch_id_fkey(name)
+          profiles!stock_movements_rider_id_fkey(full_name)
         `)
         .eq('movement_type', 'return')
         .eq('branch_id', branchId)
         .in('status', ['pending', 'returned'])
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (stockError) throw stockError;
 
-      // Group by reference_id
-      const grouped: Record<string, GroupedStockReturn> = {};
-
-      data?.forEach((movement) => {
-        const refId = movement.reference_id || movement.id;
-        const date = new Date(movement.created_at).toLocaleDateString('id-ID');
-        const time = new Date(movement.created_at).toLocaleTimeString('id-ID', {
-          hour: '2-digit',
-          minute: '2-digit'
-        });
-
-        if (!grouped[refId]) {
-          grouped[refId] = {
-            reference_id: refId,
-            transaction_title: `Return ID: ${refId.slice(-6).toUpperCase()}`,
-            date,
-            time,
-            rider_name: movement.profiles?.full_name || 'Unknown Rider',
-            branch_name: movement.branches?.name || 'Unknown Branch',
-            total_items: 0,
-            items: [],
-            verification_quantities: {}
-          };
-        }
-
-        grouped[refId].items.push(movement);
-        grouped[refId].total_items += movement.quantity;
-        grouped[refId].verification_quantities[movement.id] = movement.quantity; // Default to expected quantity
-      });
-
-      setGroupedReturns(Object.values(grouped));
-    } catch (error: any) {
-      console.error('Error fetching pending returns:', error);
-      toast.error('Gagal memuat data pengembalian stok');
-    }
-  };
-
-  const fetchPendingShifts = async () => {
-    try {
-      const { data, error } = await supabase
+      // Fetch shifts
+      const { data: shiftData, error: shiftError } = await supabase
         .from('shift_management')
         .select('*')
         .eq('branch_id', branchId)
@@ -172,113 +115,59 @@ export const EnhancedShiftReport = ({ userProfileId, branchId, riders }: Enhance
         .eq('report_verified', false)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setShifts(data || []);
+      if (shiftError) throw shiftError;
+
+      // Combine data by rider
+      const riderMap: Record<string, CombinedRiderReport> = {};
+
+      // Add stock returns to rider reports
+      stockData?.forEach((movement) => {
+        const riderId = movement.rider_id;
+        if (!riderMap[riderId]) {
+          riderMap[riderId] = {
+            riderId,
+            riderName: movement.profiles?.full_name || 'Unknown Rider',
+            stockReturns: [],
+            verificationQuantities: {}
+          };
+        }
+        riderMap[riderId].stockReturns.push(movement);
+        riderMap[riderId].verificationQuantities[movement.id] = movement.quantity;
+      });
+
+      // Add cash deposits to rider reports
+      shiftData?.forEach((shift) => {
+        const riderId = shift.rider_id;
+        if (!riderMap[riderId]) {
+          riderMap[riderId] = {
+            riderId,
+            riderName: riders[riderId]?.full_name || 'Unknown Rider',
+            stockReturns: [],
+            verificationQuantities: {}
+          };
+        }
+        riderMap[riderId].cashDeposit = shift;
+      });
+
+      setCombinedReports(Object.values(riderMap));
     } catch (error: any) {
-      console.error('Error fetching shifts:', error);
-      toast.error('Gagal memuat data shift');
+      console.error('Error fetching combined reports:', error);
+      toast.error('Gagal memuat data laporan shift');
     }
   };
 
-  const fetchShiftHistory = async () => {
-    try {
-      // Fetch shift history based on filters
-      let query = supabase
-        .from('shift_management')
-        .select(`
-          id,
-          rider_id,
-          shift_date,
-          shift_number,
-          total_sales,
-          cash_collected,
-          report_verified,
-          verified_by,
-          verified_at,
-          profiles!shift_management_rider_id_fkey(full_name)
-        `)
-        .eq('branch_id', branchId)
-        .eq('report_verified', true)
-        .gte('shift_date', startDate.toISOString().split('T')[0])
-        .lte('shift_date', endDate.toISOString().split('T')[0])
-        .order('verified_at', { ascending: false });
-
-      if (selectedUser !== "all") {
-        query = query.eq('rider_id', selectedUser);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-
-      // Transform to ShiftHistoryItem format
-      const historyItems: ShiftHistoryItem[] = (data || []).map(shift => ({
-        id: shift.id,
-        transaction_id: `SHIFT-${shift.shift_date}-${shift.shift_number}`,
-        created_at: shift.verified_at || shift.shift_date,
-        rider_name: (shift.profiles as any)?.full_name || 'Unknown Rider',
-        type: 'cash_deposit' as const,
-        details: {
-          shift_date: shift.shift_date,
-          shift_number: shift.shift_number,
-          total_sales: shift.total_sales,
-          cash_collected: shift.cash_collected,
-          verified_by: shift.verified_by
-        },
-        status: 'verified'
-      }));
-
-      setShiftHistory(historyItems);
-    } catch (error: any) {
-      console.error('Error fetching shift history:', error);
-      toast.error('Gagal memuat riwayat shift');
-    }
-  };
-
-  const updateVerificationQuantity = (refId: string, itemId: string, quantity: number) => {
-    setGroupedReturns(prev => prev.map(group => 
-      group.reference_id === refId 
+  const updateVerificationQuantity = (riderId: string, itemId: string, quantity: number) => {
+    setCombinedReports(prev => prev.map(report => 
+      report.riderId === riderId 
         ? {
-            ...group,
-            verification_quantities: {
-              ...group.verification_quantities,
+            ...report,
+            verificationQuantities: {
+              ...report.verificationQuantities,
               [itemId]: quantity
             }
           }
-        : group
+        : report
     ));
-  };
-
-  const confirmStockReturn = async (refId: string) => {
-    const group = groupedReturns.find(g => g.reference_id === refId);
-    if (!group) return;
-
-    setLoading(true);
-    try {
-      // Update each item with verified quantity
-      for (const item of group.items) {
-        const verifiedQuantity = group.verification_quantities[item.id] || 0;
-        
-        await supabase
-          .from('stock_movements')
-          .update({
-            status: 'received',
-            actual_delivery_date: new Date().toISOString(),
-            notes: `Verified quantity: ${verifiedQuantity} (expected: ${item.quantity})`
-          })
-          .eq('id', item.id);
-
-        // Update branch inventory with verified quantity
-        await updateBranchInventory(item.product_id, verifiedQuantity);
-      }
-
-      toast.success('Pengembalian stok berhasil dikonfirmasi!');
-      await fetchPendingReturns();
-    } catch (error: any) {
-      console.error('Error confirming stock return:', error);
-      toast.error('Gagal konfirmasi pengembalian stok');
-    } finally {
-      setLoading(false);
-    }
   };
 
   const updateBranchInventory = async (productId: string, quantity: number) => {
@@ -314,43 +203,43 @@ export const EnhancedShiftReport = ({ userProfileId, branchId, riders }: Enhance
     }
   };
 
-  const approveCashDeposit = async (shift: Shift) => {
+  const handleAcceptRiderReport = async (riderId: string) => {
+    const report = combinedReports.find(r => r.riderId === riderId);
+    if (!report) return;
+
     setLoading(true);
     try {
-      await supabase
-        .from('shift_management')
-        .update({
-          report_verified: true,
-          verified_by: userProfileId,
-          verified_at: new Date().toISOString()
-        })
-        .eq('id', shift.id);
+      // Confirm stock returns
+      for (const item of report.stockReturns) {
+        const verifiedQuantity = report.verificationQuantities[item.id] || 0;
+        
+        await supabase
+          .from('stock_movements')
+          .update({
+            status: 'received',
+            actual_delivery_date: new Date().toISOString(),
+            notes: `Verified quantity: ${verifiedQuantity} (expected: ${item.quantity})`
+          })
+          .eq('id', item.id);
 
-      toast.success('Setoran tunai berhasil diverifikasi');
-      await fetchPendingShifts();
-    } catch (error: any) {
-      console.error('Error approving cash deposit:', error);
-      toast.error('Gagal verifikasi setoran tunai');
-    } finally {
-      setLoading(false);
-    }
-  };
+        // Update branch inventory with verified quantity
+        await updateBranchInventory(item.product_id, verifiedQuantity);
+      }
 
-  const handleAcceptForRider = async (riderId: string) => {
-    setLoading(true);
-    try {
-      // Konfirmasi semua pengembalian untuk rider ini
-      const riderGroups = groupedReturns.filter(g => g.items.some(i => i.rider_id === riderId));
-      for (const g of riderGroups) {
-        await confirmStockReturn(g.reference_id);
+      // Approve cash deposit if exists
+      if (report.cashDeposit) {
+        await supabase
+          .from('shift_management')
+          .update({
+            report_verified: true,
+            verified_by: userProfileId,
+            verified_at: new Date().toISOString()
+          })
+          .eq('id', report.cashDeposit.id);
       }
-      // Verifikasi setoran tunai jika ada shift-nya
-      const riderShift = shifts.find(s => s.rider_id === riderId);
-      if (riderShift) {
-        await approveCashDeposit(riderShift);
-      }
-      toast.success('Laporan shift diterima');
-      await Promise.all([fetchPendingReturns(), fetchPendingShifts()]);
+
+      toast.success('Laporan shift berhasil diterima!');
+      await fetchCombinedReports();
     } catch (error: any) {
       console.error('Error accepting rider report:', error);
       toast.error('Gagal menerima laporan shift');
@@ -359,165 +248,190 @@ export const EnhancedShiftReport = ({ userProfileId, branchId, riders }: Enhance
     }
   };
 
+  const fetchShiftHistory = async () => {
+    try {
+      // Fetch shift history based on filters
+      let query = supabase
+        .from('shift_management')
+        .select(`
+          id,
+          rider_id,
+          shift_date,
+          shift_number,
+          total_sales,
+          cash_collected,
+          report_verified,
+          verified_by,
+          verified_at,
+          profiles!shift_management_rider_id_fkey(full_name)
+        `)
+        .eq('branch_id', branchId)
+        .eq('report_verified', true)
+        .gte('shift_date', startDate.toISOString().split('T')[0])
+        .lte('shift_date', endDate.toISOString().split('T')[0])
+        .order('verified_at', { ascending: false });
+
+      if (selectedUser !== "all") {
+        query = query.eq('rider_id', selectedUser);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      setShiftHistory(data || []);
+    } catch (error: any) {
+      console.error('Error fetching shift history:', error);
+      toast.error('Gagal memuat riwayat shift');
+    }
+  };
+
   return (
     <div className="space-y-6">
-      {/* Stock Returns Section */}
+      {/* Combined Reports Section */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Package className="h-5 w-5" />
-            Konfirmasi Pengembalian Barang
+            Laporan Shift - Pengembalian & Setoran
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {groupedReturns.length === 0 ? (
+          {combinedReports.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              Tidak ada pengembalian stok yang perlu dikonfirmasi
+              Tidak ada laporan shift yang perlu dikonfirmasi
             </div>
           ) : (
-            <div className="space-y-4">
-              {groupedReturns.map((group) => (
-                <div key={group.reference_id} className="border rounded-lg p-4 space-y-4">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-medium">{group.transaction_title}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {group.rider_name} • {group.date} {group.time}
-                      </p>
+            <div className="space-y-6">
+              {combinedReports.map((report) => (
+                <Card key={report.riderId} className="border-2">
+                  <CardHeader className="bg-muted/30">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="text-lg">{report.riderName}</CardTitle>
+                        <p className="text-sm text-muted-foreground">
+                          {format(new Date(), "dd MMM yyyy", { locale: id })}
+                        </p>
+                      </div>
+                      <Badge variant="secondary">Menunggu Verifikasi</Badge>
                     </div>
-                    <Badge variant="outline">Menunggu Verifikasi</Badge>
-                  </div>
+                  </CardHeader>
 
-                  <div className="space-y-3">
-                    {group.items.map((item) => (
-                      <div key={item.id} className="grid grid-cols-12 gap-4 items-center p-3 bg-muted/30 rounded">
-                        {item.verification_photo_url && (
-                          <div className="col-span-2">
-                            <img
-                              src={item.verification_photo_url}
-                              alt="Return evidence"
-                              className="w-12 h-12 rounded object-cover"
-                            />
-                          </div>
-                        )}
-                        <div className={item.verification_photo_url ? "col-span-4" : "col-span-6"}>
-                          <p className="font-medium text-sm">{item.products.name}</p>
-                          <p className="text-xs text-muted-foreground">{item.products.category}</p>
-                        </div>
-                        <div className="col-span-2 text-center">
-                          <p className="text-xs text-muted-foreground">Tidak Terjual</p>
-                          <p className="font-medium">{item.quantity}</p>
-                        </div>
-                        <div className="col-span-2 text-center">
-                          <p className="text-xs text-muted-foreground">Kembali</p>
-                          <p className="font-medium">{item.quantity}</p>
-                        </div>
-                        <div className="col-span-2">
-                          <Label className="text-xs">Diterima</Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            max={item.quantity}
-                            value={group.verification_quantities[item.id] || 0}
-                            onChange={(e) => updateVerificationQuantity(
-                              group.reference_id, 
-                              item.id, 
-                              parseInt(e.target.value) || 0
-                            )}
-                            className="h-8 text-sm"
-                          />
+                  <CardContent className="p-6">
+                    {/* Stock Returns Section */}
+                    {report.stockReturns.length > 0 && (
+                      <div className="mb-6">
+                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                          <Package className="h-5 w-5" />
+                          Pengembalian Barang
+                        </h3>
+                        
+                        <div className="space-y-4">
+                          {report.stockReturns.map((item) => (
+                            <div key={item.id} className="flex items-center gap-4 p-4 border rounded-lg bg-muted/20">
+                              {item.verification_photo_url && (
+                                <img 
+                                  src={item.verification_photo_url} 
+                                  alt={item.products.name}
+                                  className="w-20 h-20 object-cover rounded-lg border"
+                                />
+                              )}
+                              <div className="flex-1">
+                                <h4 className="font-semibold text-lg">{item.products.name}</h4>
+                                <div className="text-sm text-muted-foreground mt-2 space-y-1">
+                                  <p className="flex justify-between">
+                                    <span>Tidak terjual:</span>
+                                    <span className="font-medium">{item.quantity}</span>
+                                  </p>
+                                  <p className="flex justify-between">
+                                    <span>Kembali:</span>
+                                    <span className="font-medium">{item.quantity}</span>
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex flex-col items-center gap-2 min-w-[120px]">
+                                <Label htmlFor={`verify-${item.id}`} className="text-sm font-medium">
+                                  Jumlah Diterima:
+                                </Label>
+                                <Input
+                                  id={`verify-${item.id}`}
+                                  type="number"
+                                  min="0"
+                                  max={item.quantity}
+                                  className="w-20 text-center font-semibold"
+                                  value={report.verificationQuantities[item.id] || ''}
+                                  onChange={(e) => updateVerificationQuantity(report.riderId, item.id, parseInt(e.target.value) || 0)}
+                                  placeholder="0"
+                                />
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    )}
 
-                  <div className="flex justify-end">
-                    <Button 
-                      onClick={() => confirmStockReturn(group.reference_id)}
-                      disabled={loading}
-                      className="bg-green-600 hover:bg-green-700"
-                    >
-                      <Check className="h-4 w-4 mr-2" />
-                      Terima
-                    </Button>
-                  </div>
-                </div>
+                    {/* Cash Deposit Section */}
+                    {report.cashDeposit && (
+                      <div className="mb-6">
+                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                          <DollarSign className="h-5 w-5" />
+                          Laporan Setoran Tunai
+                        </h3>
+                        
+                        <div className="p-4 border rounded-lg bg-blue-50/50">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="space-y-2">
+                              <div className="flex justify-between p-2 bg-white/80 rounded">
+                                <span className="font-medium">Total Penjualan:</span>
+                                <span className="font-bold">
+                                  Rp {report.cashDeposit.total_sales.toLocaleString('id-ID')}
+                                </span>
+                              </div>
+                              <div className="flex justify-between p-2 bg-white/80 rounded">
+                                <span className="font-medium">Total Transaksi:</span>
+                                <span className="font-semibold">
+                                  {report.cashDeposit.total_transactions}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex justify-between p-2 bg-white/80 rounded">
+                              <span className="font-medium">Setoran Tunai:</span>
+                              <span className="font-bold text-green-600">
+                                Rp {report.cashDeposit.cash_collected.toLocaleString('id-ID')}
+                              </span>
+                            </div>
+                            <div className="flex justify-center">
+                              <div className="relative">
+                                <div className="w-32 h-32 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center">
+                                  <span className="text-xs text-gray-500">Foto Setoran</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Single Accept Button */}
+                    <div className="flex justify-center pt-4">
+                      <Button 
+                        onClick={() => handleAcceptRiderReport(report.riderId)}
+                        disabled={loading}
+                        className="bg-green-600 hover:bg-green-700 px-8 py-3 text-lg font-semibold"
+                        size="lg"
+                      >
+                        <Check className="w-5 h-5 mr-2" />
+                        Terima
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Cash Deposit Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Laporan Setoran Tunai</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {shifts.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Tidak ada setoran tunai yang perlu diverifikasi
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {shifts.map((shift) => (
-                <div key={shift.id} className="border rounded-lg p-4 space-y-3">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-medium">
-                        Rider: {riders[shift.rider_id]?.full_name || 'Unknown Rider'}
-                      </h4>
-                      <p className="text-sm text-muted-foreground">
-                        {new Date(shift.shift_date).toLocaleDateString('id-ID')} • Shift {shift.shift_number}
-                      </p>
-                    </div>
-                    <Badge variant="secondary">Menunggu Verifikasi</Badge>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Total Penjualan</p>
-                      <p className="font-medium">
-                        {new Intl.NumberFormat('id-ID', { 
-                          style: 'currency', 
-                          currency: 'IDR', 
-                          minimumFractionDigits: 0 
-                        }).format(shift.total_sales)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Total Transaksi</p>
-                      <p className="font-medium">{shift.total_transactions}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Setoran Tunai</p>
-                      <p className="font-medium text-green-600">
-                        {new Intl.NumberFormat('id-ID', { 
-                          style: 'currency', 
-                          currency: 'IDR', 
-                          minimumFractionDigits: 0 
-                        }).format(shift.cash_collected)}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end">
-                    <Button 
-                      onClick={() => approveCashDeposit(shift)}
-                      disabled={loading}
-                      className="bg-blue-600 hover:bg-blue-700"
-                    >
-                      Terima Setoran
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Shift History Section */}
+      {/* History Table */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -525,14 +439,13 @@ export const EnhancedShiftReport = ({ userProfileId, branchId, riders }: Enhance
             Riwayat Laporan Shift
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Filters */}
-          <div className="flex gap-4 items-end">
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
-              <Label>Filter User:</Label>
+              <Label>Pilih User</Label>
               <Select value={selectedUser} onValueChange={setSelectedUser}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Semua User" />
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih user" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Semua User</SelectItem>
@@ -545,117 +458,96 @@ export const EnhancedShiftReport = ({ userProfileId, branchId, riders }: Enhance
               </Select>
             </div>
             <div>
-              <Label>Tanggal Awal:</Label>
+              <Label>Tanggal Awal</Label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-40">
+                  <Button variant="outline" className="w-full justify-start text-left font-normal">
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {format(startDate, "dd/MM/yyyy")}
+                    {format(startDate, "dd/MM/yyyy", { locale: id })}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
+                <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
                     selected={startDate}
                     onSelect={(date) => date && setStartDate(date)}
+                    initialFocus
                   />
                 </PopoverContent>
               </Popover>
             </div>
             <div>
-              <Label>Tanggal Akhir:</Label>
+              <Label>Tanggal Akhir</Label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-40">
+                  <Button variant="outline" className="w-full justify-start text-left font-normal">
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {format(endDate, "dd/MM/yyyy")}
+                    {format(endDate, "dd/MM/yyyy", { locale: id })}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
+                <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
                     selected={endDate}
                     onSelect={(date) => date && setEndDate(date)}
+                    initialFocus
                   />
                 </PopoverContent>
               </Popover>
             </div>
-            <Button onClick={fetchShiftHistory} className="bg-primary hover:bg-primary-dark">
-              Apply Filter
-            </Button>
           </div>
 
-          {/* History Table */}
-          <div className="space-y-3">
-            {shiftHistory.map((item) => (
-              <Card key={item.id} className="border-l-4 border-l-green-500">
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Badge variant="outline" className="mb-1">
-                        {item.transaction_id}
-                      </Badge>
-                      <p className="text-sm text-muted-foreground">
-                        {new Date(item.created_at).toLocaleDateString('id-ID')} - {item.rider_name}
-                      </p>
-                    </div>
-                    <Badge variant="default" className="bg-green-100 text-green-800">
-                      Verified
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <Accordion type="single" collapsible className="w-full">
-                    <AccordionItem value="details" className="border-none">
-                      <AccordionTrigger className="text-sm font-medium text-primary hover:text-primary/80 py-2">
-                        <ChevronDown className="h-4 w-4 mr-2" />
-                        Lihat Detail
-                      </AccordionTrigger>
-                      <AccordionContent className="pt-2">
-                        <div className="space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span>Tanggal Shift:</span>
-                            <span className="font-medium">
-                              {new Date(item.details.shift_date).toLocaleDateString('id-ID')}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Shift Nomor:</span>
-                            <span className="font-medium">{item.details.shift_number}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Total Penjualan:</span>
-                            <span className="font-medium">
-                              {new Intl.NumberFormat('id-ID', { 
-                                style: 'currency', 
-                                currency: 'IDR', 
-                                minimumFractionDigits: 0 
-                              }).format(item.details.total_sales)}
-                            </span>
-                          </div>
-                          <div className="flex justify-between border-t pt-2">
-                            <span className="font-medium">Setoran Tunai:</span>
-                            <span className="font-semibold text-green-600">
-                              {new Intl.NumberFormat('id-ID', { 
-                                style: 'currency', 
-                                currency: 'IDR', 
-                                minimumFractionDigits: 0 
-                              }).format(item.details.cash_collected)}
-                            </span>
-                          </div>
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  </Accordion>
-                </CardContent>
-              </Card>
-            ))}
-            {shiftHistory.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">
-                Tidak ada riwayat ditemukan untuk filter yang dipilih
-              </div>
-            )}
-          </div>
+          <Button onClick={fetchShiftHistory} className="mb-4">
+            Apply Filter
+          </Button>
+
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Tanggal</TableHead>
+                <TableHead>Rider</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Penjualan</TableHead>
+                <TableHead>Setoran</TableHead>
+                <TableHead>Detail</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {shiftHistory.map((shift) => (
+                <TableRow key={shift.id}>
+                  <TableCell>
+                    {format(new Date(shift.shift_date), "dd/MM/yyyy", { locale: id })}
+                  </TableCell>
+                  <TableCell>{(shift.profiles as any)?.full_name || 'Unknown Rider'}</TableCell>
+                  <TableCell>
+                    <Badge variant="default">Terverifikasi</Badge>
+                  </TableCell>
+                  <TableCell>
+                    Rp {shift.total_sales.toLocaleString('id-ID')}
+                  </TableCell>
+                  <TableCell>
+                    Rp {shift.cash_collected.toLocaleString('id-ID')}
+                  </TableCell>
+                  <TableCell>
+                    <Select>
+                      <SelectTrigger className="w-32">
+                        <SelectValue placeholder="Detail" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="view">Lihat Detail</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+
+          {shiftHistory.length === 0 && (
+            <div className="text-center py-8 text-muted-foreground">
+              Tidak ada riwayat ditemukan untuk filter yang dipilih
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
