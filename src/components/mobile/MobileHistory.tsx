@@ -227,8 +227,12 @@ const MobileHistory = () => {
                 <TabsTrigger value="checkpoints">Check</TabsTrigger>
               </TabsList>
 
-              {/* Attendance History */}
+              {/* Attendance History - Enhanced */}
               <TabsContent value="attendance" className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium">Detail Absensi</h4>
+                  <Badge variant="outline">{attendanceHistory.length} Records</Badge>
+                </div>
                 <ScrollArea className="h-96">
                   <div className="space-y-3">
                     {attendanceHistory.map((item) => (
@@ -238,17 +242,47 @@ const MobileHistory = () => {
                             <h4 className="font-medium">{formatDate(item.work_date)}</h4>
                             {getStatusBadge(item.status)}
                           </div>
-                          <div className="space-y-1 text-sm text-muted-foreground">
-                            {item.check_in_time && (
-                              <p>Masuk: {new Date(item.check_in_time).toLocaleTimeString('id-ID')}</p>
-                            )}
-                            {item.check_out_time && (
-                              <p>Keluar: {new Date(item.check_out_time).toLocaleTimeString('id-ID')}</p>
-                            )}
-                            {item.check_in_location && (
-                              <div className="flex items-center gap-1">
-                                <MapPin className="h-3 w-3" />
-                                <p className="text-xs">{item.check_in_location}</p>
+                          <div className="space-y-2 text-sm text-muted-foreground">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <p className="font-medium text-green-600">Check In</p>
+                                {item.check_in_time && (
+                                  <p>🕒 {new Date(item.check_in_time).toLocaleTimeString('id-ID')}</p>
+                                )}
+                                {item.check_in_location && (
+                                  <div className="flex items-center gap-1 mt-1">
+                                    <MapPin className="h-3 w-3" />
+                                    <p className="text-xs">{item.check_in_location}</p>
+                                  </div>
+                                )}
+                              </div>
+                              <div>
+                                <p className="font-medium text-red-600">Check Out</p>
+                                {item.check_out_time ? (
+                                  <>
+                                    <p>🕒 {new Date(item.check_out_time).toLocaleTimeString('id-ID')}</p>
+                                    {item.check_out_location && (
+                                      <div className="flex items-center gap-1 mt-1">
+                                        <MapPin className="h-3 w-3" />
+                                        <p className="text-xs">{item.check_out_location}</p>
+                                      </div>
+                                    )}
+                                  </>
+                                ) : (
+                                  <p className="text-orange-500">Belum Check Out</p>
+                                )}
+                              </div>
+                            </div>
+                            {item.check_in_time && item.check_out_time && (
+                              <div className="pt-2 border-t">
+                                <p className="text-xs font-medium">
+                                  Durasi Kerja: {
+                                    Math.round(
+                                      (new Date(item.check_out_time).getTime() - new Date(item.check_in_time).getTime()) 
+                                      / (1000 * 60 * 60 * 100)
+                                    ) / 100
+                                  } jam
+                                </p>
                               </div>
                             )}
                           </div>
@@ -265,21 +299,42 @@ const MobileHistory = () => {
                 </ScrollArea>
               </TabsContent>
 
-              {/* Stock History */}
+              {/* Stock History - Enhanced */}
               <TabsContent value="stock" className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium">Detail Pergerakan Stok</h4>
+                  <div className="flex gap-2">
+                    <Badge variant="outline" className="bg-green-50">
+                      Masuk: {stockHistory.filter(s => s.movement_type === 'transfer').length}
+                    </Badge>
+                    <Badge variant="outline" className="bg-red-50">
+                      Keluar: {stockHistory.filter(s => s.movement_type === 'return').length}
+                    </Badge>
+                  </div>
+                </div>
                 <ScrollArea className="h-96">
                   <div className="space-y-3">
                     {stockHistory.map((item) => (
-                      <Card key={item.id} className="border-l-4 border-l-green-500">
+                      <Card key={item.id} className={`border-l-4 ${item.movement_type === 'transfer' ? 'border-l-green-500' : 'border-l-red-500'}`}>
                         <CardContent className="p-4">
                           <div className="flex items-center justify-between mb-2">
-                            <h4 className="font-medium">{item.product?.name}</h4>
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-medium">{item.product?.name}</h4>
+                              <Badge variant={item.movement_type === 'transfer' ? 'default' : 'destructive'}>
+                                {item.movement_type === 'transfer' ? 'Terima' : 'Return'}
+                              </Badge>
+                            </div>
                             {getStatusBadge(item.status)}
                           </div>
                           <div className="space-y-1 text-sm text-muted-foreground">
-                            <p>Jumlah: {item.quantity} | {item.product?.category}</p>
-                            <p>Tipe: {item.movement_type === 'transfer' ? 'Transfer' : item.movement_type}</p>
-                            <p>{formatDateTime(item.created_at)}</p>
+                            <div className="flex items-center justify-between">
+                              <span>Jumlah: <span className="font-medium">{item.quantity}</span></span>
+                              <span>Kategori: {item.product?.category}</span>
+                            </div>
+                            <p>Tanggal: {formatDateTime(item.created_at)}</p>
+                            {item.actual_delivery_date && (
+                              <p>Diterima: {formatDateTime(item.actual_delivery_date)}</p>
+                            )}
                           </div>
                         </CardContent>
                       </Card>
@@ -296,39 +351,51 @@ const MobileHistory = () => {
 
               {/* Shift Reports - Detailed */}
               <TabsContent value="transactions" className="space-y-4">
-                <h4 className="font-medium">Laporan Shift Harian</h4>
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium">Detail Transaksi</h4>
+                  <Button variant="outline" size="sm" onClick={() => {
+                    // Sort by highest/lowest menu sales
+                    setTransactionHistory(prev => [...prev.sort((a, b) => b.total_amount - a.total_amount)]);
+                  }}>
+                    Sort by Sales
+                  </Button>
+                </div>
                 <ScrollArea className="h-96">
                   <div className="space-y-3">
                     {transactionHistory.map((item) => (
                       <Card key={item.id} className="border-l-4 border-l-purple-500 cursor-pointer hover:bg-muted/50" 
-                            onClick={() => {/* Show detailed shift report */}}>
+                            onClick={() => {/* Show detailed transaction */}}>
                         <CardContent className="p-4">
                           <div className="flex items-center justify-between mb-2">
-                            <h4 className="font-medium">Shift {formatDate(item.transaction_date)}</h4>
+                            <h4 className="font-medium">#{item.transaction_number}</h4>
                             {getStatusBadge(item.status)}
                           </div>
                           <div className="space-y-1 text-sm text-muted-foreground">
-                            <p className="font-medium text-green-600">
-                              Omset: {formatCurrency(item.total_amount)}
-                            </p>
-                            <p>Metode: {item.payment_method}</p>
+                            <div className="flex items-center justify-between">
+                              <span className="font-medium text-green-600">
+                                Total: {formatCurrency(item.total_amount)}
+                              </span>
+                              <span>{item.payment_method.toUpperCase()}</span>
+                            </div>
                             <p>Waktu: {formatDateTime(item.transaction_date)}</p>
                             {item.transaction_items && item.transaction_items.length > 0 && (
-                              <div className="mt-2">
-                                <p className="text-xs font-medium">Produk Terjual:</p>
-                                {item.transaction_items.slice(0, 2).map((txItem, idx) => (
-                                  <p key={idx} className="text-xs">
-                                    • {txItem.product?.name} x{txItem.quantity} = {formatCurrency(txItem.unit_price * txItem.quantity)}
-                                  </p>
+                              <div className="mt-2 pt-2 border-t">
+                                <p className="text-xs font-medium mb-1">Detail Item:</p>
+                                {item.transaction_items.slice(0, 3).map((txItem, idx) => (
+                                  <div key={idx} className="flex justify-between text-xs">
+                                    <span>• {txItem.product?.name} x{txItem.quantity}</span>
+                                    <span className="font-medium">{formatCurrency(txItem.unit_price * txItem.quantity)}</span>
+                                  </div>
                                 ))}
-                                {item.transaction_items.length > 2 && (
-                                  <p className="text-xs">...dan {item.transaction_items.length - 2} item lainnya</p>
+                                {item.transaction_items.length > 3 && (
+                                  <p className="text-xs mt-1">...dan {item.transaction_items.length - 3} item lainnya</p>
                                 )}
+                                <div className="flex justify-between text-xs font-semibold mt-2 pt-1 border-t">
+                                  <span>Total Item: {item.transaction_items.reduce((sum, i) => sum + i.quantity, 0)}</span>
+                                  <span>Nilai: {formatCurrency(item.total_amount)}</span>
+                                </div>
                               </div>
                             )}
-                            <div className="mt-2 pt-2 border-t">
-                              <p className="text-xs font-medium">Klik untuk detail lengkap shift</p>
-                            </div>
                           </div>
                         </CardContent>
                       </Card>
@@ -336,15 +403,19 @@ const MobileHistory = () => {
                     {transactionHistory.length === 0 && (
                       <div className="text-center py-8">
                         <ShoppingCart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                        <p className="text-muted-foreground">Tidak ada riwayat shift</p>
+                        <p className="text-muted-foreground">Tidak ada riwayat transaksi</p>
                       </div>
                     )}
                   </div>
                 </ScrollArea>
               </TabsContent>
 
-              {/* Checkpoint History */}
+              {/* Checkpoint History - Enhanced */}
               <TabsContent value="checkpoints" className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium">Detail Checkpoint</h4>
+                  <Badge variant="outline">{checkpointHistory.length} Lokasi</Badge>
+                </div>
                 <ScrollArea className="h-96">
                   <div className="space-y-3">
                     {checkpointHistory.map((item) => (
@@ -357,11 +428,23 @@ const MobileHistory = () => {
                               Lokasi
                             </Badge>
                           </div>
-                          <div className="space-y-1 text-sm text-muted-foreground">
-                            <p>{formatDateTime(item.created_at)}</p>
-                            <p className="text-xs">{item.address_info}</p>
+                          <div className="space-y-2 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-2">
+                              <Clock className="h-3 w-3" />
+                              <p>{formatDateTime(item.created_at)}</p>
+                            </div>
+                            <div className="flex items-start gap-2">
+                              <MapPin className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                              <div>
+                                <p className="text-xs font-medium">Alamat:</p>
+                                <p className="text-xs">{item.address_info}</p>
+                              </div>
+                            </div>
                             {item.notes && (
-                              <p className="text-xs bg-muted p-2 rounded mt-2">{item.notes}</p>
+                              <div className="bg-muted p-2 rounded mt-2">
+                                <p className="text-xs font-medium mb-1">Catatan:</p>  
+                                <p className="text-xs">{item.notes}</p>
+                              </div>
                             )}
                           </div>
                         </CardContent>

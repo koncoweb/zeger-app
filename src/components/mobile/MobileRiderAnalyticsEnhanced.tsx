@@ -76,7 +76,11 @@ const MobileRiderAnalyticsEnhanced = () => {
     chartData: []
   });
   const [loading, setLoading] = useState(true);
-  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState(() => {
+    const now = new Date();
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    return firstDayOfMonth.toISOString().split('T')[0];
+  });
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [showTransactionDetail, setShowTransactionDetail] = useState<string | null>(null);
   const [showLocationDetail, setShowLocationDetail] = useState<string | null>(null);

@@ -53,6 +53,8 @@ const MobileSellerEnhanced = () => {
     name: string;
   } | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [discountType, setDiscountType] = useState<'amount' | 'percentage'>('amount');
+  const [discountValue, setDiscountValue] = useState<number>(0);
   useEffect(() => {
     fetchSellingStock();
     fetchCustomers();
@@ -247,6 +249,9 @@ const MobileSellerEnhanced = () => {
         };
       });
 
+      const discountAmount = calculateDiscount(totalAmount);
+      const finalAmount = Math.max(0, totalAmount - discountAmount);
+
       // Create transaction
       const transactionNumber = `TRX-${Date.now()}`;
       const {
@@ -255,7 +260,8 @@ const MobileSellerEnhanced = () => {
       } = await supabase.from('transactions').insert([{
         transaction_number: transactionNumber,
         total_amount: totalAmount,
-        final_amount: totalAmount,
+        discount_amount: discountAmount,
+        final_amount: finalAmount,
         payment_method: paymentMethod,
         payment_proof_url: paymentProofUrl,
         status: 'completed',
@@ -289,6 +295,7 @@ const MobileSellerEnhanced = () => {
       }
       setCart([]);
       setSelectedCustomer('');
+      setDiscountValue(0);
       setShowSuccessModal(true);
       fetchSellingStock(); // Refresh stock
     } catch (error: any) {
@@ -302,6 +309,19 @@ const MobileSellerEnhanced = () => {
       const stockItem = stockItems.find(s => s.product_id === cartItem.product_id);
       return total + (stockItem ? stockItem.product.price * cartItem.quantity : 0);
     }, 0);
+  };
+
+  const calculateDiscount = (subtotal: number) => {
+    if (discountType === 'percentage') {
+      return (subtotal * discountValue) / 100;
+    }
+    return discountValue;
+  };
+
+  const calculateFinalTotal = () => {
+    const subtotal = calculateCartTotal();
+    const discount = calculateDiscount(subtotal);
+    return Math.max(0, subtotal - discount);
   };
   return <div className="w-full max-w-md mx-auto min-h-screen bg-gradient-to-br from-white via-red-50/30 to-white overflow-x-hidden">
       <div className="bg-white/95 backdrop-blur-md text-gray-800 min-h-screen p-4 max-w-full">
@@ -413,15 +433,64 @@ const MobileSellerEnhanced = () => {
                         <span>Rp {(stockItem.product.price * cartItem.quantity).toLocaleString('id-ID')}</span>
                       </div>;
             })}
-                  <div className="border-t pt-2 font-bold">
+                  <div className="border-t pt-2 space-y-1">
                     <div className="flex justify-between">
-                      <span>Total:</span>
+                      <span>Subtotal:</span>
                       <span>Rp {calculateCartTotal().toLocaleString('id-ID')}</span>
+                    </div>
+                    {discountValue > 0 && (
+                      <div className="flex justify-between text-red-600">
+                        <span>Diskon ({discountType === 'percentage' ? `${discountValue}%` : `Rp ${discountValue.toLocaleString('id-ID')}`}):</span>
+                        <span>-Rp {calculateDiscount(calculateCartTotal()).toLocaleString('id-ID')}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between font-bold text-lg">
+                      <span>Total:</span>
+                      <span>Rp {calculateFinalTotal().toLocaleString('id-ID')}</span>
                     </div>
                   </div>
                 </CardContent>
               </Card>}
 
+
+            {/* Discount Section */}
+            {cart.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Diskon</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant={discountType === 'amount' ? 'default' : 'outline'}
+                      onClick={() => setDiscountType('amount')}
+                      size="sm"
+                      className="flex-1"
+                    >
+                      Rp
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={discountType === 'percentage' ? 'default' : 'outline'}
+                      onClick={() => setDiscountType('percentage')}
+                      size="sm"
+                      className="flex-1"
+                    >
+                      %
+                    </Button>
+                  </div>
+                  <Input
+                    type="number"
+                    placeholder={discountType === 'percentage' ? 'Masukkan persentase' : 'Masukkan jumlah'}
+                    value={discountValue || ''}
+                    onChange={(e) => setDiscountValue(Number(e.target.value) || 0)}
+                    min="0"
+                    max={discountType === 'percentage' ? '100' : undefined}
+                  />
+                </CardContent>
+              </Card>
+            )}
 
             {/* Location Info */}
             {currentLocation && <div className="text-xs text-muted-foreground bg-muted p-2 rounded">

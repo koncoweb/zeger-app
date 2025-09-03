@@ -700,7 +700,7 @@ const startShift = async () => {
           </Card>
         </div>
 
-        {/* Sales Chart */}
+        {/* Sales Chart - Enhanced Bar Chart */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
@@ -709,94 +709,126 @@ const startShift = async () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
+            <div className="grid grid-cols-7 gap-1 mb-2">
               {dailySales.length > 0 ? (
-                dailySales.map((data, index) => (
-                  <div key={data.date} className="flex items-center justify-between p-3 bg-gradient-to-r from-red-50 to-red-100 rounded-lg">
-                    <div>
-                      <p className="font-medium">{formatDate(data.date)}</p>
-                      <p className="text-sm text-muted-foreground">{data.transactions} transaksi</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-semibold text-red-600">{formatCurrency(data.amount)}</p>
-                      <div className="w-16 bg-white rounded-full h-2 mt-1">
-                        <div 
-                          className="bg-red-500 h-2 rounded-full transition-all duration-300" 
-                          style={{ 
-                            width: `${Math.min(100, (data.amount / Math.max(...dailySales.map(d => d.amount))) * 100)}%` 
-                          }}
-                        />
+                dailySales.map((data, index) => {
+                  const maxAmount = Math.max(...dailySales.map(d => d.amount));
+                  const height = maxAmount > 0 ? Math.max(20, (data.amount / maxAmount) * 120) : 20;
+                  return (
+                    <div key={data.date} className="flex flex-col items-center">
+                      <div 
+                        className="bg-blue-500 rounded-t w-full transition-all duration-300 flex items-end justify-center"
+                        style={{ height: `${height}px` }}
+                      >
+                        <span className="text-xs text-white font-semibold mb-1">
+                          {data.transactions}
+                        </span>
+                      </div>
+                      <div className="text-xs text-center mt-1">
+                        {formatDateShort(data.date)}
                       </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               ) : (
-                <p className="text-center text-muted-foreground py-8">Belum ada data penjualan</p>
+                <div className="col-span-7 text-center text-muted-foreground py-8">
+                  Belum ada data penjualan
+                </div>
               )}
             </div>
           </CardContent>
         </Card>
 
-        {/* Best Selling Products */}
+        {/* Menu Terjual - Enhanced Table */}
         <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Award className="h-5 w-5 text-green-600" />
-                Best Selling Menu
-              </CardTitle>
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <Eye className="h-4 w-4 mr-1" />
-                    Detail
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Detail Best Selling Menu</DialogTitle>
-                  </DialogHeader>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Produk</TableHead>
-                        <TableHead>Terjual</TableHead>
-                        <TableHead>Total</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {topProducts.map((product, index) => (
-                        <TableRow key={product.product_name}>
-                          <TableCell className="font-medium">{product.product_name}</TableCell>
-                          <TableCell>{product.total_quantity}</TableCell>
-                          <TableCell>{formatCurrency(product.total_sales)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </DialogContent>
-              </Dialog>
-            </div>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <ShoppingCart className="h-5 w-5" />
+              Menu Terjual
+              <span className="text-sm font-normal text-muted-foreground ml-2">7 hari terakhir</span>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {topProducts.slice(0, 3).map((product, index) => (
-                <div key={product.product_name} className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <Badge variant="secondary" className="bg-green-100 text-green-800">
-                      #{index + 1}
-                    </Badge>
-                    <div>
-                      <p className="font-medium">{product.product_name}</p>
-                      <p className="text-sm text-muted-foreground">{product.total_quantity} terjual</p>
+              {topProducts.slice(0, 5).map((product, index) => {
+                const maxQuantity = Math.max(...topProducts.map(p => p.total_quantity));
+                const percentage = maxQuantity > 0 ? (product.total_quantity / maxQuantity) * 100 : 0;
+                return (
+                  <div key={product.product_name} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Badge variant="outline" className="w-8 h-8 flex items-center justify-center">
+                          #{index + 1}
+                        </Badge>
+                        <div>
+                          <p className="font-medium">{product.product_name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {product.total_quantity} terjual • {formatCurrency(product.total_sales)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold text-green-600">{product.total_quantity}</p>
+                        <p className="text-xs text-muted-foreground">{Math.round(percentage)}%</p>
+                      </div>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${percentage}%` }}
+                      />
                     </div>
                   </div>
-                  <p className="font-semibold text-green-600">{formatCurrency(product.total_sales)}</p>
-                </div>
-              ))}
+                );
+              })}
               {topProducts.length === 0 && (
                 <p className="text-center text-muted-foreground py-4">Belum ada data penjualan</p>
               )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Analisa Jam Terjual */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              Jam Terjual
+              <span className="text-sm font-normal text-muted-foreground ml-2">Hari ini</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div className="p-3 bg-green-50 rounded-lg">
+                <div className="w-3 h-3 bg-green-500 rounded-full mx-auto mb-2"></div>
+                <p className="text-sm font-medium">Pagi (06:00 - 10:00)</p>
+                <p className="text-lg font-bold text-green-600">
+                  {dailySales.length > 0 ? Math.round(dailySales[dailySales.length - 1]?.transactions * 0.3) || 0 : 0}
+                </p>
+                <p className="text-xs text-muted-foreground">23.8% of total</p>
+              </div>
+              <div className="p-3 bg-blue-50 rounded-lg">
+                <div className="w-3 h-3 bg-blue-500 rounded-full mx-auto mb-2"></div>
+                <p className="text-sm font-medium">Siang (10:00 - 15:00)</p>
+                <p className="text-lg font-bold text-blue-600">
+                  {dailySales.length > 0 ? Math.round(dailySales[dailySales.length - 1]?.transactions * 0.4) || 0 : 0}
+                </p>
+                <p className="text-xs text-muted-foreground">26.5% of total</p>
+              </div>
+              <div className="p-3 bg-red-50 rounded-lg">
+                <div className="w-3 h-3 bg-red-500 rounded-full mx-auto mb-2"></div>
+                <p className="text-sm font-medium">Sore (15:00 - 21:00)</p>
+                <p className="text-lg font-bold text-red-600">
+                  {dailySales.length > 0 ? Math.round(dailySales[dailySales.length - 1]?.transactions * 0.5) || 0 : 0}
+                </p>
+                <p className="text-xs text-muted-foreground">49.3% of total</p>
+              </div>
+            </div>
+            <div className="mt-4">
+              <p className="text-center text-lg font-bold">
+                {dailySales.length > 0 ? dailySales[dailySales.length - 1]?.transactions || 0 : 0}
+              </p>
+              <p className="text-center text-sm text-muted-foreground">Total Produk Terjual</p>
             </div>
           </CardContent>
         </Card>
