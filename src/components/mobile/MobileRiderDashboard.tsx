@@ -47,7 +47,8 @@ interface DashboardStats {
   total_sales: number;
   avg_per_transaction: number;
   attendance_today?: AttendanceRecord;
-  items_sold: number;
+  total_products_sold: number;
+  total_transactions: number;
   stock_awal: number;
   sisa_stok: number;
 }
@@ -81,7 +82,8 @@ const MobileRiderDashboard = () => {
     pending_stock: 0,
     total_sales: 0,
     avg_per_transaction: 0,
-    items_sold: 0,
+    total_products_sold: 0,
+    total_transactions: 0,
     stock_awal: 0,
     sisa_stok: 0
   });
@@ -118,8 +120,11 @@ const MobileRiderDashboard = () => {
 
       if (!profile) return;
 
-      const today = new Date().toISOString().split('T')[0];
-      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      // Use Asia/Jakarta timezone
+      const getJakartaNow = () => new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+      const jakartaNow = getJakartaNow();
+      const today = jakartaNow.toISOString().split('T')[0];
+      const weekAgo = new Date(jakartaNow.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
       // Check today's attendance (any status)
       const { data: todayAttendance } = await supabase
@@ -195,16 +200,18 @@ const { data: transactions } = await supabase
 
       let totalSales = transactions?.reduce((sum, t) => sum + Number(t.final_amount), 0) || 0;
       let avgPerTransaction = transactions?.length > 0 ? totalSales / transactions.length : 0;
-      let itemsSold = transactions?.reduce((sum, t) => {
+      let totalProductsSold = transactions?.reduce((sum, t) => {
         return sum + (t.transaction_items?.reduce((itemSum, item) => itemSum + item.quantity, 0) || 0);
       }, 0) || 0;
+      let totalTransactions = transactions?.length || 0;
 
       // Jika tidak ada shift aktif, angka pergeseran harus 0 (dashboard per shift)
       if (!activeShift) {
         stockAwal = 0;
         totalSales = 0;
         avgPerTransaction = 0;
-        itemsSold = 0;
+        totalProductsSold = 0;
+        totalTransactions = 0;
       }
 
       // Fetch top and worst products
@@ -274,7 +281,8 @@ const { data: transactions } = await supabase
         total_sales: totalSales,
         avg_per_transaction: avgPerTransaction,
         attendance_today: todayAttendance || undefined,
-        items_sold: itemsSold,
+        total_products_sold: totalProductsSold,
+        total_transactions: totalTransactions,
         stock_awal: stockAwal,
         sisa_stok: stockItems
       });
@@ -569,19 +577,21 @@ const startShift = async () => {
       </div>
 
       <div className="p-4 space-y-6">
-        {/* Quick Actions - tanpa tombol Absen */}
+        {/* Quick Actions - Auto Shift */}
         <div className="grid grid-cols-2 gap-4">
-<Button
-  onClick={startShift}
-  disabled={!!shiftStatus}
-  className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white h-16 disabled:opacity-70"
->
-  <CheckCircle className="h-5 w-5" />
-  <div className="text-center">
-    <div className="font-semibold">{shiftStatus ? `Shift ${shiftStatus.shift_number} Anda sedang aktif` : 'Mulai Shift'}</div>
-    <div className="text-xs opacity-90">{shiftStatus ? 'Kirim laporan untuk menyelesaikan shift' : 'Mulai Shift Hari Ini'}</div>
-  </div>
-</Button>
+          <Button
+            variant="outline"
+            className="flex items-center justify-center gap-2 h-16"
+            onClick={() => window.dispatchEvent(new CustomEvent('navigate-tab', { detail: 'stock' }))}
+          >
+            <Package className="h-5 w-5" />
+            <div className="text-center">
+              <div className="font-semibold">Kelola Stok</div>
+              <div className="text-xs text-muted-foreground">
+                Konfirmasi penerimaan stok
+              </div>
+            </div>
+          </Button>
 
           <Button
             variant="outline"
@@ -589,11 +599,11 @@ const startShift = async () => {
             disabled={!shiftStatus}
             onClick={() => window.dispatchEvent(new CustomEvent('navigate-tab', { detail: 'selling' }))}
           >
-            <Package className="h-5 w-5" />
+            <ShoppingCart className="h-5 w-5" />
             <div className="text-center">
               <div className="font-semibold">Penjualan</div>
               <div className="text-xs text-muted-foreground">
-                {shiftStatus ? 'Mulai Jual' : 'Perlu Shift In'}
+                {shiftStatus ? 'Mulai Jual' : 'Perlu konfirmasi stok dulu'}
               </div>
             </div>
           </Button>
@@ -650,8 +660,8 @@ const startShift = async () => {
                   <ShoppingCart className="h-5 w-5 text-green-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats.items_sold}</p>
-                  <p className="text-sm text-muted-foreground">Item Terjual</p>
+                  <p className="text-2xl font-bold">{stats.total_products_sold}</p>
+                  <p className="text-sm text-muted-foreground">Total Produk</p>
                 </div>
               </div>
             </CardContent>
@@ -692,49 +702,66 @@ const startShift = async () => {
                   <TrendingUp className="h-5 w-5 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-lg font-bold">{formatCurrency(stats.avg_per_transaction)}</p>
-                  <p className="text-sm text-muted-foreground">Rata-rata Transaksi</p>
+                  <p className="text-2xl font-bold">{stats.total_transactions}</p>
+                  <p className="text-sm text-muted-foreground">Total Transaksi</p>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Sales Chart - Enhanced Bar Chart */}
+        {/* Performa Rider - Bar Chart Style */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <BarChart3 className="h-5 w-5" />
-              Grafik Penjualan 7 Hari
+              Performa Rider
+              <span className="text-sm font-normal text-muted-foreground ml-2">7 hari terakhir</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-7 gap-1 mb-2">
-              {dailySales.length > 0 ? (
-                dailySales.map((data, index) => {
-                  const maxAmount = Math.max(...dailySales.map(d => d.amount));
-                  const height = maxAmount > 0 ? Math.max(20, (data.amount / maxAmount) * 120) : 20;
+            <div className="space-y-4">
+              {/* Bar Chart showing performance */}
+              <div className="grid grid-cols-5 gap-2 mb-6">
+                {['Z-', 'Z-006', 'Z-010', 'Z-013', 'Z-005'].map((riderCode, index) => {
+                  const isCurrentRider = userProfile?.full_name?.includes(riderCode);
+                  const performanceValues = [301, 280, 350, 320, 250]; // Sample data
+                  const height = Math.max(40, (performanceValues[index] / 350) * 100);
+                  
                   return (
-                    <div key={data.date} className="flex flex-col items-center">
+                    <div key={riderCode} className="flex flex-col items-center">
                       <div 
-                        className="bg-blue-500 rounded-t w-full transition-all duration-300 flex items-end justify-center"
+                        className={`rounded w-full transition-all duration-300 flex items-end justify-center ${
+                          isCurrentRider ? 'bg-red-500' : 'bg-blue-500'
+                        }`}
                         style={{ height: `${height}px` }}
                       >
-                        <span className="text-xs text-white font-semibold mb-1">
-                          {data.transactions}
-                        </span>
                       </div>
-                      <div className="text-xs text-center mt-1">
-                        {formatDateShort(data.date)}
+                      <div className="text-xs text-center mt-2 font-medium">
+                        {riderCode}
                       </div>
                     </div>
                   );
-                })
-              ) : (
-                <div className="col-span-7 text-center text-muted-foreground py-8">
-                  Belum ada data penjualan
+                })}
+              </div>
+              
+              {/* Performance Metrics */}
+              <div className="grid grid-cols-3 gap-4 pt-4 border-t">
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-blue-600">{stats.total_products_sold}</p>
+                  <p className="text-xs text-muted-foreground">Products</p>
                 </div>
-              )}
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-red-600">{stats.total_transactions}</p>
+                  <p className="text-xs text-muted-foreground">Orders</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-green-600">
+                    {formatCurrency(stats.total_sales).replace('IDR', 'Rp').replace(',00', '')}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Sales</p>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>

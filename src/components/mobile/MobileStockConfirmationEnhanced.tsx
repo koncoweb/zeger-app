@@ -172,6 +172,9 @@ export const MobileStockConfirmationEnhanced = ({ riderId, branchId }: MobileSto
         }
       }
 
+      // Auto-start shift when stock is received
+      await autoStartShift(riderId, branchId);
+
       // Upload verification photo if available
       if (verificationPhoto) {
         await uploadVerificationPhoto(selectedItemIds[0], verificationPhoto);
@@ -334,6 +337,61 @@ export const MobileStockConfirmationEnhanced = ({ riderId, branchId }: MobileSto
 
     } catch (error: any) {
       console.error("Error uploading photo:", error);
+    }
+  };
+
+  const autoStartShift = async (riderId: string, branchId?: string) => {
+    try {
+      const jakartaNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+      const today = jakartaNow.toISOString().split('T')[0];
+
+      // Check if there's already an active shift
+      const { data: existingShift } = await supabase
+        .from('shift_management')
+        .select('*')
+        .eq('rider_id', riderId)
+        .eq('shift_date', today)
+        .eq('status', 'active')
+        .maybeSingle();
+
+      if (existingShift) {
+        console.log('Shift already active');
+        return;
+      }
+
+      // Get next shift number
+      const { data: lastShift } = await supabase
+        .from('shift_management')
+        .select('shift_number')
+        .eq('rider_id', riderId)
+        .eq('shift_date', today)
+        .order('shift_number', { ascending: false })
+        .limit(1);
+
+      const nextNumber = lastShift && lastShift.length > 0
+        ? (lastShift[0].shift_number || 0) + 1
+        : 1;
+
+      // Create new shift
+      const { error } = await supabase
+        .from('shift_management')
+        .insert({
+          rider_id: riderId,
+          branch_id: branchId,
+          shift_date: today,
+          shift_start_time: jakartaNow.toISOString(),
+          status: 'active',
+          shift_number: nextNumber,
+        });
+
+      if (error) throw error;
+
+      toast.success(`Shift ${nextNumber} dimulai otomatis setelah konfirmasi stok`);
+      
+      // Dispatch event to update dashboard
+      window.dispatchEvent(new CustomEvent('shift-updated'));
+    } catch (error: any) {
+      console.error('Error auto-starting shift:', error);
     }
   };
 

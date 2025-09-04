@@ -63,12 +63,26 @@ interface CheckpointHistory {
   notes?: string;
 }
 
+interface ShiftReportHistory {
+  id: string;
+  shift_date: string;
+  shift_number: number;
+  shift_start_time?: string;
+  shift_end_time?: string;
+  total_sales: number;
+  cash_collected: number;
+  total_transactions: number;
+  status: string;
+  report_submitted: boolean;
+}
+
 const MobileHistory = () => {
   const { userProfile } = useAuth();
   const [attendanceHistory, setAttendanceHistory] = useState<AttendanceHistory[]>([]);
   const [stockHistory, setStockHistory] = useState<StockHistory[]>([]);
   const [transactionHistory, setTransactionHistory] = useState<TransactionHistory[]>([]);
   const [checkpointHistory, setCheckpointHistory] = useState<CheckpointHistory[]>([]);
+  const [shiftReports, setShiftReports] = useState<ShiftReportHistory[]>([]);
   const [loading, setLoading] = useState(false);
   const [dateFilter, setDateFilter] = useState({
     from: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -129,10 +143,60 @@ const MobileHistory = () => {
         .lte('created_at', `${dateFilter.to}T23:59:59`)
         .order('created_at', { ascending: false });
 
+      // Fetch shift reports with proper calculation
+      const { data: shifts } = await supabase
+        .from('shift_management')
+        .select('*')
+        .eq('rider_id', userProfile.id)
+        .gte('shift_date', dateFilter.from)
+        .lte('shift_date', dateFilter.to)
+        .order('shift_date', { ascending: false });
+
+      // For each shift, calculate proper totals
+      const shiftsWithTotals = await Promise.all(
+        (shifts || []).map(async (shift) => {
+          // Get all transactions in this shift
+          const { data: shiftTransactions } = await supabase
+            .from('transactions')
+            .select('final_amount, payment_method')
+            .eq('rider_id', userProfile.id)
+            .gte('transaction_date', shift.shift_start_time || `${shift.shift_date}T00:00:00`)
+            .lt('transaction_date', shift.shift_end_time || `${shift.shift_date}T23:59:59`);
+
+          // Get operational expenses for this shift
+          const { data: expenses } = await supabase
+            .from('daily_operational_expenses')
+            .select('amount')
+            .eq('rider_id', userProfile.id)
+            .eq('expense_date', shift.shift_date);
+
+          const totalExpenses = expenses?.reduce((sum, exp) => sum + Number(exp.amount), 0) || 0;
+          
+          // Calculate totals
+          const cashSales = shiftTransactions?.filter(t => t.payment_method === 'cash')
+            .reduce((sum, t) => sum + Number(t.final_amount), 0) || 0;
+          const qrisSales = shiftTransactions?.filter(t => t.payment_method === 'qris')
+            .reduce((sum, t) => sum + Number(t.final_amount), 0) || 0;
+          const transferSales = shiftTransactions?.filter(t => t.payment_method === 'transfer')
+            .reduce((sum, t) => sum + Number(t.final_amount), 0) || 0;
+          
+          const totalSales = cashSales + qrisSales + transferSales;
+          const totalCashDeposit = cashSales - totalExpenses;
+
+          return {
+            ...shift,
+            total_sales: totalSales,
+            cash_collected: totalCashDeposit,
+            total_transactions: shiftTransactions?.length || 0
+          };
+        })
+      );
+
       setAttendanceHistory(attendance || []);
       setStockHistory(stock || []);
       setTransactionHistory(transactions || []);
       setCheckpointHistory(checkpoints || []);
+      setShiftReports(shiftsWithTotals);
     } catch (error: any) {
       toast.error("Gagal memuat riwayat");
     } finally {
@@ -149,11 +213,11 @@ const MobileHistory = () => {
   };
 
   const formatDateTime = (dateString: string) => {
-    return new Date(dateString).toLocaleString('id-ID');
+    return new Date(dateString).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' });
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('id-ID');
+    return new Date(dateString).toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' });
   };
 
   const getStatusBadge = (status: string) => {
@@ -220,10 +284,11 @@ const MobileHistory = () => {
         <Card>
           <CardContent className="p-4">
             <Tabs defaultValue="attendance" className="space-y-4">
-              <TabsList className="grid w-full grid-cols-4 text-xs">
+              <TabsList className="grid w-full grid-cols-5 text-xs">
                 <TabsTrigger value="attendance">Absensi</TabsTrigger>
                 <TabsTrigger value="stock">Stok</TabsTrigger>
                 <TabsTrigger value="transactions">Jual</TabsTrigger>
+                <TabsTrigger value="shifts">Shift</TabsTrigger>
                 <TabsTrigger value="checkpoints">Check</TabsTrigger>
               </TabsList>
 
@@ -404,6 +469,74 @@ const MobileHistory = () => {
                       <div className="text-center py-8">
                         <ShoppingCart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                         <p className="text-muted-foreground">Tidak ada riwayat transaksi</p>
+                      </div>
+                    )}
+                  </div>
+                </ScrollArea>
+              </TabsContent>
+
+              {/* Shift Reports History - Detailed with Correct Calculations */}
+              <TabsContent value="shifts" className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium">Riwayat Laporan Shift</h4>
+                  <Badge variant="outline">{shiftReports.length} Shift</Badge>
+                </div>
+                <ScrollArea className="h-96">
+                  <div className="space-y-3">
+                    {shiftReports.map((shift) => (
+                      <Card key={shift.id} className="border-l-4 border-l-blue-500">
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="font-medium">
+                              Shift {shift.shift_number} - {formatDate(shift.shift_date)}
+                            </h4>
+                            <Badge className={shift.report_submitted ? "bg-green-100 text-green-800" : "bg-orange-100 text-orange-800"}>
+                              {shift.report_submitted ? 'Submitted' : 'Active'}
+                            </Badge>
+                          </div>
+                          <div className="space-y-3 text-sm">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <p className="font-medium text-blue-600">Waktu Kerja</p>
+                                {shift.shift_start_time && (
+                                  <p>🕒 Mulai: {new Date(shift.shift_start_time).toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta' })}</p>
+                                )}
+                                {shift.shift_end_time && (
+                                  <p>🕒 Selesai: {new Date(shift.shift_end_time).toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta' })}</p>
+                                )}
+                              </div>
+                              <div>
+                                <p className="font-medium text-green-600">Transaksi</p>
+                                <p>📊 Total: {shift.total_transactions}</p>
+                              </div>
+                            </div>
+                            
+                            <div className="bg-muted/50 p-3 rounded-lg">
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <p className="font-medium text-green-600 mb-2">Total Penjualan</p>
+                                  <p className="text-xs text-muted-foreground">Tunai + QRIS + Transfer</p>
+                                  <p className="text-lg font-bold text-green-600">
+                                    {formatCurrency(shift.total_sales)}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="font-medium text-blue-600 mb-2">Setoran Tunai</p>
+                                  <p className="text-xs text-muted-foreground">Tunai - Biaya Operasional</p>
+                                  <p className="text-lg font-bold text-blue-600">
+                                    {formatCurrency(shift.cash_collected)}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                    {shiftReports.length === 0 && (
+                      <div className="text-center py-8">
+                        <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                        <p className="text-muted-foreground">Tidak ada riwayat shift</p>
                       </div>
                     )}
                   </div>
