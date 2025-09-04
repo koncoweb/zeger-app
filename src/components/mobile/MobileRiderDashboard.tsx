@@ -710,58 +710,124 @@ const startShift = async () => {
           </Card>
         </div>
 
-        {/* Performa Rider - Bar Chart Style */}
-        <Card>
+        {/* Sales Overview - Red Line Chart */}
+        <Card className="col-span-2">
           <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <BarChart3 className="h-5 w-5" />
-              Performa Rider
-              <span className="text-sm font-normal text-muted-foreground ml-2">7 hari terakhir</span>
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg">Penjualan 7 Hari Terakhir</CardTitle>
+              <Badge variant="outline">7 Days</Badge>
+            </div>
+            <p className="text-sm text-muted-foreground">Daily sales performance</p>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {/* Bar Chart showing performance */}
-              <div className="grid grid-cols-5 gap-2 mb-6">
-                {['Z-', 'Z-006', 'Z-010', 'Z-013', 'Z-005'].map((riderCode, index) => {
-                  const isCurrentRider = userProfile?.full_name?.includes(riderCode);
-                  const performanceValues = [301, 280, 350, 320, 250]; // Sample data
-                  const height = Math.max(40, (performanceValues[index] / 350) * 100);
+            <div className="w-full h-48 relative">
+              <svg viewBox="0 0 400 200" className="w-full h-full">
+                {/* Grid lines */}
+                {[0, 25, 50, 75, 100].map((y) => (
+                  <line 
+                    key={y}
+                    x1="40" 
+                    y1={160 - (y * 1.2)} 
+                    x2="360" 
+                    y2={160 - (y * 1.2)}
+                    stroke="#f1f5f9"
+                    strokeWidth="1"
+                  />
+                ))}
+                
+                {/* Chart area */}
+                {dailySales.length > 0 && (() => {
+                  const maxValue = Math.max(...dailySales.map(d => d.amount));
+                  const points = dailySales.map((day, index) => {
+                    const x = 40 + (index * (320 / Math.max(dailySales.length - 1, 1)));
+                    const y = 160 - ((day.amount / maxValue) * 120);
+                    return `${x},${y}`;
+                  }).join(' ');
+                  
+                  const areaPoints = `40,160 ${points} ${40 + ((dailySales.length - 1) * (320 / Math.max(dailySales.length - 1, 1)))},160`;
                   
                   return (
-                    <div key={riderCode} className="flex flex-col items-center">
-                      <div 
-                        className={`rounded w-full transition-all duration-300 flex items-end justify-center ${
-                          isCurrentRider ? 'bg-red-500' : 'bg-blue-500'
-                        }`}
-                        style={{ height: `${height}px` }}
-                      >
-                      </div>
-                      <div className="text-xs text-center mt-2 font-medium">
-                        {riderCode}
-                      </div>
-                    </div>
+                    <>
+                      {/* Filled area */}
+                      <polygon
+                        points={areaPoints}
+                        fill="url(#redGradient)"
+                        opacity="0.3"
+                      />
+                      
+                      {/* Line */}
+                      <polyline
+                        points={points}
+                        fill="none"
+                        stroke="#ef4444"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      
+                      {/* Data points */}
+                      {dailySales.map((day, index) => {
+                        const x = 40 + (index * (320 / Math.max(dailySales.length - 1, 1)));
+                        const y = 160 - ((day.amount / maxValue) * 120);
+                        return (
+                          <g key={index}>
+                            <circle
+                              cx={x}
+                              cy={y}
+                              r="4"
+                              fill="#ef4444"
+                              stroke="white"
+                              strokeWidth="2"
+                            />
+                            {/* Show value on hover or for selected points */}
+                            {index === dailySales.length - 1 && (
+                              <text
+                                x={x}
+                                y={y - 15}
+                                textAnchor="middle"
+                                fill="#ef4444"
+                                fontSize="10"
+                                fontWeight="bold"
+                              >
+                                Sales: {formatCurrency(day.amount)}
+                              </text>
+                            )}
+                          </g>
+                        );
+                      })}
+                    </>
+                  );
+                })()}
+                
+                {/* X-axis labels */}
+                {dailySales.map((day, index) => {
+                  const x = 40 + (index * (320 / Math.max(dailySales.length - 1, 1)));
+                  return (
+                    <text
+                      key={index}
+                      x={x}
+                      y="180"
+                      textAnchor="middle"
+                      fill="#64748b"
+                      fontSize="10"
+                    >
+                      {new Date(day.date).toLocaleDateString('id-ID', { 
+                        day: '2-digit', 
+                        month: 'short',
+                        timeZone: 'Asia/Jakarta'
+                      })}
+                    </text>
                   );
                 })}
-              </div>
-              
-              {/* Performance Metrics */}
-              <div className="grid grid-cols-3 gap-4 pt-4 border-t">
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-blue-600">{stats.total_products_sold}</p>
-                  <p className="text-xs text-muted-foreground">Products</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-red-600">{stats.total_transactions}</p>
-                  <p className="text-xs text-muted-foreground">Orders</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-green-600">
-                    {formatCurrency(stats.total_sales).replace('IDR', 'Rp').replace(',00', '')}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Sales</p>
-                </div>
-              </div>
+                
+                {/* Gradient definition */}
+                <defs>
+                  <linearGradient id="redGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stopColor="#ef4444" stopOpacity="0.8"/>
+                    <stop offset="100%" stopColor="#ef4444" stopOpacity="0.1"/>
+                  </linearGradient>
+                </defs>
+              </svg>
             </div>
           </CardContent>
         </Card>

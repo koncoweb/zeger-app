@@ -143,13 +143,15 @@ const MobileHistory = () => {
         .lte('created_at', `${dateFilter.to}T23:59:59`)
         .order('created_at', { ascending: false });
 
-      // Fetch shift reports with proper calculation
+      // Fetch shift reports with proper calculation (only completed shifts)
       const { data: shifts } = await supabase
         .from('shift_management')
         .select('*')
         .eq('rider_id', userProfile.id)
         .gte('shift_date', dateFilter.from)
         .lte('shift_date', dateFilter.to)
+        .eq('report_submitted', true)
+        .neq('status', 'active')
         .order('shift_date', { ascending: false });
 
       // For each shift, calculate proper totals
