@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { UserManagement } from "@/components/user/UserManagement";
+import { EnhancedUserManagement } from "@/components/user/EnhancedUserManagement";
 import { SyncButton } from "@/components/common/SyncButton";
 
 export default function AdminUsers() {
@@ -87,11 +87,11 @@ export default function AdminUsers() {
         </Card>
       )}
 
-      {/* Manajemen User */}
-      {userProfile && (userProfile.role === 'ho_admin' || userProfile.role === 'branch_manager') && (
-        <UserManagement 
-          role={userProfile.role === 'ho_admin' ? 'ho_admin' : 'branch_manager'} 
-          branchId={userProfile.role === 'branch_manager' ? userProfile.branch_id : undefined}
+      {/* Enhanced User Management */}
+      {userProfile && (userProfile.role === 'ho_admin' || userProfile.role === 'ho_owner' || userProfile.role === 'branch_manager' || userProfile.role === 'bh_staff' || userProfile.role === 'sb_branch_manager') && (
+        <EnhancedUserManagement 
+          role={userProfile.role as any} 
+          branchId={userProfile.role === 'branch_manager' || userProfile.role === 'sb_branch_manager' ? userProfile.branch_id : undefined}
         />
       )}
     </main>

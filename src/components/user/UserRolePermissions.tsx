@@ -16,7 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 interface UserRolePermissionsProps {
-  role: 'ho_admin' | 'branch_manager';
+  role: 'ho_admin' | 'ho_owner' | 'branch_manager';
 }
 
 interface Permission {

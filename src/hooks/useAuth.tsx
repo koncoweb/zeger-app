@@ -2,10 +2,25 @@ import { useState, useEffect, createContext, useContext } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
+type UserRole = 'ho_admin' | 'ho_owner' | 'ho_staff' | 'branch_manager' | 'bh_staff' | 'bh_kasir' | 'bh_rider' | 'bh_report' | 'sb_branch_manager' | 'sb_kasir' | 'sb_rider' | 'sb_report' | 'rider' | 'finance' | 'customer';
+
+interface Profile {
+  id: string;
+  user_id: string;
+  full_name: string;
+  role: UserRole;
+  phone?: string;
+  branch_id?: string;
+  is_active: boolean;
+  app_access_type?: 'web_backoffice' | 'pos_app' | 'rider_app';
+  created_at: string;
+  updated_at: string;
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  userProfile: any | null;
+  userProfile: Profile | null;
   loading: boolean;
   signOut: () => Promise<void>;
 }
@@ -29,7 +44,7 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [userProfile, setUserProfile] = useState<any | null>(null);
+  const [userProfile, setUserProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchUserProfile = async (userId: string) => {
@@ -58,11 +73,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           .select('*')
           .eq('user_id', userId)
           .maybeSingle();
-        setUserProfile(created);
+        setUserProfile(created as Profile);
         return;
       }
 
-      setUserProfile(existing);
+      setUserProfile(existing as Profile);
     } catch (error) {
       console.error('Error fetching user profile:', error);
     }
