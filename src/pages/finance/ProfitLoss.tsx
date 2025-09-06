@@ -74,8 +74,8 @@ const [revenue, setRevenue] = useState({
         .from('transactions')
         .select('id, final_amount, payment_method, rider_id, status, transaction_date')
         .eq('status', 'completed')
-        .gte('transaction_date', `${startStr}T00:00:00+07:00`)
-        .lte('transaction_date', `${endStr}T23:59:59+07:00`);
+        .gte('transaction_date', startStr)
+        .lte('transaction_date', endStr);
 
       if (selectedRider !== "all") {
         transQuery = transQuery.eq('rider_id', selectedRider);
