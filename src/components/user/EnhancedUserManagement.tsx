@@ -30,9 +30,14 @@ import {
   CreditCard,
   MapPin,
   FileText,
-  MoreVertical
+  MoreVertical,
+  Building,
+  Calculator,
+  Bike,
+  Store
 } from "lucide-react";
 import { UserRolePermissions } from "./UserRolePermissions";
+import { UserPermissionMatrix, ModulePermission } from "./UserPermissionMatrix";
 
 // Enhanced user role permissions and hierarchy based on the new structure
 interface UserManagementProps {
@@ -82,6 +87,8 @@ export function EnhancedUserManagement({ role, branchId }: UserManagementProps) 
   const [roleFilter, setRoleFilter] = useState('all');
   const [branchFilter, setBranchFilter] = useState('all');
   const [accessFilter, setAccessFilter] = useState('all');
+  const [userPermissions, setUserPermissions] = useState<ModulePermission[]>([]);
+  const [riders, setRiders] = useState<Array<{ id: string; name: string; code: string }>>([]);
   const [newUser, setNewUser] = useState<NewUser>({
     full_name: '',
     email: '',
@@ -95,6 +102,7 @@ export function EnhancedUserManagement({ role, branchId }: UserManagementProps) 
   useEffect(() => {
     fetchUsers();
     fetchBranches();
+    fetchRiders();
   }, []);
 
   useEffect(() => {
@@ -102,36 +110,66 @@ export function EnhancedUserManagement({ role, branchId }: UserManagementProps) 
   }, [users, searchTerm, roleFilter, branchFilter, accessFilter]);
 
   const fetchUsers = async () => {
+    setLoading(true);
     try {
-      let query = supabase
-        .from('profiles')
-        .select(`
-          *,
-          branches(name, branch_type)
-        `)
-        .neq('role', 'customer')
-        .order('created_at', { ascending: false });
+      // First get users based on role permissions
+      let usersQuery = supabase.from('profiles').select('*').neq('role', 'customer');
 
-      // Apply role-based filtering
+      // Role-based filtering
       if (role === 'branch_manager' && branchId) {
-        query = query.eq('branch_id', branchId);
+        usersQuery = usersQuery.eq('branch_id', branchId);
       } else if (role === 'sb_branch_manager' && branchId) {
-        query = query.eq('branch_id', branchId);
+        usersQuery = usersQuery.eq('branch_id', branchId);
       }
 
-      const { data, error } = await query;
-      if (error) throw error;
+      const { data: usersData, error: usersError } = await usersQuery.order('created_at', { ascending: false });
+      
+      if (usersError) throw usersError;
 
-      const transformedUsers = data?.map(user => ({
+      // Separately fetch branches to join manually
+      const { data: branchesData, error: branchesError } = await supabase
+        .from('branches')
+        .select('id, name, branch_type');
+
+      if (branchesError) throw branchesError;
+
+      // Create a map for easy lookup
+      const branchMap = new Map(branchesData.map(branch => [branch.id, branch]));
+
+      // Manually join the data
+      const enrichedUsers = usersData.map(user => ({
         ...user,
-        branches: Array.isArray(user.branches) ? user.branches[0] : user.branches
-      })) || [];
-
-      setUsers(transformedUsers);
+        branches: user.branch_id ? branchMap.get(user.branch_id) : null
+      }));
+      
+      setUsers(enrichedUsers || []);
     } catch (error: any) {
-      toast.error("Gagal memuat data user: " + error.message);
+      toast.error(`Gagal memuat data user: ${error.message}`);
+      console.error('Error fetching users:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchRiders = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone')
+        .in('role', ['rider', 'bh_rider', 'sb_rider'])
+        .eq('is_active', true);
+
+      if (error) throw error;
+
+      const riderList = data.map(rider => ({
+        id: rider.id,
+        name: rider.full_name,
+        code: rider.phone || rider.id.slice(0, 8)
+      }));
+
+      setRiders(riderList);
+    } catch (error: any) {
+      console.error('Error fetching riders:', error);
     }
   };
 
@@ -215,7 +253,7 @@ export function EnhancedUserManagement({ role, branchId }: UserManagementProps) 
 
       if (authData.user) {
         // Create profile with app access type
-        const profileData = {
+        const profileInsertData = {
           user_id: authData.user.id,
           full_name: newUser.full_name,
           phone: newUser.phone,
@@ -225,15 +263,47 @@ export function EnhancedUserManagement({ role, branchId }: UserManagementProps) 
           is_active: true
         };
 
-        const { error: profileError } = await supabase
+        const { data: createdProfile, error: profileError } = await supabase
           .from('profiles')
-          .insert(profileData);
+          .insert(profileInsertData)
+          .select()
+          .single();
 
         if (profileError) throw profileError;
+
+        // Save user permissions if any are set
+        if (userPermissions.length > 0 && createdProfile) {
+          const permissionInserts = [];
+          
+          for (const modulePermission of userPermissions) {
+            for (const [permissionType, isGranted] of Object.entries(modulePermission.permissions)) {
+              if (isGranted && permissionType !== 'approve') {
+                permissionInserts.push({
+                  user_id: createdProfile.id,
+                  module_name: modulePermission.module,
+                  permission: permissionType,
+                  resource_filter: modulePermission.resourceFilter || null
+                });
+              }
+            }
+          }
+
+          if (permissionInserts.length > 0) {
+            const { error: permissionError } = await supabase
+              .from('user_specific_permissions')
+              .insert(permissionInserts);
+
+            if (permissionError) {
+              console.error('Failed to save permissions:', permissionError);
+              toast.warning('User dibuat tetapi beberapa permission gagal disimpan');
+            }
+          }
+        }
 
         toast.success(`User ${newUser.full_name} berhasil dibuat! Email: ${newUser.email}`);
         setIsDialogOpen(false);
         resetNewUser();
+        setUserPermissions([]);
         fetchUsers();
       }
     } catch (error: any) {
@@ -358,6 +428,10 @@ export function EnhancedUserManagement({ role, branchId }: UserManagementProps) 
         { value: 'bh_kasir', label: 'Branch Hub Kasir', access: 'pos_app', icon: CreditCard },
         { value: 'bh_rider', label: 'Branch Hub Rider', access: 'rider_app', icon: MapPin },
         { value: 'bh_report', label: 'Branch Hub Report', access: 'web_backoffice', icon: FileText },
+        { value: 'sb_branch_manager', label: 'Small Branch Manager', access: 'web_backoffice', icon: Store },
+        { value: 'sb_kasir', label: 'Small Branch Kasir', access: 'pos_app', icon: CreditCard },
+        { value: 'sb_rider', label: 'Small Branch Rider', access: 'rider_app', icon: MapPin },
+        { value: 'sb_report', label: 'Small Branch Report', access: 'web_backoffice', icon: FileText },
         { value: 'rider', label: 'Legacy Rider', access: 'rider_app', icon: MapPin }
       ];
     } else if (role === 'sb_branch_manager') {
@@ -594,6 +668,18 @@ export function EnhancedUserManagement({ role, branchId }: UserManagementProps) 
                     </div>
                   )}
 
+                  {/* Permission Matrix */}
+                  {newUser.role && newUser.role !== 'rider' && (
+                    <div className="space-y-3">
+                      <Label className="text-base font-semibold">Permission Settings</Label>
+                      <UserPermissionMatrix
+                        role={newUser.role}
+                        onPermissionsChange={setUserPermissions}
+                        riders={riders}
+                      />
+                    </div>
+                  )}
+
                   <div className="flex gap-3 pt-4">
                     <Button 
                       onClick={createUser} 
@@ -711,7 +797,11 @@ export function EnhancedUserManagement({ role, branchId }: UserManagementProps) 
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Mobile Users</p>
                     <p className="text-2xl font-bold text-warning">
-                      {filteredUsers.filter(u => u.app_access_type === 'rider_app').length}
+                      {filteredUsers.filter(u => 
+                        ['rider', 'bh_rider', 'sb_rider'].includes(u.role) && 
+                        u.app_access_type === 'rider_app' && 
+                        u.is_active
+                      ).length}
                     </p>
                   </div>
                   <Smartphone className="h-8 w-8 text-warning/60" />

@@ -677,7 +677,15 @@ export type Database = {
           updated_at?: string | null
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_profiles_branch_id"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       shift_management: {
         Row: {
@@ -991,6 +999,44 @@ export type Database = {
         }
         Relationships: []
       }
+      user_specific_permissions: {
+        Row: {
+          created_at: string | null
+          id: string
+          module_name: string
+          permission: string
+          resource_filter: Json | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          module_name: string
+          permission: string
+          resource_filter?: Json | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          module_name?: string
+          permission?: string
+          resource_filter?: Json | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_specific_permissions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -1036,6 +1082,14 @@ export type Database = {
       }
       has_role: {
         Args: { required_role: Database["public"]["Enums"]["user_role"] }
+        Returns: boolean
+      }
+      has_user_permission: {
+        Args: {
+          check_user_id: string
+          module_name: string
+          permission_type: string
+        }
         Returns: boolean
       }
     }
