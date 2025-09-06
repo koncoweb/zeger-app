@@ -5,11 +5,14 @@ import { ModernHeader } from "./ModernHeader";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
+type UserRole = 'ho_admin' | 'ho_owner' | 'ho_staff' | 'branch_manager' | 'bh_staff' | 'bh_kasir' | 'bh_rider' | 'bh_report' | 'sb_branch_manager' | 'sb_kasir' | 'sb_rider' | 'sb_report' | 'rider' | 'finance' | 'customer';
+
 interface Profile {
   id: string;
-  role: 'ho_admin' | 'branch_manager' | 'rider' | 'finance' | 'customer';
+  role: UserRole;
   branch_id?: string;
   full_name: string;
+  app_access_type?: 'web_backoffice' | 'pos_app' | 'rider_app';
 }
 
 interface Branch {

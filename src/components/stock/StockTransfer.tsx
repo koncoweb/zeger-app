@@ -23,8 +23,10 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+type UserRole = 'ho_admin' | 'ho_owner' | 'ho_staff' | 'branch_manager' | 'bh_staff' | 'bh_kasir' | 'bh_rider' | 'bh_report' | 'sb_branch_manager' | 'sb_kasir' | 'sb_rider' | 'sb_report' | 'rider' | 'finance' | 'customer';
+
 interface StockTransferProps {
-  role: 'ho_admin' | 'branch_manager' | 'rider';
+  role: UserRole;
   userId: string;
   branchId?: string;
 }

@@ -5,11 +5,14 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { NotificationSystem } from "@/components/notifications/NotificationSystem";
 
+type UserRole = 'ho_admin' | 'ho_owner' | 'ho_staff' | 'branch_manager' | 'bh_staff' | 'bh_kasir' | 'bh_rider' | 'bh_report' | 'sb_branch_manager' | 'sb_kasir' | 'sb_rider' | 'sb_report' | 'rider' | 'finance' | 'customer';
+
 interface Profile {
   id: string;
-  role: 'ho_admin' | 'branch_manager' | 'rider' | 'finance' | 'customer';
+  role: UserRole;
   branch_id?: string;
   full_name: string;
+  app_access_type?: 'web_backoffice' | 'pos_app' | 'rider_app';
 }
 
 interface Branch {
@@ -35,18 +38,24 @@ export const ModernHeader = ({ profile, branch, onMenuClick }: ModernHeaderProps
   };
 
   const getRoleDisplay = () => {
-    switch (profile.role) {
-      case 'ho_admin':
-        return 'Head Office Admin';
-      case 'branch_manager':
-        return 'Branch Manager';
-      case 'rider':
-        return 'Rider';
-      case 'finance':
-        return 'Finance';
-      default:
-        return profile.role;
-    }
+    const roleMap: { [key: string]: string } = {
+      'ho_admin': 'HO Admin',
+      'ho_owner': 'HO Owner',
+      'ho_staff': 'HO Staff',
+      'branch_manager': 'Branch Hub Manager',
+      'bh_staff': 'Branch Hub Staff',
+      'bh_kasir': 'Branch Hub Kasir',
+      'bh_rider': 'Branch Hub Rider',
+      'bh_report': 'Branch Hub Report',
+      'sb_branch_manager': 'Small Branch Manager',
+      'sb_kasir': 'Small Branch Kasir',
+      'sb_rider': 'Small Branch Rider',
+      'sb_report': 'Small Branch Report',
+      'rider': 'Legacy Rider',
+      'finance': 'Finance Staff',
+      'customer': 'Customer'
+    };
+    return roleMap[profile.role] || profile.role;
   };
 
   return (
@@ -65,7 +74,7 @@ export const ModernHeader = ({ profile, branch, onMenuClick }: ModernHeaderProps
           
           <div>
             <h1 className="text-2xl font-semibold text-gray-900">
-              {profile.role === 'ho_admin' ? 'Dashboard' : 
+              {['ho_admin', 'ho_owner'].includes(profile.role) ? 'Dashboard' : 
                branch ? `${branch.name} Dashboard` : 'Dashboard'}
             </h1>
             <div className="flex items-center gap-2 mt-1">
