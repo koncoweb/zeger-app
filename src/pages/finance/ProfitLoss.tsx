@@ -21,9 +21,10 @@ interface Rider {
 export default function ProfitLoss() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-  const [revenue, setRevenue] = useState({
+const [revenue, setRevenue] = useState({
     cash: 0,
-    nonCash: 0,
+    qris: 0,
+    transfer: 0,
     total: 0
   });
   const [expenses, setExpenses] = useState({
@@ -36,8 +37,16 @@ export default function ProfitLoss() {
   });
   const [riders, setRiders] = useState<Rider[]>([]);
   const [selectedRider, setSelectedRider] = useState<string>("all");
-  const [startDate, setStartDate] = useState<Date>(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
-  const [endDate, setEndDate] = useState<Date>(new Date());
+  
+  // Use Indonesian timezone for dates
+  const getJakartaDate = () => {
+    const now = new Date();
+    const jakartaTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+    return jakartaTime;
+  };
+  
+  const [startDate, setStartDate] = useState<Date>(new Date(getJakartaDate().getFullYear(), getJakartaDate().getMonth(), 1));
+  const [endDate, setEndDate] = useState<Date>(getJakartaDate());
 
   const fetchRiders = async () => {
     const { data } = await supabase
@@ -74,18 +83,19 @@ export default function ProfitLoss() {
 
       // Calculate revenue breakdown
       let cashRevenue = 0;
-      let nonCashRevenue = 0;
+      let qrisRevenue = 0;
+      let transferRevenue = 0;
       let mdrAmount = 0;
 
       (transactions || []).forEach((trans: any) => {
         const amount = Number(trans.final_amount || 0);
         if (trans.payment_method === 'cash') {
           cashRevenue += amount;
-        } else if (trans.payment_method === 'qris' || trans.payment_method === 'transfer') {
-          nonCashRevenue += amount;
-          if (trans.payment_method === 'qris') {
-            mdrAmount += amount * 0.007; // 0.7% MDR
-          }
+        } else if (trans.payment_method === 'qris') {
+          qrisRevenue += amount;
+          mdrAmount += amount * 0.007; // 0.7% MDR
+        } else if (trans.payment_method === 'transfer') {
+          transferRevenue += amount;
         }
       });
 
@@ -124,8 +134,9 @@ export default function ProfitLoss() {
 
       setRevenue({
         cash: cashRevenue,
-        nonCash: nonCashRevenue,
-        total: cashRevenue + nonCashRevenue
+        qris: qrisRevenue,
+        transfer: transferRevenue,
+        total: cashRevenue + qrisRevenue + transferRevenue
       });
 
       setExpenses({
@@ -167,74 +178,122 @@ export default function ProfitLoss() {
           <CardTitle>Filter</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Label>User</Label>
-              <Select value={selectedRider} onValueChange={setSelectedRider}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih user" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Semua User</SelectItem>
-                  {riders.map((rider) => (
-                    <SelectItem key={rider.id} value={rider.id}>
-                      {rider.full_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div>
-              <Label>Periode Awal</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !startDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {startDate ? format(startDate, "dd/MM/yyyy") : <span>Pilih tanggal</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={startDate}
-                    onSelect={(date) => date && setStartDate(date)}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+          <div className="space-y-4">
+            {/* Quick Filter Buttons */}
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const today = getJakartaDate();
+                  setStartDate(today);
+                  setEndDate(today);
+                }}
+              >
+                Today
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const today = getJakartaDate();
+                  const weekStart = new Date(today);
+                  weekStart.setDate(today.getDate() - today.getDay());
+                  setStartDate(weekStart);
+                  setEndDate(today);
+                }}
+              >
+                Weekly
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const today = getJakartaDate();
+                  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+                  setStartDate(monthStart);
+                  setEndDate(today);
+                }}
+              >
+                Monthly
+              </Button>
             </div>
 
-            <div>
-              <Label>Periode Akhir</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !endDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {endDate ? format(endDate, "dd/MM/yyyy") : <span>Pilih tanggal</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={endDate}
-                    onSelect={(date) => date && setEndDate(date)}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label>User</Label>
+                <Select value={selectedRider} onValueChange={setSelectedRider}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih user" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua User</SelectItem>
+                    {riders.map((rider) => (
+                      <SelectItem key={rider.id} value={rider.id}>
+                        {rider.full_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <Label>Periode Awal</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !startDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {startDate ? format(startDate, "dd/MM/yyyy") : <span>Pilih tanggal</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={startDate}
+                      onSelect={(date) => date && setStartDate(date)}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div>
+                <Label>Periode Akhir</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !endDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {endDate ? format(endDate, "dd/MM/yyyy") : <span>Pilih tanggal</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={endDate}
+                      onSelect={(date) => date && setEndDate(date)}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <Button onClick={loadData} className="px-6">
+                Apply Filter
+              </Button>
             </div>
           </div>
         </CardContent>
@@ -264,8 +323,12 @@ export default function ProfitLoss() {
                       <span>{currency.format(revenue.cash)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span>- Non Tunai (QRIS + Transfer)</span>
-                      <span>{currency.format(revenue.nonCash)}</span>
+                      <span>- QRIS</span>
+                      <span>{currency.format(revenue.qris)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>- Transfer Bank</span>
+                      <span>{currency.format(revenue.transfer)}</span>
                     </div>
                   </div>
                   <div className="flex justify-between border-t pt-2 font-semibold">
@@ -303,18 +366,7 @@ export default function ProfitLoss() {
                 <h3 className="text-lg font-semibold mb-3">BEBAN OPERASIONAL</h3>
                 <div className="space-y-2 pl-4">
                    <div className="flex justify-between">
-                     <span 
-                       className="cursor-pointer text-blue-600 hover:text-blue-800 hover:underline"
-                       onClick={() => {
-                         const params = new URLSearchParams();
-                         if (selectedRider !== 'all') params.set('rider', selectedRider);
-                         params.set('start_date', format(startDate, 'yyyy-MM-dd'));
-                         params.set('end_date', format(endDate, 'yyyy-MM-dd'));
-                         navigate(`/transaction-details?${params.toString()}`);
-                       }}
-                     >
-                       Beban Bahan Baku
-                     </span>
+                     <span>Beban Bahan Baku</span>
                      <span className="font-medium">({currency.format(expenses.rawMaterial)})</span>
                    </div>
                   <div className="flex justify-between">
@@ -332,6 +384,48 @@ export default function ProfitLoss() {
                   <div className="flex justify-between border-t pt-2 font-semibold">
                     <span>Total Beban Operasional</span>
                     <span>({currency.format(expenses.total - expenses.mdr)})</span>
+                  </div>
+                </div>
+
+                {/* BEBAN NON OPERASIONAL */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-3 mt-6">BEBAN NON OPERASIONAL</h3>
+                  <div className="space-y-2 pl-4">
+                    <div className="flex justify-between">
+                      <span>Beban Marketing</span>
+                      <span className="font-medium">({currency.format(0)})</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Beban Administrasi</span>
+                      <span className="font-medium">({currency.format(0)})</span>
+                    </div>
+                    <div className="flex justify-between border-t pt-2 font-semibold">
+                      <span>Total Beban Non Operasional</span>
+                      <span>({currency.format(0)})</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* BEBAN LAINNYA */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-3 mt-6">BEBAN LAINNYA</h3>
+                  <div className="space-y-2 pl-4">
+                    <div className="flex justify-between">
+                      <span>Depresiasi/Amortisasi</span>
+                      <span className="font-medium">({currency.format(0)})</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Bunga</span>
+                      <span className="font-medium">({currency.format(0)})</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Pajak</span>
+                      <span className="font-medium">({currency.format(0)})</span>
+                    </div>
+                    <div className="flex justify-between border-t pt-2 font-semibold">
+                      <span>Total Beban Lainnya</span>
+                      <span>({currency.format(0)})</span>
+                    </div>
                   </div>
                 </div>
               </div>
