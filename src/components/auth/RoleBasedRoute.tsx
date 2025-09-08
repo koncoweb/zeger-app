@@ -30,6 +30,7 @@ export const RoleBasedRoute = ({
           'customer': '/customer-app',
           'ho_admin': '/',
           'branch_manager': '/',
+          'sb_branch_manager': '/',
           'finance': '/'
         };
         

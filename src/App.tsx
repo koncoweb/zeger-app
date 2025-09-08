@@ -42,7 +42,7 @@ const App = () => (
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/" element={
-              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'finance']}>
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'sb_branch_manager', 'finance']}>
                 <ModernLayout>
                   <AdminDashboard />
                 </ModernLayout>
@@ -59,14 +59,14 @@ const App = () => (
               </RoleBasedRoute>
             } />
             <Route path="/admin" element={
-              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'finance']}>
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'sb_branch_manager', 'finance']}>
                 <ModernLayout>
                   <AdminDashboard />
                 </ModernLayout>
               </RoleBasedRoute>
             } />
             <Route path="/pos" element={
-              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager']}>
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'sb_branch_manager']}>
                 <Layout>
                   <POS />
                 </Layout>
@@ -80,112 +80,112 @@ const App = () => (
               </RoleBasedRoute>
             } />
             <Route path="/riders" element={
-              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager']}>
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'sb_branch_manager']}>
                 <ModernLayout>
                   <Riders />
                 </ModernLayout>
               </RoleBasedRoute>
             } />
             <Route path="/customers" element={
-              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'rider']}>
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'sb_branch_manager', 'rider']}>
                 <ModernLayout>
                   <CustomerManager />
                 </ModernLayout>
               </RoleBasedRoute>
             } />
             <Route path="/finance" element={
-              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'finance']}>
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'sb_branch_manager', 'finance']}>
                 <ModernLayout>
                   <ProfitLoss />
                 </ModernLayout>
               </RoleBasedRoute>
             } />
             <Route path="/finance/profit-loss" element={
-              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'finance']}>
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'sb_branch_manager', 'finance']}>
                 <ModernLayout>
                   <ProfitLoss />
                 </ModernLayout>
               </RoleBasedRoute>
             } />
             <Route path="/finance/cash-flow" element={
-              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'finance']}>
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'sb_branch_manager', 'finance']}>
                 <ModernLayout>
                   <CashFlow />
                 </ModernLayout>
               </RoleBasedRoute>
             } />
             <Route path="/finance/balance-sheet" element={
-              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'finance']}>
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'sb_branch_manager', 'finance']}>
                 <ModernLayout>
                   <BalanceSheet />
                 </ModernLayout>
               </RoleBasedRoute>
             } />
             <Route path="/finance/operational-expenses" element={
-              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'finance']}>
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'sb_branch_manager', 'finance']}>
                 <ModernLayout>
                   <OperationalExpenses />
                 </ModernLayout>
               </RoleBasedRoute>
             } />
             <Route path="/finance/rider-expenses" element={
-              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'finance']}>
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'sb_branch_manager', 'finance']}>
                 <ModernLayout>
                   <RiderExpenses />
                 </ModernLayout>
               </RoleBasedRoute>
             } />
             <Route path="/transaction-details" element={
-              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'finance']}>
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'sb_branch_manager', 'finance']}>
                 <ModernLayout>
                   <TransactionDetails />
                 </ModernLayout>
               </RoleBasedRoute>
             } />
             <Route path="/transactions" element={
-              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'finance']}>
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'sb_branch_manager', 'finance']}>
                 <ModernLayout>
                   <TransactionsEnhanced />
                 </ModernLayout>
               </RoleBasedRoute>
             } />
             <Route path="/inventory" element={
-              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager']}>
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'sb_branch_manager']}>
                 <ModernLayout>
                   <Inventory />
                 </ModernLayout>
               </RoleBasedRoute>
             } />
             <Route path="/sales" element={
-              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager']}>
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'sb_branch_manager']}>
                 <ModernLayout>
                   <TransactionsEnhanced />
                 </ModernLayout>
               </RoleBasedRoute>
             } />
             <Route path="/admin-users" element={
-              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager']}>
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'sb_branch_manager']}>
                 <ModernLayout>
                   <AdminUsers />
                 </ModernLayout>
               </RoleBasedRoute>
             } />
             <Route path="/reports" element={
-              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager']}>
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'sb_branch_manager']}>
                 <ModernLayout>
                   <TransactionsEnhanced />
                 </ModernLayout>
               </RoleBasedRoute>
             } />
             <Route path="/settings" element={
-              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager']}>
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'sb_branch_manager']}>
                 <ModernLayout>
                   <AdminUsers />
                 </ModernLayout>
               </RoleBasedRoute>
             } />
             <Route path="/help" element={
-              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager']}>
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'sb_branch_manager']}>
                 <ModernLayout>
                   <AdminUsers />
                 </ModernLayout>
@@ -213,21 +213,21 @@ const App = () => (
               </RoleBasedRoute>
             } />
             <Route path="/reports/sales" element={
-              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager']}>
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'sb_branch_manager']}>
                 <ModernLayout>
                   <TransactionsEnhanced />
                 </ModernLayout>
               </RoleBasedRoute>
             } />
             <Route path="/reports/inventory" element={
-              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager']}>
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'sb_branch_manager']}>
                 <ModernLayout>
                   <Inventory />
                 </ModernLayout>
               </RoleBasedRoute>
             } />
             <Route path="/reports/financial" element={
-              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager']}>
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'sb_branch_manager']}>
                 <ModernLayout>
                   <ProfitLoss />
                 </ModernLayout>
