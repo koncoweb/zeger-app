@@ -79,16 +79,29 @@ const MobileRiderAnalyticsEnhanced = () => {
   });
   const [loading, setLoading] = useState(true);
   const [startDate, setStartDate] = useState(() => {
-    // Set to Indonesia timezone (UTC+7)
+    // Set to Jakarta timezone (UTC+7) - proper month to date
     const now = new Date();
-    const indonesiaTime = new Date(now.getTime() + (7 * 60 * 60 * 1000));
-    const firstDayOfMonth = new Date(indonesiaTime.getFullYear(), indonesiaTime.getMonth(), 1);
-    return firstDayOfMonth.toISOString().split('T')[0];
+    const jakartaDate = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Jakarta',
+      year: 'numeric',
+      month: '2-digit', 
+      day: '2-digit'
+    }).format(now);
+    
+    // Get first day of current month in Jakarta timezone
+    const [year, month] = jakartaDate.split('-');
+    const firstDayOfMonth = `${year}-${month}-01`;
+    return firstDayOfMonth;
   });
   const [endDate, setEndDate] = useState(() => {
+    // Set to current date in Jakarta timezone
     const now = new Date();
-    const indonesiaTime = new Date(now.getTime() + (7 * 60 * 60 * 1000));
-    return indonesiaTime.toISOString().split('T')[0];
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Jakarta',
+      year: 'numeric',
+      month: '2-digit', 
+      day: '2-digit'
+    }).format(now);
   });
   const [showTransactionDetail, setShowTransactionDetail] = useState<string | null>(null);
   const [showLocationDetail, setShowLocationDetail] = useState<string | null>(null);

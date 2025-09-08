@@ -535,13 +535,13 @@ const MobileHistory = () => {
                             {item.transaction_items && item.transaction_items.length > 0 && (
                               <div className="pt-2 border-t">
                                 <p className="text-xs font-medium mb-2">Detail Item:</p>
-                                <div className="space-y-1">
-                                  {item.transaction_items.map((transItem, idx) => (
-                                    <div key={idx} className="flex items-center justify-between text-xs">
-                                      <span>• {transItem.product?.name} x{transItem.quantity}</span>
-                                      <span>{formatCurrency(transItem.unit_price * transItem.quantity)}</span>
-                                    </div>
-                                  ))}
+                                 <div className="space-y-1">
+                                   {item.transaction_items.map((transItem, idx) => (
+                                     <div key={idx} className="flex items-center justify-between text-xs">
+                                       <span>• {transItem.product?.name || 'Produk Tidak Dikenal'} x{transItem.quantity}</span>
+                                       <span>{formatCurrency(transItem.unit_price * transItem.quantity)}</span>
+                                     </div>
+                                   ))}
                                 </div>
                                 <div className="flex items-center justify-between mt-2 pt-2 border-t text-xs font-medium">
                                   <span>Total Item: {item.transaction_items.length}</span>
