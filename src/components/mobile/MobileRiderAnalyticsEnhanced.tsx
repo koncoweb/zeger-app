@@ -5,6 +5,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { 
   TrendingUp, Package, DollarSign, ShoppingCart, Calendar, 
   BarChart3, Receipt, Filter, ChevronRight, Eye, MapPin, X
@@ -78,6 +80,7 @@ const MobileRiderAnalyticsEnhanced = () => {
     productsSold: []
   });
   const [loading, setLoading] = useState(true);
+  const [filterPeriod, setFilterPeriod] = useState<string>("monthly");
   const [startDate, setStartDate] = useState(() => {
     // Set to Jakarta timezone (UTC+7) - proper month to date
     const now = new Date();
@@ -109,6 +112,60 @@ const MobileRiderAnalyticsEnhanced = () => {
   useEffect(() => {
     fetchAnalytics();
   }, [startDate, endDate]);
+
+  const handleFilterChange = (period: string) => {
+    setFilterPeriod(period);
+    const now = new Date();
+    const jakartaToday = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Jakarta',
+      year: 'numeric',
+      month: '2-digit', 
+      day: '2-digit'
+    }).format(now);
+    
+    switch (period) {
+      case "today":
+        setStartDate(jakartaToday);
+        setEndDate(jakartaToday);
+        break;
+      case "weekly":
+        const weekStart = new Date(now);
+        weekStart.setDate(now.getDate() - 6); // Last 7 days
+        const weekStartStr = new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'Asia/Jakarta',
+          year: 'numeric',
+          month: '2-digit', 
+          day: '2-digit'
+        }).format(weekStart);
+        setStartDate(weekStartStr);
+        setEndDate(jakartaToday);
+        break;
+      case "monthly":
+        const [year, month] = jakartaToday.split('-');
+        const monthStart = `${year}-${month}-01`;
+        setStartDate(monthStart);
+        setEndDate(jakartaToday);
+        break;
+    }
+  };
+
+  const calculatePaymentSummary = () => {
+    const paymentSummary = analytics.transactions.reduce((acc, transaction) => {
+      const method = transaction.payment_method === 'cash' ? 'Tunai' : 'QRIS/Transfer';
+      if (!acc[method]) {
+        acc[method] = { count: 0, total: 0 };
+      }
+      acc[method].count += 1;
+      acc[method].total += transaction.final_amount;
+      return acc;
+    }, {} as Record<string, { count: number; total: number }>);
+    
+    return Object.entries(paymentSummary).map(([method, data]) => ({
+      method,
+      count: data.count,
+      total: data.total
+    }));
+  };
 
   const fetchAnalytics = async () => {
     try {
@@ -322,35 +379,23 @@ const MobileRiderAnalyticsEnhanced = () => {
   return (
     <ScrollArea className="h-full">
       <div className="p-4 space-y-6">
-        {/* Date Range Filter */}
+        {/* Filter Period Dropdown */}
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-4">
               <Filter className="h-5 w-5 text-muted-foreground" />
               <div className="flex-1">
                 <Label>Filter Periode</Label>
-                <div className="grid grid-cols-2 gap-2 mt-2">
-                  <div>
-                    <Label htmlFor="start-date" className="text-xs">Tanggal Awal</Label>
-                    <Input
-                      id="start-date"
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="end-date" className="text-xs">Tanggal Akhir</Label>
-                    <Input
-                      id="end-date"
-                      type="date"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      className="mt-1"
-                    />
-                  </div>
-                </div>
+                <Select value={filterPeriod} onValueChange={handleFilterChange}>
+                  <SelectTrigger className="mt-2">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="today">Hari Ini</SelectItem>
+                    <SelectItem value="weekly">Minggu Ini</SelectItem>
+                    <SelectItem value="monthly">Bulan Ini</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </CardContent>
@@ -414,6 +459,72 @@ const MobileRiderAnalyticsEnhanced = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Payment Method Summary Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Receipt className="h-5 w-5" />
+              Ringkasan Metode Pembayaran
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Metode Pembayaran</TableHead>
+                  <TableHead className="text-center">Jumlah Transaksi</TableHead>
+                  <TableHead className="text-right">Total Amount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {calculatePaymentSummary().map((payment) => (
+                  <TableRow key={payment.method}>
+                    <TableCell className="font-medium">{payment.method}</TableCell>
+                    <TableCell className="text-center">{payment.count} transaksi</TableCell>
+                    <TableCell className="text-right font-bold">{formatCurrency(payment.total)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
+        {/* Items Sold Summary Table */}
+        {analytics.productsSold && analytics.productsSold.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                Ringkasan Produk Terjual
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12">No</TableHead>
+                    <TableHead>Nama Produk</TableHead>
+                    <TableHead className="text-center">Qty Terjual</TableHead>
+                    <TableHead className="text-right">Revenue</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {analytics.productsSold.map((product, index) => (
+                    <TableRow key={product.name}>
+                      <TableCell>
+                        <Badge variant="outline">#{index + 1}</Badge>
+                      </TableCell>
+                      <TableCell className="font-medium">{product.name}</TableCell>
+                      <TableCell className="text-center">{product.quantity} pcs</TableCell>
+                      <TableCell className="text-right font-bold">{formatCurrency(product.revenue)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Sales Growth Chart */}
         {analytics.chartData && analytics.chartData.length > 0 && (
