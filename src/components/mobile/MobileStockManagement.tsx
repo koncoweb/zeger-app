@@ -26,6 +26,12 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { Label } from "@/components/ui/label";
 
+// Helper function for consistent Jakarta timezone dates
+const getTodayJakarta = () => {
+  const jakartaNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+  return jakartaNow.toISOString().split('T')[0];
+};
+
 interface StockItem {
   id: string;
   product_id: string;
@@ -240,7 +246,7 @@ const StockReturnTab = ({ userProfile, activeShift, onRefresh, onGoToShift }: {
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold">Pengembalian Stok</h3>
         <div className="flex gap-2">
-          {activeShift && !activeShift.report_submitted && (
+          {activeShift && !activeShift.report_submitted && returnableStock.length === 0 && (
             <Button 
               variant="default" 
               size="sm" 
@@ -353,11 +359,23 @@ const MobileStockManagement = () => {
     fetchShiftData();
   }, []);
 
-  // Refresh shift data whenever inventory changes
+  // Listen for navigation events and shift updates
   useEffect(() => {
-    const handler = () => fetchShiftData();
-    window.addEventListener('inventory-updated', handler);
-    return () => window.removeEventListener('inventory-updated', handler);
+    const handleNavigateTab = (event: CustomEvent) => {
+      setTab(event.detail);
+    };
+    const handleInventoryUpdate = () => fetchShiftData();
+    const handleShiftUpdate = () => fetchShiftData();
+
+    window.addEventListener('navigate-tab', handleNavigateTab as EventListener);
+    window.addEventListener('inventory-updated', handleInventoryUpdate);
+    window.addEventListener('shift-updated', handleShiftUpdate);
+    
+    return () => {
+      window.removeEventListener('navigate-tab', handleNavigateTab as EventListener);
+      window.removeEventListener('inventory-updated', handleInventoryUpdate);
+      window.removeEventListener('shift-updated', handleShiftUpdate);
+    };
   }, []);
   const fetchStockData = async () => {
     try {
@@ -405,14 +423,14 @@ const MobileStockManagement = () => {
         .from('shift_management')
         .select('*')
         .eq('rider_id', userProfile.id)
-        .eq('shift_date', new Date().toISOString().split('T')[0])
+        .eq('shift_date', getTodayJakarta())
         .eq('status', 'active')
         .maybeSingle();
 
       setActiveShift(shift);
 
       // Get sales summary scoped to active shift time window (or today if no shift)
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayJakarta();
       let startRange = `${today}T00:00:00`;
       let endRange = new Date().toISOString();
       
@@ -555,7 +573,7 @@ const MobileStockManagement = () => {
 
       // AUTO SHIFT IN: Start shift automatically when receiving stock
       if (userProfile?.id) {
-        const today = new Date().toISOString().split('T')[0];
+        const today = getTodayJakarta();
         // Check if there's already an active shift today
         const { data: existingShift } = await supabase
           .from('shift_management')
@@ -728,7 +746,7 @@ const MobileStockManagement = () => {
                 expense_type: expense.type,
                 amount: parseFloat(expense.amount),
                 description: expense.description,
-                expense_date: new Date().toISOString().split('T')[0],
+                expense_date: getTodayJakarta(),
                 receipt_photo_url: receiptPath
               };
             })
@@ -758,7 +776,7 @@ const MobileStockManagement = () => {
             rider_id: userProfile.id,
             shift_id: activeShift.id,
             branch_id: userProfile.branch_id,
-            report_date: new Date().toISOString().split('T')[0],
+            report_date: getTodayJakarta(),
             total_sales: shiftSummary.totalSales,
             cash_collected: cashToDeposit,
             total_transactions: shiftSummary.totalTransactions
@@ -854,7 +872,14 @@ const MobileStockManagement = () => {
             <h1 className="text-lg font-semibold">Kelola Stok & Shift</h1>
           </div>
           
-          <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="w-full">
+          <Tabs value={tab} onValueChange={(v) => {
+            // Restrict access to shift report if there's remaining stock
+            if (v === 'shift' && remainingStockCount > 0) {
+              toast.error("Kembalikan semua stok terlebih dahulu sebelum mengakses laporan shift");
+              return;
+            }
+            setTab(v as any);
+          }} className="w-full">
             <TabsList className="grid w-full grid-cols-4 text-xs bg-muted rounded-full">
               <TabsTrigger value="receive" className="rounded-full">
                 Terima
@@ -866,9 +891,9 @@ const MobileStockManagement = () => {
               </TabsTrigger>
               <TabsTrigger value="return">Kembali</TabsTrigger>
               <TabsTrigger value="history">Riwayat</TabsTrigger>
-              <TabsTrigger value="shift">
+              <TabsTrigger value="shift" disabled={remainingStockCount > 0}>
                 Shift
-                {activeShift && !activeShift.report_submitted && (
+                {activeShift && !activeShift.report_submitted && remainingStockCount === 0 && (
                   <Badge variant="destructive" className="ml-1 text-xs">!</Badge>
                 )}
               </TabsTrigger>
@@ -879,7 +904,14 @@ const MobileStockManagement = () => {
         {/* Tab Content */}
         <Card>
           <CardContent className="p-4">
-            <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="space-y-4">
+            <Tabs value={tab} onValueChange={(v) => {
+              // Restrict access to shift report if there's remaining stock
+              if (v === 'shift' && remainingStockCount > 0) {
+                toast.error("Kembalikan semua stok terlebih dahulu sebelum mengakses laporan shift");
+                return;
+              }
+              setTab(v as any);
+            }} className="space-y-4">
 
               {/* Stock Receive Tab - Enhanced with checkbox bulk confirmation */}
               <TabsContent value="receive" className="space-y-4">

@@ -25,6 +25,18 @@ export default function MobileSeller() {
     }
   }, [user, userProfile, loading]);
 
+  // Listen for tab navigation events
+  useEffect(() => {
+    const handleNavigateTab = (event: CustomEvent) => {
+      const params = new URLSearchParams(window.location.search);
+      params.set('tab', event.detail);
+      window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
+    };
+
+    window.addEventListener('navigate-tab', handleNavigateTab as EventListener);
+    return () => window.removeEventListener('navigate-tab', handleNavigateTab as EventListener);
+  }, []);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-white via-red-50/30 to-white flex items-center justify-center">

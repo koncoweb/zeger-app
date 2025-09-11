@@ -102,9 +102,16 @@ const MobileRiderDashboard = () => {
   }, []);
 
   useEffect(() => {
-    const handler = () => fetchDashboardData();
-    window.addEventListener('shift-updated', handler);
-    return () => window.removeEventListener('shift-updated', handler);
+    const handleShiftUpdate = () => fetchDashboardData();
+    const handleShiftStarted = () => fetchDashboardData();
+    
+    window.addEventListener('shift-updated', handleShiftUpdate);
+    window.addEventListener('shift-started', handleShiftStarted);
+    
+    return () => {
+      window.removeEventListener('shift-updated', handleShiftUpdate);
+      window.removeEventListener('shift-started', handleShiftStarted);
+    };
   }, []);
 
   const fetchDashboardData = async () => {
