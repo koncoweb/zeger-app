@@ -69,6 +69,7 @@ interface StockTransferGroup {
   rider_name?: string;
   branch_name?: string;
   branch_type?: string;
+  movement_type?: string;
   items: StockTransferItem[];
 }
 
@@ -102,7 +103,6 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
   const [historyType, setHistoryType] = useState<'transfer' | 'return'>('transfer');
   const [filterType, setFilterType] = useState<'sent' | 'received' | 'all'>('all');
 
-  // Use Jakarta timezone for all date operations
   const getJakartaNow = () => {
     const now = new Date();
     return new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
@@ -114,6 +114,25 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
     const m = String(jakartaDate.getMonth() + 1).padStart(2, '0');
     const day = String(jakartaDate.getDate()).padStart(2, '0');
     return `${y}-${m}-${day}`;
+  };
+
+  // Helper functions for dynamic styling based on movement type
+  const getTransferCardStyle = (movementType: string) => {
+    return movementType === 'return'
+      ? 'border-l-4 border-l-destructive shadow-lg shadow-destructive/10' 
+      : 'border-l-4 border-l-success shadow-lg shadow-success/10';
+  };
+
+  const getTransferHeaderStyle = (movementType: string) => {
+    return movementType === 'return'
+      ? 'bg-destructive/5 border-destructive/20'
+      : 'bg-success/5 border-success/20';
+  };
+
+  const getTransferTextStyle = (movementType: string) => {
+    return movementType === 'return'
+      ? 'text-destructive'
+      : 'text-success';
   };
 
   useEffect(() => {
@@ -257,12 +276,11 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
           const riderName = transfer.profiles?.full_name || 'Unknown Rider';
           const branchName = transfer.branches?.name || 'Unknown Branch';
           
-          // Create descriptive transaction titles based on status and type
+          // Create descriptive transaction titles based on movement_type
           const isReturn = transfer.movement_type === 'return';
-          const statusText = transfer.status === 'sent' ? 'Pengiriman Stok' : 'Pengembalian Stok';
           const transactionTitle = isReturn 
             ? `Pengembalian Stok - ${riderName} → ${branchName} ${date} ${time}`
-            : `${statusText} - ${branchName} → ${riderName} ${date} ${time}`;
+            : `Pengiriman Stok - ${branchName} → ${riderName} ${date} ${time}`;
           
           groupedTransfers[groupKey] = {
             id: groupKey,
@@ -276,6 +294,7 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
             rider_name: riderName,
             branch_name: branchName,
             branch_type: transfer.branches?.branch_type || 'hub',
+            movement_type: transfer.movement_type,
             items: []
           };
         }
@@ -746,15 +765,15 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
           <ScrollArea className="h-96">
             <div className="space-y-4">
               {transfers.map((transferGroup) => (
-                <Card key={transferGroup.id} className="border-l-4 border-l-primary">
+                <Card key={transferGroup.id} className={getTransferCardStyle(transferGroup.movement_type || 'transfer')}>
                   <CardHeader className="pb-2">
                      <div className="flex items-center justify-between">
                        <div>
-                        <div className="bg-red-50 p-3 rounded-lg border border-red-200">
-                          <div className="font-medium text-red-800 mb-1">
+                        <div className={`p-3 rounded-lg border ${getTransferHeaderStyle(transferGroup.movement_type || 'transfer')}`}>
+                          <div className={`font-medium mb-1 ${getTransferTextStyle(transferGroup.movement_type || 'transfer')}`}>
                             {transferGroup.transaction_id}
                           </div>
-                          <div className="text-sm text-red-600">
+                          <div className={`text-sm ${getTransferTextStyle(transferGroup.movement_type || 'transfer')}`}>
                             {transferGroup.items.length} item(s) • Total: {transferGroup.total_quantity} unit
                             {transferGroup.total_value && (
                               <span className="ml-2">• Nilai: Rp {transferGroup.total_value.toLocaleString('id-ID')}</span>
