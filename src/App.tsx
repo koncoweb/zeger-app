@@ -29,6 +29,8 @@ import StockTransfer from "./pages/StockTransfer";
 import CustomerManager from "./pages/CustomerManager";
 import InventoryProductionPage from "./pages/inventory/ProductionPage";
 import InventoryBranchTransfer from "./pages/inventory/BranchTransfer";
+import { BranchHubReportLayout } from "./components/layout/BranchHubReportLayout";
+import { BranchHubReportDashboard } from "./components/dashboard/BranchHubReportDashboard";
 
 const queryClient = new QueryClient();
 
@@ -240,6 +242,44 @@ const App = () => (
                 </ModernLayout>
               </RoleBasedRoute>
             } />
+            
+            {/* Branch Hub Report Routes */}
+            <Route path="/bh-report-dashboard" element={
+              <RoleBasedRoute allowedRoles={['bh_report']}>
+                <BranchHubReportLayout>
+                  <BranchHubReportDashboard />
+                </BranchHubReportLayout>
+              </RoleBasedRoute>
+            } />
+            <Route path="/bh-report-transactions" element={
+              <RoleBasedRoute allowedRoles={['bh_report']}>
+                <BranchHubReportLayout>
+                  <TransactionsEnhanced />
+                </BranchHubReportLayout>
+              </RoleBasedRoute>
+            } />
+            <Route path="/bh-report-transaction-details" element={
+              <RoleBasedRoute allowedRoles={['bh_report']}>
+                <BranchHubReportLayout>
+                  <TransactionDetails />
+                </BranchHubReportLayout>
+              </RoleBasedRoute>
+            } />
+            <Route path="/bh-report-profit-loss" element={
+              <RoleBasedRoute allowedRoles={['bh_report']}>
+                <BranchHubReportLayout>
+                  <ProfitLoss />
+                </BranchHubReportLayout>
+              </RoleBasedRoute>
+            } />
+            <Route path="/bh-report-cash-flow" element={
+              <RoleBasedRoute allowedRoles={['bh_report']}>
+                <BranchHubReportLayout>
+                  <CashFlow />
+                </BranchHubReportLayout>
+              </RoleBasedRoute>
+            } />
+            
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
