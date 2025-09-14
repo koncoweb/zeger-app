@@ -10,6 +10,8 @@ import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { useRiderFilter } from "@/hooks/useRiderFilter";
 
 const currency = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 });
 
@@ -21,7 +23,10 @@ interface Rider {
 export default function ProfitLoss() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-const [revenue, setRevenue] = useState({
+  const { userProfile } = useAuth();
+  const { assignedRiderId, assignedRiderName, shouldAutoFilter } = useRiderFilter();
+  
+  const [revenue, setRevenue] = useState({
     cash: 0,
     qris: 0,
     transfer: 0,
@@ -36,7 +41,12 @@ const [revenue, setRevenue] = useState({
     total: 0
   });
   const [riders, setRiders] = useState<Rider[]>([]);
-  const [selectedRider, setSelectedRider] = useState<string>("all");
+  const [selectedRider, setSelectedRider] = useState<string>(() => {
+    if (shouldAutoFilter && assignedRiderId) {
+      return assignedRiderId;
+    }
+    return "all";
+  });
   
   // Use Indonesian timezone for dates
   const getJakartaDate = () => {
@@ -164,8 +174,17 @@ const [revenue, setRevenue] = useState({
   };
 
   useEffect(() => {
-    fetchRiders();
-  }, []);
+    if (userProfile && userProfile.role !== 'bh_report') {
+      fetchRiders();
+    }
+  }, [userProfile]);
+
+  useEffect(() => {
+    // Auto-set selected rider for bh_report users
+    if (shouldAutoFilter && assignedRiderId && selectedRider !== assignedRiderId) {
+      setSelectedRider(assignedRiderId);
+    }
+  }, [shouldAutoFilter, assignedRiderId, selectedRider]);
 
   useEffect(() => {
     loadData();
@@ -228,22 +247,32 @@ const [revenue, setRevenue] = useState({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <Label>User</Label>
-                <Select value={selectedRider} onValueChange={setSelectedRider}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pilih user" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Semua User</SelectItem>
-                    {riders.map((rider) => (
-                      <SelectItem key={rider.id} value={rider.id}>
-                        {rider.full_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {/* User selector - conditional for bh_report users */}
+              {userProfile?.role !== 'bh_report' ? (
+                <div>
+                  <Label>User</Label>
+                  <Select value={selectedRider} onValueChange={setSelectedRider}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pilih user" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Semua User</SelectItem>
+                      {riders.map((rider) => (
+                        <SelectItem key={rider.id} value={rider.id}>
+                          {rider.full_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <div>
+                  <Label>Assigned Rider</Label>
+                  <div className="px-3 py-2 bg-muted rounded-md text-sm border">
+                    {assignedRiderName || 'Loading...'}
+                  </div>
+                </div>
+              )}
               
               <div>
                 <Label>Periode Awal</Label>

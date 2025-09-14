@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSearchParams } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { useRiderFilter } from "@/hooks/useRiderFilter";
 
 interface TransactionItem {
   id: string;
@@ -57,6 +59,8 @@ interface Rider {
 
 export const TransactionsEnhanced = () => {
   const [searchParams] = useSearchParams();
+  const { userProfile } = useAuth();
+  const { assignedRiderId, assignedRiderName, shouldAutoFilter } = useRiderFilter();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [riders, setRiders] = useState<Rider[]>([]);
   const [summary, setSummary] = useState<Summary>({
@@ -69,8 +73,13 @@ export const TransactionsEnhanced = () => {
     nonCashSales: 0
   });
   
-  // Filter states
-  const [selectedRider, setSelectedRider] = useState(searchParams.get('rider') || "all");
+  // Filter states - auto-set for bh_report users
+  const [selectedRider, setSelectedRider] = useState(() => {
+    if (shouldAutoFilter && assignedRiderId) {
+      return assignedRiderId;
+    }
+    return searchParams.get('rider') || "all";
+  });
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("all");
   const [startDate, setStartDate] = useState(() => {
     const date = new Date();
@@ -86,8 +95,17 @@ export const TransactionsEnhanced = () => {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    fetchRiders();
-  }, []);
+    if (userProfile?.role !== 'bh_report') {
+      fetchRiders();
+    }
+  }, [userProfile]);
+
+  useEffect(() => {
+    // Auto-set selected rider for bh_report users
+    if (shouldAutoFilter && assignedRiderId && selectedRider !== assignedRiderId) {
+      setSelectedRider(assignedRiderId);
+    }
+  }, [shouldAutoFilter, assignedRiderId, selectedRider]);
 
   useEffect(() => {
     fetchTransactions();
@@ -432,22 +450,32 @@ export const TransactionsEnhanced = () => {
         </CardHeader>
         <CardContent className="pt-0">
           <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-2 block">User/Rider</label>
-              <Select value={selectedRider} onValueChange={setSelectedRider}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih rider" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Semua User</SelectItem>
-                  {riders.map((rider) => (
-                    <SelectItem key={rider.id} value={rider.id}>
-                      {rider.full_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* User/Rider filter - conditional for bh_report users */}
+            {userProfile?.role !== 'bh_report' ? (
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">User/Rider</label>
+                <Select value={selectedRider} onValueChange={setSelectedRider}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih rider" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua User</SelectItem>
+                    {riders.map((rider) => (
+                      <SelectItem key={rider.id} value={rider.id}>
+                        {rider.full_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">Assigned Rider</label>
+                <div className="px-3 py-2 bg-muted rounded-md text-sm border">
+                  {assignedRiderName || 'Loading...'}
+                </div>
+              </div>
+            )}
 
             <div>
               <label className="text-sm font-medium text-gray-700 mb-2 block">Metode Bayar</label>

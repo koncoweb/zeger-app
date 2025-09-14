@@ -16,6 +16,8 @@ import {
   type RevenueBreakdown,
   type ExpenseBreakdown
 } from "@/lib/financial-utils";
+import { useAuth } from "@/hooks/useAuth";
+import { useRiderFilter } from "@/hooks/useRiderFilter";
 
 const currency = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 });
 
@@ -26,6 +28,9 @@ interface Rider {
 
 export default function CashFlow() {
   const [loading, setLoading] = useState(true);
+  const { userProfile } = useAuth();
+  const { assignedRiderId, assignedRiderName, shouldAutoFilter } = useRiderFilter();
+  
   const [revenue, setRevenue] = useState<RevenueBreakdown>({ cash: 0, qris: 0, transfer: 0, mdr: 0 });
   const [rawMaterialCost, setRawMaterialCost] = useState(0);
   const [expenses, setExpenses] = useState<ExpenseBreakdown>({
@@ -43,11 +48,21 @@ export default function CashFlow() {
     tax: 0
   });
   const [riders, setRiders] = useState<Rider[]>([]);
-  const [selectedRider, setSelectedRider] = useState<string>("all");
+  const [selectedRider, setSelectedRider] = useState<string>(() => {
+    if (shouldAutoFilter && assignedRiderId) {
+      return assignedRiderId;
+    }
+    return "all";
+  });
   const [startDate, setStartDate] = useState<Date>(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [endDate, setEndDate] = useState<Date>(new Date());
 
   const fetchRiders = async () => {
+    // Only fetch riders for non-bh_report users
+    if (userProfile?.role === 'bh_report') {
+      return;
+    }
+    
     const { data } = await supabase
       .from('profiles')
       .select('id, full_name')
@@ -79,8 +94,17 @@ export default function CashFlow() {
   };
 
   useEffect(() => {
-    fetchRiders();
-  }, []);
+    if (userProfile && userProfile.role !== 'bh_report') {
+      fetchRiders();
+    }
+  }, [userProfile]);
+
+  useEffect(() => {
+    // Auto-set selected rider for bh_report users
+    if (shouldAutoFilter && assignedRiderId && selectedRider !== assignedRiderId) {
+      setSelectedRider(assignedRiderId);
+    }
+  }, [shouldAutoFilter, assignedRiderId, selectedRider]);
 
   useEffect(() => {
     loadData();
@@ -100,22 +124,32 @@ export default function CashFlow() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Label>User</Label>
-              <Select value={selectedRider} onValueChange={setSelectedRider}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih user" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Semua User</SelectItem>
-                  {riders.map((rider) => (
-                    <SelectItem key={rider.id} value={rider.id}>
-                      {rider.full_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* User selector - conditional for bh_report users */}
+            {userProfile?.role !== 'bh_report' ? (
+              <div>
+                <Label>User</Label>
+                <Select value={selectedRider} onValueChange={setSelectedRider}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih user" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua User</SelectItem>
+                    {riders.map((rider) => (
+                      <SelectItem key={rider.id} value={rider.id}>
+                        {rider.full_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <div>
+                <Label>Assigned Rider</Label>
+                <div className="px-3 py-2 bg-muted rounded-md text-sm border">
+                  {assignedRiderName || 'Loading...'}
+                </div>
+              </div>
+            )}
             
             <div>
               <Label>Periode Awal</Label>

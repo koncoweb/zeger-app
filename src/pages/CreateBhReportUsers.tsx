@@ -39,32 +39,28 @@ export const CreateBhReportUsers = () => {
 
   const createAllUsers = async () => {
     setLoading(true);
-    const successfullyCreated: string[] = [];
-
-    for (const assignment of USER_ASSIGNMENTS) {
-      try {
-        const { data, error } = await supabase.functions.invoke('create-bh-report-users', {
-          body: {
-            email: assignment.email,
-            password: 'zeger1234',
-            riderId: assignment.riderId,
-            fullName: assignment.riderName.replace(/^Z-\d+\s/, '') // Remove code prefix
-          }
-        });
-
-        if (error) {
-          toast.error(`Error creating user ${assignment.email}: ${error.message}`);
-        } else {
-          toast.success(`User created: ${assignment.email} → ${assignment.riderName}`);
-          successfullyCreated.push(assignment.email);
-        }
-      } catch (error: any) {
-        toast.error(`Failed to create user ${assignment.email}: ${error.message}`);
+    try {
+      const { data, error } = await supabase.functions.invoke('assign-bh-report-users');
+      
+      if (error) {
+        console.error('Error calling function:', error);
+        toast.error('Error creating users');
+        return;
       }
-    }
 
-    setCreatedUsers(successfullyCreated);
-    setLoading(false);
+      if (data?.success) {
+        const successCount = data.results.filter((r: any) => r.status === 'success').length;
+        setCreatedUsers(data.results.filter((r: any) => r.status === 'success').map((r: any) => r.email));
+        toast.success(`Successfully processed ${successCount} assignments`);
+      } else {
+        toast.error('Failed to create users');
+      }
+    } catch (error: any) {
+      console.error('Error:', error);
+      toast.error(`Error: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
