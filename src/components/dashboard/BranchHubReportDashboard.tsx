@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { TrendingUp, TrendingDown, DollarSign, ShoppingCart, Package, Users, CoffeeIcon, Receipt, MapPin, UserCheck, Calculator, ChefHat, Building, BarChart3 } from "lucide-react";
+import { TrendingUp, TrendingDown, DollarSign, ShoppingCart, Package, Users, CoffeeIcon, Receipt, MapPin, UserCheck, Calculator, ChefHat, Building, BarChart3, CreditCard, Banknote, TrendingDown as ExpenseIcon, Coins } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ComposedChart, Bar, BarChart } from 'recharts';
 import { PieChart3D } from '@/components/charts/PieChart3D';
 import { supabase } from "@/integrations/supabase/client";
@@ -20,6 +20,11 @@ interface DashboardStats {
   totalProfit: number;
   totalMembers: number;
   activeRiders: number;
+  cashSales: number;
+  qrisSales: number;
+  transferSales: number;
+  operationalExpenses: number;
+  cashDeposit: number;
 }
 
 interface SalesData {
@@ -72,7 +77,12 @@ export const BranchHubReportDashboard = () => {
     totalItemsSold: 0,
     totalProfit: 0,
     totalMembers: 0,
-    activeRiders: 0
+    activeRiders: 0,
+    cashSales: 0,
+    qrisSales: 0,
+    transferSales: 0,
+    operationalExpenses: 0,
+    cashDeposit: 0
   });
   const [salesData, setSalesData] = useState<SalesData[]>([]);
   const [productSales, setProductSales] = useState<ProductSales[]>([]);
@@ -179,13 +189,33 @@ export const BranchHubReportDashboard = () => {
       const transactionIds = transactions?.map(t => t.id) || [];
       let totalItemsSold = 0;
       let totalFoodCost = 0;
+      
       if (transactionIds.length > 0) {
-        const { data: items } = await supabase
-          .from('transaction_items')
-          .select('quantity, products!inner(cost_price)')
-          .in('transaction_id', transactionIds);
-        totalItemsSold = items?.reduce((sum, item: any) => sum + (item.quantity || 0), 0) || 0;
-        totalFoodCost = items?.reduce((sum, item: any) => sum + (item.quantity || 0) * (Number(item.products?.cost_price) || 0), 0) || 0;
+        try {
+          const { data: items, error: itemsError } = await supabase
+            .from('transaction_items')
+            .select(`
+              quantity,
+              products!inner(cost_price)
+            `)
+            .in('transaction_id', transactionIds);
+          
+          if (itemsError) {
+            console.error('Error fetching transaction items:', itemsError);
+          } else if (items && items.length > 0) {
+            totalItemsSold = items.reduce((sum, item: any) => {
+              return sum + (item.quantity || 0);
+            }, 0);
+            
+            totalFoodCost = items.reduce((sum, item: any) => {
+              const quantity = item.quantity || 0;
+              const costPrice = Number(item.products?.cost_price) || 0;
+              return sum + (quantity * costPrice);
+            }, 0);
+          }
+        } catch (itemError) {
+          console.error('Error in transaction_items query:', itemError);
+        }
       }
 
       // Get operational expenses for this rider
@@ -223,6 +253,9 @@ export const BranchHubReportDashboard = () => {
         .eq('rider_id', assignedRiderId);
       const activeRiders = activeShifts?.length || 0;
 
+      // Calculate cash deposit (Cash sales minus operational expenses)
+      const cashDeposit = cashRevenue - operationalExpenses;
+
       setStats({
         totalSales,
         totalTransactions,
@@ -231,7 +264,12 @@ export const BranchHubReportDashboard = () => {
         totalItemsSold,
         totalProfit,
         totalMembers: customers?.length || 0,
-        activeRiders
+        activeRiders,
+        cashSales: cashRevenue,
+        qrisSales: qrisRevenue,
+        transferSales: transferRevenue,
+        operationalExpenses,
+        cashDeposit
       });
     } catch (error) {
       console.error("Error fetching stats:", error);
@@ -590,7 +628,7 @@ export const BranchHubReportDashboard = () => {
             <div className="text-2xl font-bold">{formatCurrency(stats.totalSales)}</div>
             <div className="flex items-center text-xs text-muted-foreground">
               <TrendingUp className="mr-1 h-3 w-3 text-success" />
-              +2.1% dari periode sebelumnya
+              Total Items Sold: {formatNumber(stats.totalItemsSold)}
             </div>
           </CardContent>
         </Card>
@@ -604,7 +642,35 @@ export const BranchHubReportDashboard = () => {
             <div className="text-2xl font-bold">{formatNumber(stats.totalTransactions)}</div>
             <div className="flex items-center text-xs text-muted-foreground">
               <TrendingUp className="mr-1 h-3 w-3 text-success" />
-              +5.2% dari periode sebelumnya
+              Food Cost: {formatCurrency(stats.totalFoodCost)}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total QRIS</CardTitle>
+            <CreditCard className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(stats.qrisSales)}</div>
+            <div className="flex items-center text-xs text-muted-foreground">
+              <CreditCard className="mr-1 h-3 w-3 text-blue-500" />
+              Penjualan QRIS
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Transfer Bank</CardTitle>
+            <Banknote className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(stats.transferSales)}</div>
+            <div className="flex items-center text-xs text-muted-foreground">
+              <Banknote className="mr-1 h-3 w-3 text-green-500" />
+              Penjualan Transfer
             </div>
           </CardContent>
         </Card>
@@ -617,8 +683,36 @@ export const BranchHubReportDashboard = () => {
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(stats.avgTransactionValue)}</div>
             <div className="flex items-center text-xs text-muted-foreground">
-              <TrendingDown className="mr-1 h-3 w-3 text-destructive" />
-              -1.2% dari periode sebelumnya
+              <Calculator className="mr-1 h-3 w-3 text-orange-500" />
+              Per transaksi
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Beban Operasional</CardTitle>
+            <ExpenseIcon className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-destructive">{formatCurrency(stats.operationalExpenses)}</div>
+            <div className="flex items-center text-xs text-muted-foreground">
+              <ExpenseIcon className="mr-1 h-3 w-3 text-destructive" />
+              Pengeluaran operasional
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Setoran Tunai</CardTitle>
+            <Coins className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{formatCurrency(stats.cashDeposit)}</div>
+            <div className="flex items-center text-xs text-muted-foreground">
+              <Coins className="mr-1 h-3 w-3 text-green-500" />
+              Cash - Beban Operasional
             </div>
           </CardContent>
         </Card>
@@ -631,8 +725,8 @@ export const BranchHubReportDashboard = () => {
           <CardContent>
             <div className="text-2xl font-bold">{formatNumber(stats.totalMembers)}</div>
             <div className="flex items-center text-xs text-muted-foreground">
-              <TrendingUp className="mr-1 h-3 w-3 text-success" />
-              +12.5% dari periode sebelumnya
+              <Users className="mr-1 h-3 w-3 text-purple-500" />
+              Customer aktif
             </div>
           </CardContent>
         </Card>
