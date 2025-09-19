@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Calendar, TrendingUp, Trophy, BarChart3, Users, Filter } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, AreaChart, Area } from "recharts";
 import { useAuth } from "@/hooks/useAuth";
 
 interface Rider {
@@ -429,7 +429,7 @@ const RiderPerformance = () => {
         </CardContent>
       </Card>
 
-      {/* Sales Overview Bar Chart */}
+      {/* Sales Overview Area Chart */}
       <Card className="bg-white">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -440,13 +440,46 @@ const RiderPerformance = () => {
         <CardContent>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} layout="horizontal" margin={{ top: 20, right: 30, left: 100, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" tickFormatter={(value) => formatCurrency(value)} />
-                <YAxis type="category" dataKey="name" width={80} />
-                <Tooltip formatter={(value: number) => [formatCurrency(value), "Total Sales"]} />
-                <Bar dataKey="sales" fill="hsl(var(--primary))" />
-              </BarChart>
+              <AreaChart data={dailySalesData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <defs>
+                  <linearGradient id="salesAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.1}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted-foreground))" strokeOpacity={0.3} />
+                <XAxis 
+                  dataKey="date" 
+                  tickFormatter={(value) => new Date(value).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' })}
+                  stroke="hsl(var(--muted-foreground))"
+                />
+                <YAxis 
+                  tickFormatter={(value) => formatCurrency(value)}
+                  stroke="hsl(var(--muted-foreground))"
+                />
+                <Tooltip 
+                  formatter={(value: number) => [formatCurrency(value), "Total Sales"]}
+                  labelFormatter={(label) => new Date(label).toLocaleDateString('id-ID', { 
+                    weekday: 'long',
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--background))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px'
+                  }}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="total_sales" 
+                  stroke="hsl(var(--primary))" 
+                  strokeWidth={2}
+                  fillOpacity={1}
+                  fill="url(#salesAreaGradient)"
+                />
+              </AreaChart>
             </ResponsiveContainer>
           </div>
         </CardContent>
