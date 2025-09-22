@@ -572,23 +572,49 @@ const RiderPerformance = () => {
                   </tr>
                 )}
               </tbody>
-              {dailySalesData.length > 0 && (
-                <tfoot>
-                  <tr className="border-t-2 font-semibold bg-muted/30">
-                    <td className="p-2">Total</td>
-                    <td className="p-2">-</td>
-                    <td className="p-2">
-                      {dailySalesData.reduce((sum, sale) => sum + sale.total_products_sold, 0)}
-                    </td>
-                    <td className="p-2">
-                      {dailySalesData.reduce((sum, sale) => sum + sale.transactions, 0)}
-                    </td>
-                    <td className="p-2 text-green-600">
-                      {formatCurrency(dailySalesData.reduce((sum, sale) => sum + sale.total_sales, 0))}
-                    </td>
-                  </tr>
-                </tfoot>
-              )}
+              {dailySalesData.length > 0 && (() => {
+                // Calculate totals
+                const totalProducts = dailySalesData.reduce((sum, sale) => sum + sale.total_products_sold, 0);
+                const totalTransactions = dailySalesData.reduce((sum, sale) => sum + sale.transactions, 0);
+                const totalSales = dailySalesData.reduce((sum, sale) => sum + sale.total_sales, 0);
+                
+                // Calculate working days based on unique dates
+                const uniqueDates = [...new Set(dailySalesData.map(sale => sale.date))];
+                const workingDays = uniqueDates.length;
+                
+                // Calculate daily averages
+                const avgProducts = workingDays > 0 ? (totalProducts / workingDays) : 0;
+                const avgTransactions = workingDays > 0 ? (totalTransactions / workingDays) : 0;
+                const avgSales = workingDays > 0 ? (totalSales / workingDays) : 0;
+                
+                return (
+                  <tfoot>
+                    <tr className="border-t-2 font-semibold bg-muted/30">
+                      <td className="p-2">Total</td>
+                      <td className="p-2">-</td>
+                      <td className="p-2">{totalProducts}</td>
+                      <td className="p-2">{totalTransactions}</td>
+                      <td className="p-2 text-green-600">
+                        {formatCurrency(totalSales)}
+                      </td>
+                    </tr>
+                    <tr className="border-t font-medium bg-blue-50">
+                      <td className="p-2">
+                        <span className="text-blue-600">Average/Hari</span>
+                        <div className="text-xs text-muted-foreground">({workingDays} hari kerja)</div>
+                      </td>
+                      <td className="p-2">-</td>
+                      <td className="p-2 text-blue-600">
+                        <Badge variant="secondary">{avgProducts.toFixed(2)}</Badge>
+                      </td>
+                      <td className="p-2 text-blue-600">{avgTransactions.toFixed(2)}</td>
+                      <td className="p-2 text-blue-600 font-semibold">
+                        {formatCurrency(avgSales)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                );
+              })()}
             </table>
           </div>
         </CardContent>
