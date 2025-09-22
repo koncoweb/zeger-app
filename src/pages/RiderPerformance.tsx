@@ -436,32 +436,64 @@ const RiderPerformance = () => {
                 <tr className="border-b">
                   <th className="text-left p-2">No.</th>
                   <th className="text-left p-2">Nama Rider</th>
-                  <th className="text-left p-2">Produk Terjual</th>
-                  <th className="text-left p-2">Transaksi</th>
-                  <th className="text-left p-2">Total Sales</th>
+                  <th className="text-left p-2">Produk Terjual (Avg)</th>
+                  <th className="text-left p-2">Transaksi (Avg)</th>
+                  <th className="text-left p-2">Total Sales (Avg)</th>
                 </tr>
               </thead>
               <tbody className="bg-white">
-                {performanceData.map((rider, index) => (
-                  <tr key={rider.rider_id} className="border-b hover:bg-muted/50">
-                    <td className="p-2">
-                      <div className="flex items-center gap-2">
-                        {index + 1}
-                        {index === 0 && <Trophy className="w-4 h-4 text-yellow-500" />}
-                        {index === 1 && <Trophy className="w-4 h-4 text-gray-400" />}
-                        {index === 2 && <Trophy className="w-4 h-4 text-orange-500" />}
-                      </div>
-                    </td>
-                    <td className="p-2 font-medium">{rider.rider_name}</td>
-                    <td className="p-2">
-                      <Badge variant="outline">{rider.total_products_sold}</Badge>
-                    </td>
-                    <td className="p-2">{rider.total_transactions}</td>
-                    <td className="p-2 font-semibold text-green-600">
-                      {formatCurrency(rider.total_sales)}
-                    </td>
-                  </tr>
-                ))}
+                {performanceData.map((rider, index) => {
+                  // Calculate working days for averages
+                  const { startDate: start, endDate: end } = getDateRange();
+                  const startDateObj = new Date(start);
+                  const endDateObj = new Date(end);
+                  const timeDiff = endDateObj.getTime() - startDateObj.getTime();
+                  const workingDays = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
+                  
+                  const avgProducts = workingDays > 0 ? rider.total_products_sold / workingDays : 0;
+                  const avgTransactions = workingDays > 0 ? rider.total_transactions / workingDays : 0;
+                  const avgSales = workingDays > 0 ? rider.total_sales / workingDays : 0;
+                  
+                  return (
+                    <tr key={rider.rider_id} className="border-b hover:bg-muted/50">
+                      <td className="p-2">
+                        <div className="flex items-center gap-2">
+                          {index + 1}
+                          {index === 0 && <Trophy className="w-4 h-4 text-yellow-500" />}
+                          {index === 1 && <Trophy className="w-4 h-4 text-gray-400" />}
+                          {index === 2 && <Trophy className="w-4 h-4 text-orange-500" />}
+                        </div>
+                      </td>
+                      <td className="p-2 font-medium">{rider.rider_name}</td>
+                      <td className="p-2">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline">{rider.total_products_sold}</Badge>
+                          <div className="px-2 py-1 bg-red-500 text-white rounded text-xs font-medium">
+                            {avgProducts.toFixed(1)}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-2">
+                        <div className="flex items-center gap-2">
+                          <span>{rider.total_transactions}</span>
+                          <div className="px-2 py-1 bg-red-500 text-white rounded text-xs font-medium">
+                            {avgTransactions.toFixed(1)}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-green-600">
+                            {formatCurrency(rider.total_sales)}
+                          </span>
+                          <div className="px-2 py-1 bg-red-500 text-white rounded text-xs font-medium">
+                            {formatCurrency(avgSales)}
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
                 {performanceData.length === 0 && !loading && (
                   <tr>
                     <td colSpan={5} className="text-center p-8 text-muted-foreground">

@@ -234,8 +234,8 @@ export const ModernBranchDashboard = () => {
         .select('final_amount, id, rider_id, payment_method')
         .eq('status', 'completed')
         .gte('transaction_date', `${startStr}T00:00:00`)
-        .lte('transaction_date', `${endStr}T23:59:59`)
-        .limit(1000); // Add safety limit
+        .lte('transaction_date', `${endStr}T23:59:59`);
+        // Remove limit to get all transactions for accurate calculations
         
       if (selectedUser !== 'all') {
         txQuery = txQuery.eq('rider_id', selectedUser);

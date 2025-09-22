@@ -129,6 +129,10 @@ export const TransactionsEnhanced = () => {
   const fetchTransactions = async () => {
     setLoading(true);
     try {
+      console.log("🔍 Fetching transactions for user:", userProfile?.role);
+      console.log("🔍 Should auto filter:", shouldAutoFilter);
+      console.log("🔍 Selected rider:", selectedRider);
+      
       let query = supabase
         .from('transactions')
         .select(`
@@ -141,6 +145,7 @@ export const TransactionsEnhanced = () => {
           customer_id,
           rider_id
         `)
+        .eq('status', 'completed')
         .gte('transaction_date', startDate)
         .lte('transaction_date', endDate + 'T23:59:59')
         .order('transaction_date', { ascending: false });
@@ -154,6 +159,7 @@ export const TransactionsEnhanced = () => {
       }
 
       const { data, error } = await query;
+      console.log("📊 Fetched transactions:", data?.length || 0);
       if (error) throw error;
 
       if (!data || data.length === 0) {
