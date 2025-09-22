@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Textarea } from "@/components/ui/textarea";
 import { CalendarIcon, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,17 +27,20 @@ type Expense = {
 }
 
 export default function OperationalExpenses() {
-  const [category, setCategory] = useState("rent");
-  const [amount, setAmount] = useState<string>("");
-  const [assignedUser, setAssignedUser] = useState("");
-  const [items, setItems] = useState<Expense[]>([]);
-  const [selectedUser, setSelectedUser] = useState<string>("all");
   // Use Indonesian timezone for dates
   const getJakartaDate = () => {
     const now = new Date();
     const jakartaTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
     return jakartaTime;
   };
+
+  const [category, setCategory] = useState("rent");
+  const [amount, setAmount] = useState<string>("");
+  const [assignedUser, setAssignedUser] = useState("");
+  const [expenseDate, setExpenseDate] = useState<Date>(getJakartaDate());
+  const [notes, setNotes] = useState("");
+  const [items, setItems] = useState<Expense[]>([]);
+  const [selectedUser, setSelectedUser] = useState<string>("all");
   
   const [startDate, setStartDate] = useState<Date>(new Date(getJakartaDate().getFullYear(), getJakartaDate().getMonth(), 1));
   const [endDate, setEndDate] = useState<Date>(getJakartaDate());
@@ -166,18 +170,39 @@ export default function OperationalExpenses() {
       .single();
     
     const selectedUserName = allUsers.find(u => u.id === assignedUser)?.full_name || '';
-    const expenseDescription = `${category} - ${selectedUserName}`;
+    
+    // Create description combining category, user name, and notes
+    let expenseDescription = `${category} - ${selectedUserName}`;
+    if (notes.trim()) {
+      expenseDescription += ` | Catatan: ${notes.trim()}`;
+    }
+    
+    // Format expense date for database (YYYY-MM-DD)
+    const formatDateForDB = (date: Date) => {
+      const offset = 7 * 60; // Jakarta timezone offset
+      const jakartaDate = new Date(date.getTime() + offset * 60 * 1000);
+      return jakartaDate.toISOString().split('T')[0];
+    };
     
     const { error } = await supabase.from('operational_expenses').insert({
       expense_category: category,
       amount: amt,
       description: expenseDescription,
+      expense_date: formatDateForDB(expenseDate),
       created_by: assignedUser,
       branch_id: userProfile?.branch_id
     });
-    if (error) { toast.error(error.message); return; }
+    
+    if (error) { 
+      toast.error(error.message); 
+      return; 
+    }
+    
     toast.success('Beban ditambahkan');
-    setAmount(""); setAssignedUser("");
+    setAmount(""); 
+    setAssignedUser("");
+    setNotes("");
+    setExpenseDate(getJakartaDate());
     load();
   };
 
@@ -332,40 +357,82 @@ export default function OperationalExpenses() {
 
       <Card>
         <CardHeader><CardTitle>Tambah Beban</CardTitle></CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <Label>Kategori</Label>
-            <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger><SelectValue placeholder="Pilih" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="rent">Sewa</SelectItem>
-                <SelectItem value="utilities">Listrik/Air</SelectItem>
-                <SelectItem value="salary">Gaji</SelectItem>
-                <SelectItem value="marketing">Marketing</SelectItem>
-                <SelectItem value="maintenance">Perawatan</SelectItem>
-                <SelectItem value="other">Lainnya</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>Jumlah</Label>
-            <Input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="cth: 1500000" />
-          </div>
-          <div className="md:col-span-2">
-            <Label>Beban ini menjadi beban siapa?</Label>
-            <Select value={assignedUser} onValueChange={setAssignedUser}>
-              <SelectTrigger><SelectValue placeholder="Pilih user" /></SelectTrigger>
-              <SelectContent>
-                {allUsers.map((user) => (
-                  <SelectItem key={user.id} value={user.id}>
-                    {user.full_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="md:col-span-4">
-            <Button onClick={onAdd}>Simpan</Button>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label>Kategori</Label>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger><SelectValue placeholder="Pilih" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="rent">Sewa</SelectItem>
+                  <SelectItem value="utilities">Listrik/Air</SelectItem>
+                  <SelectItem value="salary">Gaji</SelectItem>
+                  <SelectItem value="marketing">Marketing</SelectItem>
+                  <SelectItem value="maintenance">Perawatan</SelectItem>
+                  <SelectItem value="other">Lainnya</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label>Jumlah</Label>
+              <Input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="cth: 1500000" />
+            </div>
+            
+            <div>
+              <Label>Tanggal Beban</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !expenseDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {expenseDate ? format(expenseDate, "dd/MM/yyyy") : <span>Pilih tanggal</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={expenseDate}
+                    onSelect={(date) => date && setExpenseDate(date)}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            
+            <div>
+              <Label>Beban ini menjadi beban siapa?</Label>
+              <Select value={assignedUser} onValueChange={setAssignedUser}>
+                <SelectTrigger><SelectValue placeholder="Pilih user" /></SelectTrigger>
+                <SelectContent>
+                  {allUsers.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.full_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="md:col-span-2">
+              <Label>Catatan (Opsional)</Label>
+              <Textarea 
+                value={notes} 
+                onChange={(e) => setNotes(e.target.value)} 
+                placeholder="Tambahkan catatan untuk beban ini..."
+                rows={3}
+              />
+            </div>
+            
+            <div className="md:col-span-2">
+              <Button onClick={onAdd} className="w-full md:w-auto">Simpan</Button>
+            </div>
           </div>
         </CardContent>
       </Card>
