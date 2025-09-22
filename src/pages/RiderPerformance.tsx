@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, AreaChart, Area } from "recharts";
 import { useAuth } from "@/hooks/useAuth";
+import { useRiderFilter } from "@/hooks/useRiderFilter";
 
 interface Rider {
   id: string;
@@ -37,6 +38,7 @@ interface DailySalesData {
 
 const RiderPerformance = () => {
   const { userProfile } = useAuth();
+  const { assignedRiderId, shouldAutoFilter } = useRiderFilter();
   const [riders, setRiders] = useState<Rider[]>([]);
   const [selectedRider, setSelectedRider] = useState<string>("all");
   const [selectedPeriod, setSelectedPeriod] = useState<string>("today");
@@ -52,6 +54,13 @@ const RiderPerformance = () => {
   }, []);
 
   useEffect(() => {
+    // Auto-select assigned rider for BH Report users
+    if (shouldAutoFilter && assignedRiderId) {
+      setSelectedRider(assignedRiderId);
+    }
+  }, [shouldAutoFilter, assignedRiderId]);
+
+  useEffect(() => {
     if (riders.length > 0) {
       fetchPerformanceData();
     }
@@ -59,21 +68,33 @@ const RiderPerformance = () => {
 
   const fetchRiders = async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('profiles')
         .select('id, full_name')
         .eq('role', 'rider')
         .eq('is_active', true)
-        .eq('branch_id', userProfile?.branch_id)
         .order('full_name');
+
+      // Filter by branch for regular users, but not for bh_report users with assigned riders
+      if (userProfile?.branch_id && !shouldAutoFilter) {
+        query = query.eq('branch_id', userProfile.branch_id);
+      }
+      
+      const { data, error } = await query;
       
       if (error) throw error;
       
+      // For BH Report users, only show assigned rider
+      let filteredData = data || [];
+      if (shouldAutoFilter && assignedRiderId) {
+        filteredData = data?.filter(rider => rider.id === assignedRiderId) || [];
+      }
+      
       // Add rider codes (assuming format like Z-001, Z-002, etc.)
-      const ridersWithCodes = data?.map((rider, index) => ({
+      const ridersWithCodes = filteredData.map((rider, index) => ({
         ...rider,
         code: `Z-${String(index + 1).padStart(3, '0')}`
-      })) || [];
+      }));
       
       setRiders(ridersWithCodes);
     } catch (error) {
@@ -293,23 +314,26 @@ const RiderPerformance = () => {
       <Card className="bg-white">
         <CardContent className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label>Rider</Label>
-              <Select value={selectedRider} onValueChange={setSelectedRider}>
-                <SelectTrigger>
-                  <Users className="w-4 h-4 mr-2" />
-                  <SelectValue placeholder="Pilih rider" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Semua Rider</SelectItem>
-                  {riders.map((rider) => (
-                    <SelectItem key={rider.id} value={rider.id}>
-                      {rider.full_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Hide rider selector for BH Report users */}
+            {!shouldAutoFilter && (
+              <div className="space-y-2">
+                <Label>Rider</Label>
+                <Select value={selectedRider} onValueChange={setSelectedRider}>
+                  <SelectTrigger>
+                    <Users className="w-4 h-4 mr-2" />
+                    <SelectValue placeholder="Pilih rider" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua Rider</SelectItem>
+                    {riders.map((rider) => (
+                      <SelectItem key={rider.id} value={rider.id}>
+                        {rider.full_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label>Periode</Label>

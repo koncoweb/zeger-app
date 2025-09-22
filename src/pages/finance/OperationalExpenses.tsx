@@ -7,12 +7,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
-import { CalendarIcon, Eye } from "lucide-react";
+import { CalendarIcon, Eye, Edit, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 const currency = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 });
 
@@ -47,6 +48,15 @@ export default function OperationalExpenses() {
   const [riders, setRiders] = useState<any[]>([]);
   const [totalExpenses, setTotalExpenses] = useState(0);
   const [allUsers, setAllUsers] = useState<any[]>([]);
+
+  // Edit/Delete states
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editCategory, setEditCategory] = useState("");
+  const [editAmount, setEditAmount] = useState("");
+  const [editAssignedUser, setEditAssignedUser] = useState("");
+  const [editExpenseDate, setEditExpenseDate] = useState<Date>(getJakartaDate());
+  const [editNotes, setEditNotes] = useState("");
 
   const fetchRiders = async () => {
     const { data } = await supabase
@@ -203,6 +213,95 @@ export default function OperationalExpenses() {
     setAssignedUser("");
     setNotes("");
     setExpenseDate(getJakartaDate());
+    load();
+  };
+
+  const handleEdit = (expense: Expense) => {
+    if (expense.source !== 'operational') {
+      toast.error('Hanya beban operasional yang bisa diedit');
+      return;
+    }
+    
+    setEditingExpense(expense);
+    setEditCategory(expense.expense_category);
+    setEditAmount(expense.amount.toString());
+    setEditExpenseDate(new Date(expense.expense_date));
+    
+    // Parse notes from description
+    const description = expense.description || '';
+    const notesMatch = description.match(/\| Catatan: (.+)$/);
+    setEditNotes(notesMatch ? notesMatch[1] : '');
+    
+    // Parse assigned user from description
+    const userMatch = description.match(/^[^-]+ - (.+?)(?:\s*\||\s*$)/);
+    const userName = userMatch ? userMatch[1] : '';
+    const user = allUsers.find(u => u.full_name === userName);
+    setEditAssignedUser(user?.id || '');
+    
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdate = async () => {
+    const amt = Number(editAmount);
+    if (!amt || amt <= 0) {
+      toast.error('Jumlah tidak valid');
+      return;
+    }
+    if (!editAssignedUser) {
+      toast.error('Pilih user yang ditugaskan');
+      return;
+    }
+    if (!editingExpense) return;
+
+    const selectedUserName = allUsers.find(u => u.id === editAssignedUser)?.full_name || '';
+    
+    // Create description combining category, user name, and notes
+    let expenseDescription = `${editCategory} - ${selectedUserName}`;
+    if (editNotes.trim()) {
+      expenseDescription += ` | Catatan: ${editNotes.trim()}`;
+    }
+    
+    // Format expense date for database (YYYY-MM-DD)
+    const formatDateForDB = (date: Date) => {
+      const offset = 7 * 60; // Jakarta timezone offset
+      const jakartaDate = new Date(date.getTime() + offset * 60 * 1000);
+      return jakartaDate.toISOString().split('T')[0];
+    };
+    
+    const { error } = await supabase
+      .from('operational_expenses')
+      .update({
+        expense_category: editCategory,
+        amount: amt,
+        description: expenseDescription,
+        expense_date: formatDateForDB(editExpenseDate),
+        created_by: editAssignedUser
+      })
+      .eq('id', editingExpense.id);
+    
+    if (error) { 
+      toast.error(error.message); 
+      return; 
+    }
+    
+    toast.success('Beban berhasil diupdate');
+    setIsEditDialogOpen(false);
+    setEditingExpense(null);
+    load();
+  };
+
+  const handleDelete = async (expenseId: string) => {
+    const { error } = await supabase
+      .from('operational_expenses')
+      .delete()
+      .eq('id', expenseId);
+    
+    if (error) { 
+      toast.error(error.message); 
+      return; 
+    }
+    
+    toast.success('Beban berhasil dihapus');
     load();
   };
 
@@ -465,8 +564,9 @@ export default function OperationalExpenses() {
                       })}
                     </div>
                   </div>
-                  {it.receipt_photo_url && (
-                    <div className="flex items-center gap-2">
+                  
+                  <div className="flex items-center gap-1">
+                    {it.receipt_photo_url && (
                       <Dialog>
                         <DialogTrigger asChild>
                           <Button variant="outline" size="sm" aria-label="Lihat nota (popup)">
@@ -486,11 +586,49 @@ export default function OperationalExpenses() {
                           </div>
                         </DialogContent>
                       </Dialog>
-                      <Button variant="link" size="sm" asChild>
-                        <a href={it.receipt_photo_url!} target="_blank" rel="noreferrer">Buka Nota</a>
-                      </Button>
-                    </div>
-                  )}
+                    )}
+                    
+                    {/* Edit/Delete buttons - only for operational expenses */}
+                    {(it as any).source === 'operational' && (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEdit(it)}
+                          aria-label="Edit beban"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              aria-label="Hapus beban"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Hapus Beban</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Apakah Anda yakin ingin menghapus beban "{it.expense_category}" senilai {currency.format(it.amount || 0)}? 
+                                Tindakan ini tidak dapat dibatalkan.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Batal</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDelete(it.id)}>
+                                Hapus
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -500,6 +638,97 @@ export default function OperationalExpenses() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Beban Operasional</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <div>
+              <Label>Kategori</Label>
+              <Select value={editCategory} onValueChange={setEditCategory}>
+                <SelectTrigger><SelectValue placeholder="Pilih" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="rent">Sewa</SelectItem>
+                  <SelectItem value="utilities">Listrik/Air</SelectItem>
+                  <SelectItem value="salary">Gaji</SelectItem>
+                  <SelectItem value="marketing">Marketing</SelectItem>
+                  <SelectItem value="maintenance">Maintenance</SelectItem>
+                  <SelectItem value="daily_operational">Beban Operasional Harian</SelectItem>
+                  <SelectItem value="other">Lainnya</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label>Jumlah</Label>
+              <Input value={editAmount} onChange={(e) => setEditAmount(e.target.value)} placeholder="cth: 1500000" />
+            </div>
+            
+            <div>
+              <Label>Tanggal Beban</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !editExpenseDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {editExpenseDate ? format(editExpenseDate, "dd/MM/yyyy") : <span>Pilih tanggal</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={editExpenseDate}
+                    onSelect={(date) => date && setEditExpenseDate(date)}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            
+            <div>
+              <Label>Beban ini menjadi beban siapa?</Label>
+              <Select value={editAssignedUser} onValueChange={setEditAssignedUser}>
+                <SelectTrigger><SelectValue placeholder="Pilih user" /></SelectTrigger>
+                <SelectContent>
+                  {allUsers.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.full_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="md:col-span-2">
+              <Label>Catatan (Opsional)</Label>
+              <Textarea 
+                value={editNotes} 
+                onChange={(e) => setEditNotes(e.target.value)} 
+                placeholder="Tambahkan catatan untuk beban ini..."
+                rows={3}
+              />
+            </div>
+            
+            <div className="md:col-span-2 flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                Batal
+              </Button>
+              <Button onClick={handleUpdate}>
+                Update Beban
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

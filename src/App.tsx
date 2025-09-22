@@ -273,6 +273,13 @@ const App = () => (
                 </BranchHubReportLayout>
               </RoleBasedRoute>
             } />
+            <Route path="/bh-report-rider-performance" element={
+              <RoleBasedRoute allowedRoles={['bh_report']}>
+                <BranchHubReportLayout>
+                  <RiderPerformance />
+                </BranchHubReportLayout>
+              </RoleBasedRoute>
+            } />
             <Route path="/bh-report-profit-loss" element={
               <RoleBasedRoute allowedRoles={['bh_report']}>
                 <BranchHubReportLayout>

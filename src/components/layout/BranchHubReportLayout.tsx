@@ -8,7 +8,8 @@ import {
   Menu,
   X,
   BarChart3,
-  PieChart
+  PieChart,
+  TrendingUp
 } from "lucide-react";
 import { ZegerLogo } from "@/components/ui/zeger-logo";
 import { useAuth } from "@/hooks/useAuth";
@@ -47,6 +48,12 @@ const menuItems: MenuItem[] = [
     label: "Detail Transaction",
     icon: BarChart3,
     path: "/bh-report-transaction-details"
+  },
+  {
+    id: "rider-performance",
+    label: "Performa Rider",
+    icon: TrendingUp,
+    path: "/bh-report-rider-performance"
   },
   {
     id: "profit-loss",
