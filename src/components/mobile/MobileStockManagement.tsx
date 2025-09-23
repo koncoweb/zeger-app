@@ -1190,7 +1190,7 @@ const MobileStockManagement = () => {
                 ) : (
                   <div className="space-y-4">
                     <div className="flex items-center gap-2">
-                      {!activeShift.report_submitted ? (
+                      {!activeShift?.report_submitted ? (
                         <>
                           <AlertCircle className="h-5 w-5 text-orange-500" />
                           <h3 className="text-lg font-semibold text-orange-700">
