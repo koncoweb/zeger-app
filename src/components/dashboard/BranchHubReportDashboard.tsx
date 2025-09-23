@@ -44,7 +44,7 @@ const COLORS = ['#3B82F6', '#DC2626', '#10B981', '#F87171', '#FCA5A5'];
 const SHIFT_COLORS = ['#10B981', '#3B82F6', '#DC2626'];
 
 export const BranchHubReportDashboard = () => {
-  const { assignedRiderId, assignedRiderName, shouldAutoFilter } = useRiderFilter();
+  const { assignedRiderId, assignedRiderName, shouldAutoFilter, loading: riderLoading, error: riderError, refreshAssignment } = useRiderFilter();
   const [salesFilter, setSalesFilter] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
 
   // Set default dates using Asia/Jakarta timezone
@@ -129,13 +129,18 @@ export const BranchHubReportDashboard = () => {
   }, [assignedRiderId, salesFilter, startDate, endDate, menuFilter, hourlyFilter, riderFilter, shouldAutoFilter]);
 
   const fetchDashboardData = async () => {
-    if (!shouldAutoFilter) return;
+    if (!shouldAutoFilter) {
+      console.log('🚫 Auto filter not enabled, skipping data fetch');
+      return;
+    }
     
+    console.log('📊 Starting dashboard data fetch for rider:', assignedRiderName, 'ID:', assignedRiderId);
     setLoading(true);
     try {
       await Promise.all([fetchStats(), fetchSalesChart(), fetchProductSales(), fetchRiderExpenses(), fetchRiderStockData(), fetchHourlyData()]);
+      console.log('✅ Dashboard data fetch completed');
     } catch (error) {
-      console.error("Error fetching dashboard data:", error);
+      console.error("❌ Error fetching dashboard data:", error);
     } finally {
       setLoading(false);
     }
@@ -555,12 +560,50 @@ export const BranchHubReportDashboard = () => {
     return new Intl.NumberFormat('id-ID').format(num);
   };
 
-  if (!shouldAutoFilter) {
+  if (riderLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
           <p className="mt-4 text-muted-foreground">Loading rider assignment...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (riderError) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto">
+            <svg className="w-8 h-8 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-semibold text-destructive">Assignment Error</h3>
+          <p className="text-muted-foreground max-w-md">{riderError}</p>
+          <Button onClick={refreshAssignment} variant="outline">
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!shouldAutoFilter) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto">
+            <svg className="w-8 h-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-semibold">No Rider Assignment</h3>
+          <p className="text-muted-foreground max-w-md">Your account is not assigned to any rider. Please contact your administrator.</p>
+          <Button onClick={refreshAssignment} variant="outline">
+            Refresh Assignment
+          </Button>
         </div>
       </div>
     );
