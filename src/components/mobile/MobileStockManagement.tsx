@@ -330,16 +330,14 @@ const StockReturnTab = ({ userProfile, activeShift, onRefresh, onGoToShift }: {
 };
 
 const MobileStockManagement = () => {
-  console.log('MobileStockManagement component rendered');
   const { userProfile } = useAuth();
-  console.log('MobileStockManagement - userProfile:', userProfile);
   
-  // Early return for debugging - shows if component is rendering
   if (!userProfile) {
     return (
       <div className="p-4">
-        <h2 className="text-lg font-bold text-red-600">DEBUG: Stock Management</h2>
-        <p>Menunggu user profile...</p>
+        <div className="flex items-center justify-center min-h-[200px]">
+          <p className="text-muted-foreground">Memuat data pengguna...</p>
+        </div>
       </div>
     );
   }
@@ -375,20 +373,15 @@ const MobileStockManagement = () => {
     fetchShiftData();
   }, []);
 
-  // Listen for navigation events and shift updates
+  // Listen for inventory and shift updates
   useEffect(() => {
-    const handleNavigateTab = (event: CustomEvent) => {
-      setTab(event.detail);
-    };
     const handleInventoryUpdate = () => fetchShiftData();
     const handleShiftUpdate = () => fetchShiftData();
 
-    window.addEventListener('navigate-tab', handleNavigateTab as EventListener);
     window.addEventListener('inventory-updated', handleInventoryUpdate);
     window.addEventListener('shift-updated', handleShiftUpdate);
     
     return () => {
-      window.removeEventListener('navigate-tab', handleNavigateTab as EventListener);
       window.removeEventListener('inventory-updated', handleInventoryUpdate);
       window.removeEventListener('shift-updated', handleShiftUpdate);
     };
