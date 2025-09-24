@@ -195,7 +195,7 @@ export const TransactionsEnhanced = () => {
             quantity,
             unit_price,
             total_price,
-            products:product_id (name, cost_price)
+            products:product_id (id, name, cost_price)
           `)
           .in('transaction_id', transactionIds),
         
@@ -226,6 +226,10 @@ export const TransactionsEnhanced = () => {
           }
         });
       });
+
+      console.log(`📦 Transaction items processed: ${itemsResult.data?.length || 0} items`);
+      console.log("📦 Items by transaction:", itemsMap.size, "transactions have items");
+      console.log("📦 Sample item data:", Array.from(itemsMap.values())[0]?.slice(0, 2));
 
       // Combine all data efficiently
       const transactionsWithDetails = data.map(transaction => ({

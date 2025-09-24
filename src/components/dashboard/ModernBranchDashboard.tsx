@@ -785,14 +785,23 @@ export const ModernBranchDashboard = () => {
     color: "bg-red-500",
     type: "revenue"
   }, {
-    title: "Total Transaksi (Food Cost)",
+    title: "Total Transaksi",
     value: stats.totalTransactions.toString(),
     icon: Receipt,
-    change: formatCurrency(stats.totalFoodCost),
-    isPositive: true,
-    description: "Transaksi & Food Cost",
+    change: `${calculatePercentageChange(stats.totalTransactions, 'transactions') > 0 ? '+' : ''}${calculatePercentageChange(stats.totalTransactions, 'transactions').toFixed(2)}%`,
+    isPositive: calculatePercentageChange(stats.totalTransactions, 'transactions') > 0,
+    description: "Jumlah transaksi",
     color: "bg-blue-500",
     type: "transactions"
+  }, {
+    title: "Biaya Bahan Baku",
+    value: formatCurrency(stats.totalFoodCost),
+    icon: Receipt,
+    change: `${((stats.totalFoodCost / stats.totalSales) * 100).toFixed(1)}%`,
+    isPositive: false,
+    description: "Food cost dari penjualan",
+    color: "bg-orange-500",
+    type: "foodcost"
   }, {
     title: "Total QRIS",
     value: formatCurrency(stats.qrisSales),
