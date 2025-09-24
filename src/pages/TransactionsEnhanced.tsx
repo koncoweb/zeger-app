@@ -14,12 +14,17 @@ import {
   Search,
   ChevronDown,
   ChevronRight,
-  Package
+  Package,
+  Edit,
+  Check,
+  X
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useRiderFilter } from "@/hooks/useRiderFilter";
+import { chunkArray } from "@/lib/array-utils";
+import { toast } from "sonner";
 
 interface TransactionItem {
   id: string;
@@ -93,6 +98,8 @@ export const TransactionsEnhanced = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [editingPayment, setEditingPayment] = useState<string | null>(null);
+  const [newPaymentMethod, setNewPaymentMethod] = useState<string>('');
 
   useEffect(() => {
     if (userProfile?.role !== 'bh_report') {
@@ -183,10 +190,15 @@ export const TransactionsEnhanced = () => {
       const customerIds = [...new Set(data.filter(t => t.customer_id).map(t => t.customer_id))];
       const riderIds = [...new Set(data.filter(t => t.rider_id).map(t => t.rider_id))];
 
-      // Parallel fetch all related data
-      console.log("🔍 Fetching transaction items for", transactionIds.length, "transactions");
-      const [itemsResult, customersResult, ridersResult] = await Promise.all([
-        supabase
+      // Parallel fetch with batched queries to avoid large payload errors
+      console.log("🔍 Fetching transaction items for", transactionIds.length, "transactions with batching");
+      
+      // Batch fetch transaction items to avoid payload size limits
+      const transactionChunks = chunkArray(transactionIds, 150);
+      const allItems: any[] = [];
+      
+      for (const chunk of transactionChunks) {
+        const { data: batchItems, error: batchError } = await supabase
           .from('transaction_items')
           .select(`
             id,
@@ -196,8 +208,16 @@ export const TransactionsEnhanced = () => {
             unit_price,
             total_price
           `)
-          .in('transaction_id', transactionIds),
-        
+          .in('transaction_id', chunk);
+          
+        if (batchError) throw batchError;
+        allItems.push(...(batchItems || []));
+      }
+      
+      console.log(`📦 Total transaction items fetched: ${allItems.length}`);
+      
+      // Fetch other data in parallel
+      const [customersResult, ridersResult] = await Promise.all([
         customerIds.length > 0 
           ? supabase.from('customers').select('id, name').in('id', customerIds)
           : Promise.resolve({ data: [] }),
@@ -207,25 +227,31 @@ export const TransactionsEnhanced = () => {
           : Promise.resolve({ data: [] })
       ]);
 
-      // Fetch products separately
-      const productIds = [...new Set((itemsResult.data || []).map(item => item.product_id))];
-      console.log("🔍 Fetching", productIds.length, "unique products");
+      // Batch fetch products to avoid payload size limits
+      const productIds = [...new Set(allItems.map(item => item.product_id))];
+      console.log("🔍 Fetching", productIds.length, "unique products with batching");
       
-      const { data: products } = await supabase
-        .from('products')
-        .select('id, name, cost_price')
-        .in('id', productIds);
+      const productChunks = chunkArray(productIds, 150);
+      const allProducts: any[] = [];
+      
+      for (const chunk of productChunks) {
+        const { data: batchProducts } = await supabase
+          .from('products')
+          .select('id, name, cost_price')
+          .in('id', chunk);
+        allProducts.push(...(batchProducts || []));
+      }
 
       // Create products map
-      const productsMap = new Map((products || []).map(p => [p.id, p]));
+      const productsMap = new Map(allProducts.map(p => [p.id, p]));
 
       // Create lookup maps for faster access
       const customersMap = new Map((customersResult.data || []).map(c => [c.id, c]));
       const ridersMap = new Map((ridersResult.data || []).map(r => [r.id, r]));
       const itemsMap = new Map();
 
-      // Group transaction items by transaction_id
-      (itemsResult.data || []).forEach(item => {
+      // Group transaction items by transaction_id using batched data
+      allItems.forEach(item => {
         if (!itemsMap.has(item.transaction_id)) {
           itemsMap.set(item.transaction_id, []);
         }
@@ -239,13 +265,13 @@ export const TransactionsEnhanced = () => {
         });
       });
 
-      console.log(`📦 Transaction items processed: ${itemsResult.data?.length || 0} items`);
+      console.log(`📦 Transaction items processed: ${allItems.length} items`);
       console.log("📦 Items by transaction:", itemsMap.size, "transactions have items");
       
       // Calculate totals for verification
       let totalItemsCount = 0;
       let totalFoodCostCalc = 0;
-      (itemsResult.data || []).forEach(item => {
+      allItems.forEach(item => {
         const qty = Number(item.quantity || 0);
         const product = productsMap.get(item.product_id);
         const costPrice = Number(product?.cost_price || 0);
@@ -374,6 +400,36 @@ export const TransactionsEnhanced = () => {
     a.href = url;
     a.download = `transactions_${startDate}_to_${endDate}.csv`;
     a.click();
+  };
+
+  const updatePaymentMethod = async (transactionId: string, paymentMethod: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('update-transaction-payment', {
+        body: {
+          transaction_id: transactionId,
+          new_payment_method: paymentMethod
+        }
+      });
+
+      if (error) throw error;
+      
+      toast.success('Metode pembayaran berhasil diperbarui');
+      setEditingPayment(null);
+      fetchTransactions(); // Refresh data
+    } catch (error: any) {
+      console.error('Error updating payment method:', error);
+      toast.error('Gagal memperbarui metode pembayaran: ' + error.message);
+    }
+  };
+
+  const startEditPayment = (transactionId: string, currentMethod: string) => {
+    setEditingPayment(transactionId);
+    setNewPaymentMethod(currentMethod);
+  };
+
+  const cancelEditPayment = () => {
+    setEditingPayment(null);
+    setNewPaymentMethod('');
   };
 
   return (
@@ -655,7 +711,50 @@ export const TransactionsEnhanced = () => {
                             {transaction.status}
                           </Badge>
                         </td>
-                        <td className="py-3 px-4 text-gray-600">{transaction.payment_method || '-'}</td>
+                        <td className="py-3 px-4 text-gray-600">
+                          {editingPayment === transaction.id ? (
+                            <div className="flex items-center gap-2">
+                              <Select value={newPaymentMethod} onValueChange={setNewPaymentMethod}>
+                                <SelectTrigger className="w-32">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="cash">Cash</SelectItem>
+                                  <SelectItem value="qris">QRIS</SelectItem>
+                                  <SelectItem value="transfer">Transfer</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => updatePaymentMethod(transaction.id, newPaymentMethod)}
+                                disabled={!newPaymentMethod}
+                              >
+                                <Check className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={cancelEditPayment}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <span>{transaction.payment_method || '-'}</span>
+                              {(userProfile?.role === 'ho_admin' || userProfile?.role === 'branch_manager') && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => startEditPayment(transaction.id, transaction.payment_method || '')}
+                                >
+                                  <Edit className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                          )}
+                        </td>
                       </tr>
                       {expandedRows.has(transaction.id) && transaction.transaction_items && (
                         <tr>

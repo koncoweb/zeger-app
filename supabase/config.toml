@@ -1,1 +1,4 @@
 project_id = "uqgxxgbhvqjxrpotyilj"
+
+[functions.update-transaction-payment]
+verify_jwt = true

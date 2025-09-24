@@ -10,6 +10,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { PieChart3D } from '@/components/charts/PieChart3D';
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import { chunkArray } from "@/lib/array-utils";
 interface DashboardStats {
   totalSales: number;
   totalTransactions: number;
@@ -319,46 +320,61 @@ export const ModernBranchDashboard = () => {
         }
       });
 
-      // Process ALL transaction items for accurate calculations
+      // Process ALL transaction items for accurate calculations using batched fetching
       const transactionIds = transactions?.map(t => t.id) || [];
       let totalItemsSold = 0;
       let totalFoodCost = 0;
       
       if (transactionIds.length > 0) {
         try {
-          console.log(`📦 Processing ${transactionIds.length} transactions for accurate calculations...`);
+          console.log(`📦 Processing ${transactionIds.length} transactions with batched fetching...`);
           
-          // Step 1: Get all transaction items (no inner join)
-          const { data: allItems, error: itemsError } = await supabase
-            .from('transaction_items')
-            .select('product_id, quantity')
-            .in('transaction_id', transactionIds);
+          // Step 1: Fetch transaction items in batches to avoid payload size limits
+          const transactionChunks = chunkArray(transactionIds, 150);
+          const allItems: any[] = [];
+          
+          for (const chunk of transactionChunks) {
+            console.log(`📦 Fetching transaction items batch (${chunk.length} transactions)...`);
+            const { data: batchItems, error: itemsError } = await supabase
+              .from('transaction_items')
+              .select('product_id, quantity')
+              .in('transaction_id', chunk);
+              
+            if (itemsError) {
+              console.error('❌ Error fetching transaction items batch:', itemsError);
+              throw itemsError;
+            }
             
-          if (itemsError) {
-            console.error('❌ Error fetching transaction items:', itemsError);
-            throw itemsError;
+            allItems.push(...(batchItems || []));
           }
           
-          console.log(`📦 Raw transaction items fetched: ${allItems?.length}`);
+          console.log(`📦 Total transaction items fetched: ${allItems.length}`);
           
-          if (allItems && allItems.length > 0) {
-            // Step 2: Get unique product IDs and fetch their cost prices
+          if (allItems.length > 0) {
+            // Step 2: Get unique product IDs and fetch their cost prices in batches
             const uniqueProductIds = [...new Set(allItems.map(item => item.product_id))];
-            console.log(`📦 Fetching cost prices for ${uniqueProductIds.length} unique products`);
+            console.log(`📦 Fetching cost prices for ${uniqueProductIds.length} unique products...`);
             
-            const { data: products, error: productsError } = await supabase
-              .from('products')
-              .select('id, cost_price')
-              .in('id', uniqueProductIds);
+            const productChunks = chunkArray(uniqueProductIds, 150);
+            const allProducts: any[] = [];
+            
+            for (const chunk of productChunks) {
+              const { data: batchProducts, error: productsError } = await supabase
+                .from('products')
+                .select('id, cost_price')
+                .in('id', chunk);
+                
+              if (productsError) {
+                console.error('❌ Error fetching products batch:', productsError);
+                throw productsError;
+              }
               
-            if (productsError) {
-              console.error('❌ Error fetching products:', productsError);
-              throw productsError;
+              allProducts.push(...(batchProducts || []));
             }
             
             // Step 3: Create product cost map
             const productCostMap = new Map();
-            (products || []).forEach(product => {
+            allProducts.forEach(product => {
               productCostMap.set(product.id, Number(product.cost_price || 0));
             });
             
@@ -383,7 +399,7 @@ export const ModernBranchDashboard = () => {
           
         } catch (error) {
           console.error('❌ Error in food cost calculation:', error);
-          // Don't use fallback - keep zeros to show real data issues
+          // Keep zeros to show real data issues without fallback
           totalItemsSold = 0;
           totalFoodCost = 0;
           console.log('📦 Using zero values due to calculation error');

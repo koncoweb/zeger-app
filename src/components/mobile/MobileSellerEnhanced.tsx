@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, DollarSign, CreditCard, Smartphone, LogOut, AlertCircle, X, MapPin, Users } from "lucide-react";
+import { Search, DollarSign, CreditCard, Smartphone, LogOut, AlertCircle, X, MapPin, Users, Package } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -44,6 +44,11 @@ const MobileSellerEnhanced = () => {
   }[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(false);
+  const [pendingStock, setPendingStock] = useState<StockItem[]>([]);
+  const [receivedStock, setReceivedStock] = useState<StockItem[]>([]);
+  const [activeShift, setActiveShift] = useState<any>(null);
+  const [hasActiveShift, setHasActiveShift] = useState(false);
+  const [hasPendingStock, setHasPendingStock] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'qris' | 'transfer' | ''>('');
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<string>('');
@@ -56,10 +61,52 @@ const MobileSellerEnhanced = () => {
   const [discountType, setDiscountType] = useState<'amount' | 'percentage'>('amount');
   const [discountValue, setDiscountValue] = useState<number>(0);
   useEffect(() => {
+    checkPreConditions();
     fetchSellingStock();
     fetchCustomers();
     getCurrentLocation();
   }, []);
+
+  const checkPreConditions = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id, branch_id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!profile) return;
+
+      // Check for active shift today
+      const today = new Date().toISOString().split('T')[0];
+      const { data: shift } = await supabase
+        .from('shift_management')
+        .select('id')
+        .eq('rider_id', profile.id)
+        .eq('shift_date', today)
+        .eq('status', 'active')
+        .maybeSingle();
+
+      setHasActiveShift(!!shift);
+
+      // Check for pending stock transfers
+      const { data: pendingTransfers } = await supabase
+        .from('stock_movements')
+        .select('id')
+        .eq('rider_id', profile.id)
+        .eq('movement_type', 'transfer')
+        .eq('status', 'sent')
+        .limit(1);
+
+      setHasPendingStock((pendingTransfers?.length || 0) > 0);
+
+    } catch (error: any) {
+      console.error('Error checking preconditions:', error);
+    }
+  };
   const fetchSellingStock = async () => {
     try {
       const {
@@ -328,8 +375,30 @@ const MobileSellerEnhanced = () => {
       <div className="bg-white/95 backdrop-blur-md text-gray-800 min-h-screen p-4 max-w-full">
         {/* Header */}
         
-
-        {stockItems.length === 0 ?
+        {/* Blocking screens for preconditions */}
+        {!hasActiveShift ? (
+          <div className="text-center py-12">
+            <AlertCircle className="w-16 h-16 mx-auto mb-4 text-yellow-500" />
+            <h3 className="text-lg font-semibold mb-2">Shift Belum Aktif</h3>
+            <p className="text-muted-foreground mb-4">
+              Silakan mulai shift terlebih dahulu di halaman "Kelola Shift"
+            </p>
+            <Button onClick={() => window.dispatchEvent(new CustomEvent('navigate-tab', { detail: 'shift' }))}>
+              Ke Kelola Shift
+            </Button>
+          </div>
+        ) : hasPendingStock ? (
+          <div className="text-center py-12">
+            <Package className="w-16 h-16 mx-auto mb-4 text-orange-500" />
+            <h3 className="text-lg font-semibold mb-2">Konfirmasi Penerimaan Stok</h3>
+            <p className="text-muted-foreground mb-4">
+              Konfirmasi semua barang yang dikirim oleh branch hub terlebih dahulu sebelum bisa berjualan
+            </p>
+            <Button onClick={() => window.dispatchEvent(new CustomEvent('navigate-tab', { detail: 'shift' }))}>
+              Ke Kelola Shift
+            </Button>
+          </div>
+        ) : stockItems.length === 0 ? (
       // No stock available
       <div className="text-center py-12">
             <AlertCircle className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
@@ -337,10 +406,11 @@ const MobileSellerEnhanced = () => {
             <p className="text-muted-foreground mb-4">
               Silakan konfirmasi penerimaan barang di halaman "Kelola Shift" terlebih dahulu
             </p>
-            <Button onClick={fetchSellingStock} variant="outline">
+            <Button onClick={checkPreConditions} variant="outline">
               Refresh
             </Button>
-          </div> :
+          </div>
+        ) : (
       // Sales interface
       <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -578,7 +648,11 @@ const MobileSellerEnhanced = () => {
               onClose={() => setShowSuccessModal(false)}
               title="Transaksi Berhasil"
             />
-          </div>}
+          </div>
+        )}
+
+        {/* Customer Quick Add - shown regardless of stock status */}
+        <MobileCustomerQuickAdd onCustomerAdded={fetchCustomers} />
       </div>
     </div>;
 };

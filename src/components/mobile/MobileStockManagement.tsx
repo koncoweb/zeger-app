@@ -881,9 +881,18 @@ const MobileStockManagement = () => {
       setExpensePhotos([undefined]);
       setCashDepositPhoto(undefined);
       setCashDepositNotes('');
+      
+      // Force update to show completed shift state
       setActiveShift(null);
+      
+      // Wait for fresh data and then navigate to history tab
+      await fetchShiftData();
+      setTimeout(() => {
+        setTab('history');
+        toast.success("Shift telah ditutup! Laporan Anda telah dikirim untuk verifikasi.");
+      }, 500);
+      
       window.dispatchEvent(new Event('shift-updated'));
-      fetchShiftData();
     } catch (error: any) {
       toast.error("Gagal kirim laporan: " + error.message);
     } finally {
