@@ -34,7 +34,8 @@ import {
   Building,
   Calculator,
   Bike,
-  Store
+  Store,
+  LinkIcon
 } from "lucide-react";
 import { UserRolePermissions } from "./UserRolePermissions";
 import { UserPermissionMatrix, ModulePermission } from "./UserPermissionMatrix";
@@ -58,6 +59,8 @@ interface User {
   user_id?: string;
   created_at?: string;
   app_access_type?: 'web_backoffice' | 'pos_app' | 'rider_app';
+  assigned_rider?: string;
+  assigned_reporter?: string;
   branches?: {
     name: string;
     branch_type: string;
@@ -72,6 +75,15 @@ interface NewUser {
   role: UserRole;
   branch_id?: string;
   app_access_type: 'web_backoffice' | 'pos_app' | 'rider_app';
+  assigned_rider?: string;
+  assigned_reporter?: string;
+}
+
+interface Assignment {
+  report_user_id: string;
+  report_name: string;
+  rider_id: string;
+  rider_name: string;
 }
 
 export function EnhancedUserManagement({ role, branchId }: UserManagementProps) {
@@ -89,6 +101,8 @@ export function EnhancedUserManagement({ role, branchId }: UserManagementProps) 
   const [accessFilter, setAccessFilter] = useState('all');
   const [userPermissions, setUserPermissions] = useState<ModulePermission[]>([]);
   const [riders, setRiders] = useState<Array<{ id: string; name: string; code: string }>>([]);
+  const [reporters, setReporters] = useState<Array<{ id: string; full_name: string; role: string }>>([]);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [selectedRiderForAssignment, setSelectedRiderForAssignment] = useState<string>('');
   const [newUser, setNewUser] = useState<NewUser>({
     full_name: '',
@@ -97,13 +111,17 @@ export function EnhancedUserManagement({ role, branchId }: UserManagementProps) 
     password: '',
     role: 'rider' as UserRole,
     branch_id: branchId || '',
-    app_access_type: 'web_backoffice'
+    app_access_type: 'web_backoffice',
+    assigned_rider: '',
+    assigned_reporter: ''
   });
 
   useEffect(() => {
     fetchUsers();
     fetchBranches();
     fetchRiders();
+    fetchReporters();
+    fetchAssignments();
   }, []);
 
   useEffect(() => {
@@ -171,6 +189,31 @@ export function EnhancedUserManagement({ role, branchId }: UserManagementProps) 
       setRiders(riderList);
     } catch (error: any) {
       console.error('Error fetching riders:', error);
+    }
+  };
+
+  const fetchReporters = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, role')
+        .in('role', ['bh_report', 'sb_report'])
+        .eq('is_active', true);
+
+      if (error) throw error;
+      setReporters(data || []);
+    } catch (error: any) {
+      console.error('Error fetching reporters:', error);
+    }
+  };
+
+  const fetchAssignments = async () => {
+    try {
+      const { data, error } = await supabase.rpc('get_branch_assignments');
+      if (error) throw error;
+      setAssignments(data || []);
+    } catch (error: any) {
+      console.error('Error fetching assignments:', error);
     }
   };
 
@@ -307,19 +350,22 @@ export function EnhancedUserManagement({ role, branchId }: UserManagementProps) 
           }
         }
 
-        // Create rider assignment for bh_report users
-        if (newUser.role === 'bh_report' && selectedRiderForAssignment && createdProfile) {
-          const { error: assignmentError } = await supabase
-            .from('branch_hub_report_assignments')
-            .insert({
-              user_id: createdProfile.id,
-              rider_id: selectedRiderForAssignment
+        // Handle assignments using RPC
+        try {
+          if (newUser.role === 'bh_report' && selectedRiderForAssignment && createdProfile) {
+            await supabase.rpc('upsert_bh_report_assignment', {
+              _report_user_id: createdProfile.id,
+              _rider_profile_id: selectedRiderForAssignment
             });
-
-          if (assignmentError) {
-            console.error('Failed to create rider assignment:', assignmentError);
-            toast.warning('User dibuat tetapi assignment rider gagal disimpan');
+          } else if (['rider', 'bh_rider', 'sb_rider'].includes(newUser.role) && newUser.assigned_reporter && createdProfile) {
+            await supabase.rpc('upsert_bh_report_assignment', {
+              _report_user_id: newUser.assigned_reporter,
+              _rider_profile_id: createdProfile.id
+            });
           }
+        } catch (assignmentError: any) {
+          console.error('Assignment error:', assignmentError);
+          toast.warning(`User dibuat tapi assignment gagal: ${assignmentError.message}`);
         }
 
         toast.success(`User ${newUser.full_name} berhasil dibuat! Email: ${newUser.email}`);
@@ -328,6 +374,7 @@ export function EnhancedUserManagement({ role, branchId }: UserManagementProps) 
         setUserPermissions([]);
         setSelectedRiderForAssignment('');
         fetchUsers();
+        fetchAssignments();
       }
     } catch (error: any) {
       toast.error("Gagal membuat user: " + error.message);
@@ -344,7 +391,9 @@ export function EnhancedUserManagement({ role, branchId }: UserManagementProps) 
       password: '',
       role: 'rider' as UserRole,
       branch_id: branchId || '',
-      app_access_type: 'web_backoffice'
+      app_access_type: 'web_backoffice',
+      assigned_rider: '',
+      assigned_reporter: ''
     });
     setSelectedRiderForAssignment('');
   };
@@ -366,7 +415,15 @@ export function EnhancedUserManagement({ role, branchId }: UserManagementProps) 
   };
 
   const editUser = (user: User) => {
-    setEditingUser(user);
+    // Find current assignments for this user
+    const reportAssignment = assignments.find(a => a.report_user_id === user.id);
+    const riderAssignment = assignments.find(a => a.rider_id === user.id);
+    
+    setEditingUser({ 
+      ...user, 
+      assigned_rider: reportAssignment?.rider_id || '',
+      assigned_reporter: riderAssignment?.report_user_id || ''
+    });
     setIsEditDialogOpen(true);
   };
 
@@ -388,10 +445,29 @@ export function EnhancedUserManagement({ role, branchId }: UserManagementProps) 
 
       if (error) throw error;
 
+      // Handle assignment updates using RPC
+      try {
+        if (editingUser.role === 'bh_report' && editingUser.assigned_rider) {
+          await supabase.rpc('upsert_bh_report_assignment', {
+            _report_user_id: editingUser.id,
+            _rider_profile_id: editingUser.assigned_rider
+          });
+        } else if (['rider', 'bh_rider', 'sb_rider'].includes(editingUser.role) && editingUser.assigned_reporter) {
+          await supabase.rpc('upsert_bh_report_assignment', {
+            _report_user_id: editingUser.assigned_reporter,
+            _rider_profile_id: editingUser.id
+          });
+        }
+      } catch (assignmentError: any) {
+        console.error('Assignment update error:', assignmentError);
+        toast.warning(`User diupdate tapi assignment gagal: ${assignmentError.message}`);
+      }
+
       toast.success("User berhasil diperbarui");
       setIsEditDialogOpen(false);
       setEditingUser(null);
       fetchUsers();
+      fetchAssignments();
     } catch (error: any) {
       toast.error("Gagal memperbarui user: " + error.message);
     } finally {
@@ -554,7 +630,7 @@ export function EnhancedUserManagement({ role, branchId }: UserManagementProps) 
         <CardContent className="space-y-6">
           {/* Dialog for creating user - moved from header */}
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogContent className="glass-card w-[95vw] max-w-4xl max-h-[90vh] flex flex-col p-0">
+          <DialogContent className="glass-card w-[95vw] max-w-6xl max-h-[90vh] flex flex-col p-0">
                 <DialogHeader className="sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-6 border-b">
                   <DialogTitle className="gradient-text">Tambah User Baru</DialogTitle>
                 </DialogHeader>
@@ -690,7 +766,7 @@ export function EnhancedUserManagement({ role, branchId }: UserManagementProps) 
                     </div>
                   )}
 
-                  {/* Rider Assignment for bh_report role */}
+                  {/* Assignment Fields */}
                   {newUser.role === 'bh_report' && (
                     <div className="space-y-2">
                       <Label htmlFor="rider-assignment">Assign Rider *</Label>
@@ -709,6 +785,34 @@ export function EnhancedUserManagement({ role, branchId }: UserManagementProps) 
                                 <span>{rider.name}</span>
                                 <Badge variant="outline" className="ml-auto text-xs">
                                   {rider.code}
+                                </Badge>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {['rider', 'bh_rider', 'sb_rider'].includes(newUser.role) && (
+                    <div className="space-y-2">
+                      <Label htmlFor="reporter-assignment">Assign Reporter (Optional)</Label>
+                      <Select 
+                        value={newUser.assigned_reporter} 
+                        onValueChange={(value) => setNewUser(prev => ({...prev, assigned_reporter: value}))}
+                      >
+                        <SelectTrigger className="form-glass">
+                          <SelectValue placeholder="Pilih reporter untuk di-assign" />
+                        </SelectTrigger>
+                        <SelectContent className="dropdown-content">
+                          <SelectItem value="" className="select-item">No Assignment</SelectItem>
+                          {reporters.map((reporter) => (
+                            <SelectItem key={reporter.id} value={reporter.id} className="select-item">
+                              <div className="flex items-center gap-2">
+                                <FileText className="h-4 w-4" />
+                                <span>{reporter.full_name}</span>
+                                <Badge variant="outline" className="ml-auto text-xs">
+                                  {reporter.role}
                                 </Badge>
                               </div>
                             </SelectItem>
@@ -928,18 +1032,30 @@ export function EnhancedUserManagement({ role, branchId }: UserManagementProps) 
                       )}
                     </TableCell>
                     <TableCell>
-                      {user.role === 'bh_report' ? (
-                        <div className="flex items-center gap-2">
-                          <Bike className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm">Assigned Rider</span>
-                          <Badge variant="outline" className="text-xs">
-                            {/* This will be populated with actual assignment data */}
-                            Active
-                          </Badge>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
+                      {(() => {
+                        const reportAssignment = assignments.find(a => a.report_user_id === user.id);
+                        const riderAssignment = assignments.find(a => a.rider_id === user.id);
+                        
+                        if (reportAssignment) {
+                          return (
+                            <div className="flex items-center gap-1 text-sm">
+                              <LinkIcon className="h-3 w-3" />
+                              <span>Assigned to: {reportAssignment.rider_name}</span>
+                            </div>
+                          );
+                        }
+                        
+                        if (riderAssignment) {
+                          return (
+                            <div className="flex items-center gap-1 text-sm">
+                              <LinkIcon className="h-3 w-3" />
+                              <span>Reporter: {riderAssignment.report_name}</span>
+                            </div>
+                          );
+                        }
+                        
+                        return <span className="text-muted-foreground text-sm">No assignment</span>;
+                      })()}
                     </TableCell>
                     <TableCell>
                       <Badge 
@@ -1051,7 +1167,7 @@ export function EnhancedUserManagement({ role, branchId }: UserManagementProps) 
 
       {/* Enhanced Edit User Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="glass-card w-[95vw] max-w-4xl max-h-[90vh] flex flex-col p-0">
+        <DialogContent className="glass-card w-[95vw] max-w-6xl max-h-[90vh] flex flex-col p-0">
           <DialogHeader className="sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-6 border-b">
             <DialogTitle className="gradient-text">
               Edit User - {editingUser?.full_name}
@@ -1137,13 +1253,70 @@ export function EnhancedUserManagement({ role, branchId }: UserManagementProps) 
                 </div>
               )}
 
-              <div className="p-3 bg-muted/50 rounded-xl">
-                <div className="flex items-center gap-2 text-sm">
-                  {getAccessIcon(editingUser.app_access_type)}
-                  <span className="font-medium">Akses Aplikasi:</span>
-                  <Badge variant="outline">{getAccessLabel(editingUser.app_access_type)}</Badge>
+                {/* Assignment Fields for Edit */}
+                {editingUser?.role === 'bh_report' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="assigned_rider_edit">Assigned Rider</Label>
+                    <Select 
+                      value={editingUser.assigned_rider || ''} 
+                      onValueChange={(value) => setEditingUser(prev => prev ? {...prev, assigned_rider: value} : null)}
+                    >
+                      <SelectTrigger className="form-glass">
+                        <SelectValue placeholder="Pilih rider untuk di-assign" />
+                      </SelectTrigger>
+                      <SelectContent className="dropdown-content">
+                        <SelectItem value="" className="select-item">No Assignment</SelectItem>
+                        {riders.map((rider) => (
+                          <SelectItem key={rider.id} value={rider.id} className="select-item">
+                            <div className="flex items-center gap-2">
+                              <Bike className="h-4 w-4" />
+                              <span>{rider.name}</span>
+                              <Badge variant="outline" className="ml-auto text-xs">
+                                {rider.code}
+                              </Badge>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {editingUser && ['rider', 'bh_rider', 'sb_rider'].includes(editingUser.role) && (
+                  <div className="space-y-2">
+                    <Label htmlFor="assigned_reporter_edit">Assigned Reporter</Label>
+                    <Select 
+                      value={editingUser.assigned_reporter || ''} 
+                      onValueChange={(value) => setEditingUser(prev => prev ? {...prev, assigned_reporter: value} : null)}
+                    >
+                      <SelectTrigger className="form-glass">
+                        <SelectValue placeholder="Pilih reporter untuk di-assign" />
+                      </SelectTrigger>
+                      <SelectContent className="dropdown-content">
+                        <SelectItem value="" className="select-item">No Assignment</SelectItem>
+                        {reporters.map((reporter) => (
+                          <SelectItem key={reporter.id} value={reporter.id} className="select-item">
+                            <div className="flex items-center gap-2">
+                              <FileText className="h-4 w-4" />
+                              <span>{reporter.full_name}</span>
+                              <Badge variant="outline" className="ml-auto text-xs">
+                                {reporter.role}
+                              </Badge>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                <div className="p-3 bg-muted/50 rounded-xl">
+                  <div className="flex items-center gap-2 text-sm">
+                    {getAccessIcon(editingUser.app_access_type)}
+                    <span className="font-medium">Akses Aplikasi:</span>
+                    <Badge variant="outline">{getAccessLabel(editingUser.app_access_type)}</Badge>
+                  </div>
                 </div>
-              </div>
 
               </div>
               <div className="sticky bottom-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-6 border-t">

@@ -1096,6 +1096,15 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_branch_assignments: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          report_name: string
+          report_user_id: string
+          rider_id: string
+          rider_name: string
+        }[]
+      }
       get_current_user_branch: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -1134,6 +1143,10 @@ export type Database = {
           permission_type: string
         }
         Returns: boolean
+      }
+      upsert_bh_report_assignment: {
+        Args: { _report_user_id: string; _rider_profile_id: string }
+        Returns: undefined
       }
     }
     Enums: {
