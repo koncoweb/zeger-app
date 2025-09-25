@@ -63,11 +63,7 @@ export const BranchHubReportDashboard = () => {
   const [startDate, setStartDate] = useState<string>(formatYMD(getFirstOfMonth()));
   const [endDate, setEndDate] = useState<string>(formatYMD(getJakartaNow()));
   const [dateFilter, setDateFilter] = useState<'today' | 'weekly' | 'monthly'>('monthly');
-
-  // Individual filters for each section
-  const [menuFilter, setMenuFilter] = useState<'today' | 'week' | 'month'>('today');
-  const [hourlyFilter, setHourlyFilter] = useState<'today' | 'week' | 'month'>('today');
-  const [riderFilter, setRiderFilter] = useState<'today' | 'week' | 'month'>('today');
+  const [loading, setLoading] = useState(true);
 
   const [stats, setStats] = useState<DashboardStats>({
     totalSales: 0,
@@ -84,22 +80,10 @@ export const BranchHubReportDashboard = () => {
     operationalExpenses: 0,
     cashDeposit: 0
   });
+
   const [salesData, setSalesData] = useState<SalesData[]>([]);
   const [productSales, setProductSales] = useState<ProductSales[]>([]);
-  const [riderExpenses, setRiderExpenses] = useState<{
-    rider_name: string;
-    total_expenses: number;
-  }[]>([]);
-  const [riderStockData, setRiderStockData] = useState<{
-    rider_name: string;
-    initial_stock: number;
-    sold: number;
-    remaining: number;
-    revenue: number;
-    orders: number;
-  }[]>([]);
   const [hourlyData, setHourlyData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -126,7 +110,7 @@ export const BranchHubReportDashboard = () => {
     if (shouldAutoFilter) {
       fetchDashboardData();
     }
-  }, [assignedRiderId, salesFilter, startDate, endDate, menuFilter, hourlyFilter, riderFilter, shouldAutoFilter]);
+  }, [assignedRiderId, salesFilter, startDate, endDate, shouldAutoFilter]);
 
   const fetchDashboardData = async () => {
     if (!shouldAutoFilter) {
@@ -137,7 +121,7 @@ export const BranchHubReportDashboard = () => {
     console.log('📊 Starting dashboard data fetch for rider:', assignedRiderName, 'ID:', assignedRiderId);
     setLoading(true);
     try {
-      await Promise.all([fetchStats(), fetchSalesChart(), fetchProductSales(), fetchRiderExpenses(), fetchRiderStockData(), fetchHourlyData()]);
+      await Promise.all([fetchStats(), fetchSalesChart(), fetchProductSales(), fetchHourlyData()]);
       console.log('✅ Dashboard data fetch completed');
     } catch (error) {
       console.error("❌ Error fetching dashboard data:", error);
@@ -421,80 +405,6 @@ export const BranchHubReportDashboard = () => {
     }
   };
 
-  const fetchRiderExpenses = async () => {
-    if (!assignedRiderId || !assignedRiderName) return;
-
-    try {
-      const { data: expenses } = await supabase
-        .from('daily_operational_expenses')
-        .select('amount, rider_id')
-        .eq('rider_id', assignedRiderId)
-        .gte('expense_date', startDate)
-        .lte('expense_date', endDate);
-
-      if (!expenses) {
-        setRiderExpenses([]);
-        return;
-      }
-
-      const totalExpenses = expenses.reduce((sum, expense: any) => sum + parseFloat(expense.amount), 0);
-      setRiderExpenses([{
-        rider_name: assignedRiderName,
-        total_expenses: totalExpenses
-      }]);
-    } catch (error) {
-      console.error("Error fetching rider expenses:", error);
-      setRiderExpenses([]);
-    }
-  };
-
-  const fetchRiderStockData = async () => {
-    if (!assignedRiderId || !assignedRiderName) return;
-
-    try {
-      // Get stock movements for this rider
-      const { data: stockMovements } = await supabase
-        .from('stock_movements')
-        .select('quantity, movement_type, created_at')
-        .eq('rider_id', assignedRiderId)
-        .gte('created_at', `${startDate}T00:00:00`)
-        .lte('created_at', `${endDate}T23:59:59`);
-
-      // Get transactions for revenue and orders count
-      const { data: transactions } = await supabase
-        .from('transactions')
-        .select('final_amount, id')
-        .eq('status', 'completed')
-        .eq('rider_id', assignedRiderId)
-        .gte('transaction_date', `${startDate}T00:00:00`)
-        .lte('transaction_date', `${endDate}T23:59:59`);
-
-      const initialStock = (stockMovements || [])
-        .filter(m => m.movement_type === 'out')
-        .reduce((sum, m) => sum + m.quantity, 0);
-
-      const sold = (stockMovements || [])
-        .filter(m => m.movement_type === 'transfer')
-        .reduce((sum, m) => sum + m.quantity, 0);
-
-      const remaining = initialStock - sold;
-      const revenue = (transactions || []).reduce((sum, t) => sum + parseFloat(t.final_amount.toString()), 0);
-      const orders = transactions?.length || 0;
-
-      setRiderStockData([{
-        rider_name: assignedRiderName,
-        initial_stock: initialStock,
-        sold,
-        remaining,
-        revenue,
-        orders
-      }]);
-    } catch (error) {
-      console.error("Error fetching rider stock data:", error);
-      setRiderStockData([]);
-    }
-  };
-
   const fetchHourlyData = async () => {
     if (!assignedRiderId) return;
 
@@ -665,125 +575,135 @@ export const BranchHubReportDashboard = () => {
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Sales</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(stats.totalSales)}</div>
-            <div className="flex items-center text-xs text-muted-foreground">
-              <TrendingUp className="mr-1 h-3 w-3 text-success" />
-              Total Items Sold: {formatNumber(stats.totalItemsSold)}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Transaksi</CardTitle>
-            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatNumber(stats.totalTransactions)}</div>
-            <div className="flex items-center text-xs text-muted-foreground">
-              <TrendingUp className="mr-1 h-3 w-3 text-success" />
-              Food Cost: {formatCurrency(stats.totalFoodCost)}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total QRIS</CardTitle>
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(stats.qrisSales)}</div>
-            <div className="flex items-center text-xs text-muted-foreground">
-              <CreditCard className="mr-1 h-3 w-3 text-blue-500" />
-              Penjualan QRIS
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Transfer Bank</CardTitle>
-            <Banknote className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(stats.transferSales)}</div>
-            <div className="flex items-center text-xs text-muted-foreground">
-              <Banknote className="mr-1 h-3 w-3 text-green-500" />
-              Penjualan Transfer
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Rata-rata Transaksi</CardTitle>
-            <Calculator className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(stats.avgTransactionValue)}</div>
-            <div className="flex items-center text-xs text-muted-foreground">
-              <Calculator className="mr-1 h-3 w-3 text-orange-500" />
-              Per transaksi
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Beban Operasional</CardTitle>
-            <ExpenseIcon className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-destructive">{formatCurrency(stats.operationalExpenses)}</div>
-            <div className="flex items-center text-xs text-muted-foreground">
-              <ExpenseIcon className="mr-1 h-3 w-3 text-destructive" />
-              Pengeluaran operasional
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Setoran Tunai</CardTitle>
-            <Coins className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(stats.cashDeposit)}</div>
-            <div className="flex items-center text-xs text-muted-foreground">
-              <Coins className="mr-1 h-3 w-3 text-green-500" />
-              Cash - Beban Operasional
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Members</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatNumber(stats.totalMembers)}</div>
-            <div className="flex items-center text-xs text-muted-foreground">
-              <Users className="mr-1 h-3 w-3 text-purple-500" />
-              Customer aktif
-            </div>
-          </CardContent>
-        </Card>
+      {/* KPI Cards - Modern Style */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {loading ? (
+          // Loading skeleton for KPI cards
+          Array.from({ length: 8 }).map((_, index) => (
+            <Card key={index} className="rounded-3xl shadow-sm border-0">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="w-12 h-12 bg-gray-200 rounded-2xl animate-pulse"></div>
+                  <div className="w-16 h-6 bg-gray-200 rounded-full animate-pulse"></div>
+                </div>
+                <div className="space-y-2">
+                  <div className="w-20 h-8 bg-gray-200 rounded animate-pulse"></div>
+                  <div className="w-24 h-4 bg-gray-200 rounded animate-pulse"></div>
+                  <div className="w-16 h-3 bg-gray-200 rounded animate-pulse"></div>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          [
+            {
+              title: "Total Sales",
+              value: formatCurrency(stats.totalSales),
+              description: `Items Sold: ${formatNumber(stats.totalItemsSold)}`,
+              icon: DollarSign,
+              color: "bg-green-500",
+              change: "+12.5%",
+              isPositive: true,
+              type: "transactions"
+            },
+            {
+              title: "Total Transaksi", 
+              value: formatNumber(stats.totalTransactions),
+              description: `Food Cost: ${formatCurrency(stats.totalFoodCost)}`,
+              icon: ShoppingCart,
+              color: "bg-blue-500", 
+              change: "+8.2%",
+              isPositive: true,
+              type: "transactions"
+            },
+            {
+              title: "Total QRIS",
+              value: formatCurrency(stats.qrisSales),
+              description: "7% MDR Rate Applied",
+              icon: CreditCard,
+              color: "bg-purple-500",
+              change: "+15.3%",
+              isPositive: true,
+              type: "transactions"
+            },
+            {
+              title: "Total Cash",
+              value: formatCurrency(stats.cashSales),
+              description: `Cash Deposit: ${formatCurrency(stats.cashDeposit)}`,
+              icon: Banknote,
+              color: "bg-yellow-500",
+              change: "+5.7%",
+              isPositive: true,
+              type: "transactions"
+            },
+            {
+              title: "Avg Transaction",
+              value: formatCurrency(stats.avgTransactionValue),
+              description: "Per Transaction",
+              icon: Calculator,
+              color: "bg-indigo-500",
+              change: "+3.2%",
+              isPositive: true,
+              type: "analytics"
+            },
+            {
+              title: "Total Profit",
+              value: formatCurrency(stats.totalProfit),
+              description: "After All Costs",
+              icon: Coins,
+              color: "bg-emerald-500",
+              change: "+18.9%",
+              isPositive: true,
+              type: "profit-loss"
+            },
+            {
+              title: "Active Riders",
+              value: formatNumber(stats.activeRiders),
+              description: "Currently Active",
+              icon: UserCheck,
+              color: "bg-cyan-500",
+              change: "0%",
+              isPositive: true,
+              type: "riders"
+            },
+            {
+              title: "Operational Expenses",
+              value: formatCurrency(stats.operationalExpenses),
+              description: "Total Expenses",
+              icon: ExpenseIcon,
+              color: "bg-red-500",
+              change: "-2.1%",
+              isPositive: false,
+              type: "operational-expenses"
+            }
+          ].map((item, index) => (
+            <Card key={index} className="rounded-3xl shadow-sm border-0 hover:shadow-lg transition-all cursor-pointer">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between">
+                  <div className={`p-3 rounded-2xl ${item.color}`}>
+                    <item.icon className="h-6 w-6 text-white" />
+                  </div>
+                  <div className="flex items-center">
+                    <Badge variant="secondary" className={`text-xs px-2 py-1 rounded-full ${item.isPositive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                      {item.change}
+                    </Badge>
+                  </div>
+                </div>
+                <div className="space-y-1 mt-4">
+                  <p className="text-2xl font-bold text-gray-900">{item.value}</p>
+                  <p className="text-base font-medium text-gray-700">{item.title}</p>
+                  <p className="text-xs text-gray-500">{item.description}</p>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
       </div>
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Sales Overview Chart */}
-        <Card>
+        <Card className="rounded-3xl shadow-sm border-0">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <BarChart3 className="h-5 w-5" />
@@ -791,183 +711,57 @@ export const BranchHubReportDashboard = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {loading ? (
-              <div className="h-80 flex items-center justify-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={salesData}>
-                  <XAxis dataKey="month" />
-                  <YAxis tickFormatter={(value) => `${formatNumber(value / 1000)}K`} />
-                  <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                  <Area
-                    type="monotone"
-                    dataKey="sales"
-                    stroke="#DC2626"
-                    fill="url(#colorSales)"
-                  />
-                  <defs>
-                    <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#DC2626" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#DC2626" stopOpacity={0.1} />
-                    </linearGradient>
-                  </defs>
-                </AreaChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Menu Terjual */}
-        <Card className="bg-white">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CoffeeIcon className="h-5 w-5" />
-              Menu Terjual
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="bg-white">
-            {loading ? (
-              <div className="h-80 flex items-center justify-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="h-64">
-                  <PieChart3D 
-                    title="Menu Terjual"
-                    data={productSales.map(item => ({
-                      ...item,
-                      percentage: item.value
-                    }))} 
-                  />
-                </div>
-                <div className="bg-white rounded-lg border">
-                  <div className="p-4 border-b">
-                    <h4 className="font-semibold text-sm">Detail Produk Terjual</h4>
-                  </div>
-                  <div className="divide-y bg-white">
-                    {productSales.map((item, index) => (
-                      <div key={index} className="p-4 flex items-center justify-between bg-white">
-                        <div className="flex items-center gap-3">
-                          <div 
-                            className="w-3 h-3 rounded-full" 
-                            style={{ backgroundColor: item.color }}
-                          />
-                          <span className="font-medium text-sm">{item.name}</span>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-semibold text-sm">{item.quantity} pcs</div>
-                          <div className="text-xs text-muted-foreground">{item.value}%</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Jam Terjual Chart */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Receipt className="h-5 w-5" />
-            Jam Terjual
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="h-80 flex items-center justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            </div>
-          ) : (
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={hourlyData}>
+              <AreaChart data={salesData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="shift" />
+                <XAxis dataKey="month" />
                 <YAxis />
-                <Tooltip />
-                <Bar dataKey="quantity" fill="#3B82F6" />
-              </BarChart>
+                <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                <Area type="monotone" dataKey="sales" stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.3} />
+              </AreaChart>
             </ResponsiveContainer>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      {/* Performance Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="bg-white">
+        {/* Product Sales Pie Chart */}
+        <Card className="rounded-3xl shadow-sm border-0">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Package className="h-5 w-5" />
-              Performa Stok
+              Top Products
             </CardTitle>
           </CardHeader>
-          <CardContent className="bg-white">
-            <div className="space-y-4">
-              {riderStockData.map((data, index) => (
-                <div key={index} className="flex items-center justify-between p-4 bg-white rounded-lg border">
-                  <div>
-                    <p className="font-medium">{data.rider_name}</p>
-                    <div className="grid grid-cols-2 gap-4 mt-2 text-sm">
-                      <div>
-                        <p className="text-muted-foreground">Stok Awal:</p>
-                        <p className="font-medium">{data.initial_stock}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Terjual:</p>
-                        <p className="font-medium text-success">{data.sold}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Sisa:</p>
-                        <p className="font-medium text-warning">{data.remaining}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Orders:</p>
-                        <p className="font-medium">{data.orders}</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground">Revenue</p>
-                    <p className="text-lg font-bold text-primary">{formatCurrency(data.revenue)}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5" />
-              Expenses
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="bg-white">
-            <div className="space-y-4">
-              {riderExpenses.map((expense, index) => (
-                <div key={index} className="flex items-center justify-between p-4 bg-white rounded-lg border">
-                  <div>
-                    <p className="font-medium">{expense.rider_name}</p>
-                    <p className="text-sm text-muted-foreground">Total Expenses</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold text-destructive">
-                      {formatCurrency(expense.total_expenses)}
-                    </p>
-                  </div>
-                </div>
-              ))}
+          <CardContent>
+            <div className="h-[300px]">
+              <PieChart3D data={productSales.map(item => ({
+                ...item,
+                percentage: item.value
+              }))} />
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Hourly Sales Chart */}
+      <Card className="rounded-3xl shadow-sm border-0">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5" />
+            Sales by Time Shift
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={hourlyData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="shift" />
+              <YAxis />
+              <Tooltip />
+              <Bar dataKey="quantity" fill="#3B82F6" />
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
     </div>
   );
 };

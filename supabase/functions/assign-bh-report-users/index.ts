@@ -50,11 +50,108 @@ serve(async (req) => {
         riderCode: 'Z-013',
         riderName: 'Pak Imam',
         fullName: 'Nur Maulida'
+      },
+      {
+        email: 'diantriviazka@gmail.com',
+        riderCode: 'Z-012',
+        riderName: 'Pak Nanda',
+        fullName: 'Bu Dian'
+      }
+    ];
+
+    // Also create rider accounts
+    const riderAccounts = [
+      {
+        email: 'rinanda.sandy@gmail.com',
+        riderCode: 'Z-012',
+        riderName: 'Pak Nanda',
+        fullName: 'Pak Nanda',
+        role: 'rider'
       }
     ];
 
     const results = [];
 
+    // First create rider accounts
+    for (const riderAccount of riderAccounts) {
+      try {
+        // Check if user already exists
+        const { data: existingUser } = await supabaseAdmin.auth.admin.listUsers();
+        const userExists = existingUser.users.find(u => u.email === riderAccount.email);
+
+        let userId;
+        if (userExists) {
+          userId = userExists.id;
+          console.log(`Rider ${riderAccount.email} already exists`);
+        } else {
+          // Create rider user
+          const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+            email: riderAccount.email,
+            password: 'zeger1234',
+            email_confirm: true,
+            user_metadata: {
+              full_name: riderAccount.fullName
+            }
+          });
+
+          if (createError) {
+            console.error('Error creating rider:', createError);
+            results.push({
+              email: riderAccount.email,
+              status: 'error',
+              message: `Error creating rider: ${createError.message}`
+            });
+            continue;
+          }
+
+          userId = newUser.user.id;
+        }
+
+        // Check if profile exists
+        const { data: existingProfile } = await supabaseAdmin
+          .from('profiles')
+          .select('id')
+          .eq('user_id', userId)
+          .single();
+
+        if (existingProfile) {
+          // Update existing profile
+          await supabaseAdmin
+            .from('profiles')
+            .update({
+              role: 'rider',
+              full_name: riderAccount.fullName
+            })
+            .eq('id', existingProfile.id);
+        } else {
+          // Create rider profile
+          await supabaseAdmin
+            .from('profiles')
+            .insert({
+              user_id: userId,
+              full_name: riderAccount.fullName,
+              role: 'rider',
+              app_access_type: 'mobile'
+            });
+        }
+
+        results.push({
+          email: riderAccount.email,
+          status: 'success',
+          message: `Successfully created rider ${riderAccount.fullName}`
+        });
+
+      } catch (error) {
+        console.error('Error processing rider account:', error);
+        results.push({
+          email: riderAccount.email,
+          status: 'error',
+          message: `Unexpected error: ${(error as Error).message}`
+        });
+      }
+    }
+
+    // Then create bh_report assignments
     for (const assignment of assignments) {
       try {
         // Find rider by name (search in full_name field)
@@ -192,7 +289,7 @@ serve(async (req) => {
         results.push({
           email: assignment.email,
           status: 'error',
-          message: `Unexpected error: ${error.message}`
+          message: `Unexpected error: ${(error as Error).message}`
         });
       }
     }
@@ -208,7 +305,7 @@ serve(async (req) => {
     console.error('Edge function error:', error);
     return new Response(JSON.stringify({
       success: false,
-      error: error.message
+      error: (error as Error).message
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
