@@ -26,6 +26,7 @@ import {
   ChevronRight,
   MapPin
 } from "lucide-react";
+import { MapPin as LocationPin } from "lucide-react";
 import { ZegerLogo } from "@/components/ui/zeger-logo";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -64,7 +65,7 @@ const getMenuItems = (userRole: string): MenuItem[] => [
       { id: "transaction-details", label: "Details Transaction", icon: BarChart3, path: "/transaction-details" },
       { id: "customers", label: "Customers", icon: Database, path: "/customers" },
       { id: "rider-performance", label: "Performa Rider", icon: Users, path: "/rider-performance" },
-      { id: "location-analytics", label: "Location Analytics", icon: MapPin, path: "/location-analytics" }
+      { id: "location-analytics", label: "Location Analytics", icon: LocationPin, path: "/location-analytics" }
     ]
   },
   {
