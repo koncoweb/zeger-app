@@ -115,28 +115,6 @@ const getMenuItems = (userRole: string): MenuItem[] => [
       { id: "financial-report", label: "Financial Report", icon: FileText, path: "/reports/financial" }
     ]
   },
-  {
-    id: "admin",
-    label: "Admin",
-    icon: Users,
-    roles: ["1_HO_Admin", "1_HO_Owner", "2_Hub_Branch_Manager", "3_SB_Branch_Manager", "ho_admin", "branch_manager"],
-    children: [
-      { 
-        id: "user-management", 
-        label: "User Management", 
-        icon: Users, 
-        path: getUserLevel(userRole) === 1 ? "/admin/users" : "/admin-users" 
-      },
-      { 
-        id: "branches", 
-        label: "Kelola Cabang", 
-        icon: Building2, 
-        path: "/branches", 
-        roles: ["1_HO_Admin", "1_HO_Owner", "ho_admin"] 
-      },
-      { id: "riders", label: "Kelola Rider", icon: Truck, path: "/riders" }
-    ]
-  },
   { 
     id: "help", 
     label: "Help & Support", 
@@ -148,8 +126,28 @@ const getMenuItems = (userRole: string): MenuItem[] => [
     id: "settings", 
     label: "Settings", 
     icon: Settings, 
-    path: "/settings", 
-    roles: ["1_HO_Admin", "1_HO_Owner", "2_Hub_Branch_Manager", "3_SB_Branch_Manager", "ho_admin", "branch_manager"] 
+    roles: ["1_HO_Admin", "1_HO_Owner", "2_Hub_Branch_Manager", "3_SB_Branch_Manager", "ho_admin", "branch_manager"],
+    children: [
+      { 
+        id: "user-management", 
+        label: "User Management", 
+        icon: Users, 
+        path: "/settings/users"
+      },
+      { 
+        id: "rider-management", 
+        label: "Rider Management", 
+        icon: Truck, 
+        path: "/settings/riders"
+      },
+      { 
+        id: "branch-management", 
+        label: "Branch Management", 
+        icon: Building2, 
+        path: "/settings/branches",
+        roles: ["1_HO_Admin", "1_HO_Owner", "2_Hub_Branch_Manager", "ho_admin", "branch_manager"]
+      }
+    ]
   }
 ];
 

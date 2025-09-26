@@ -44,13 +44,17 @@ export const calculateRevenue = async (
 ): Promise<RevenueBreakdown> => {
   const startStr = formatDate(startDate);
   const endStr = formatDate(endDate);
+  
+  // Use Asia/Jakarta timezone
+  const startDateTime = `${startStr}T00:00:00+07:00`;
+  const endDateTime = `${endStr}T23:59:59+07:00`;
 
   let transQuery = supabase
     .from('transactions')
-    .select('id, final_amount, payment_method, rider_id, status, transaction_date')
+    .select('final_amount, payment_method')
     .eq('status', 'completed')
-    .gte('transaction_date', `${startStr}T00:00:00`)
-    .lte('transaction_date', `${endStr}T23:59:59`);
+    .gte('transaction_date', startDateTime)
+    .lte('transaction_date', endDateTime);
 
   if (selectedRider && selectedRider !== "all") {
     transQuery = transQuery.eq('rider_id', selectedRider);
@@ -92,31 +96,49 @@ export const calculateRawMaterialCost = async (
 ): Promise<number> => {
   const startStr = formatDate(startDate);
   const endStr = formatDate(endDate);
+  
+  // Use Asia/Jakarta timezone
+  const startDateTime = `${startStr}T00:00:00+07:00`;
+  const endDateTime = `${endStr}T23:59:59+07:00`;
 
-  let transQuery = supabase
-    .from('transactions')
-    .select('id, rider_id')
-    .eq('status', 'completed')
-    .gte('transaction_date', `${startStr}T00:00:00`)
-    .lte('transaction_date', `${endStr}T23:59:59`);
+  // Use join to avoid URL length issues and pagination
+  let itemsQuery = supabase
+    .from('transaction_items')
+    .select(`
+      quantity, 
+      products!inner(cost_price),
+      transactions!inner(status, transaction_date, rider_id)
+    `)
+    .eq('transactions.status', 'completed')
+    .gte('transactions.transaction_date', startDateTime)
+    .lte('transactions.transaction_date', endDateTime);
 
   if (selectedRider && selectedRider !== "all") {
-    transQuery = transQuery.eq('rider_id', selectedRider);
+    itemsQuery = itemsQuery.eq('transactions.rider_id', selectedRider);
   }
 
-  const { data: transactions } = await transQuery;
-  const transactionIds = transactions?.map(t => t.id) || [];
+  // Handle pagination for large datasets
+  let totalCost = 0;
+  let from = 0;
+  const batchSize = 1000;
+  
+  while (true) {
+    const { data: itemsBatch } = await itemsQuery.range(from, from + batchSize - 1);
+    
+    if (!itemsBatch || itemsBatch.length === 0) break;
+    
+    const batchCost = itemsBatch.reduce((sum, item: any) => 
+      sum + (item.quantity || 0) * (Number(item.products?.cost_price) || 0), 0
+    );
+    
+    totalCost += batchCost;
+    
+    if (itemsBatch.length < batchSize) break;
+    
+    from += batchSize;
+  }
 
-  if (transactionIds.length === 0) return 0;
-
-  const { data: items } = await supabase
-    .from('transaction_items')
-    .select('quantity, products!inner(cost_price)')
-    .in('transaction_id', transactionIds);
-
-  return items?.reduce((sum, item: any) => 
-    sum + (item.quantity || 0) * (Number(item.products?.cost_price) || 0), 0
-  ) || 0;
+  return totalCost;
 };
 
 export const calculateOperationalExpenses = async (
@@ -184,15 +206,17 @@ export const calculateOperationalExpenses = async (
 };
 
 export interface SalesData {
-  grossSales: number;      // Total from transaction_items (before discounts)
-  netSales: number;        // Total from final_amount (after discounts)
-  totalDiscounts: number;  // Difference between gross and net
+  grossSales: number;
+  netSales: number;  
+  totalDiscount: number;
   totalTransactions: number;
   totalItems: number;
-  cashSales: number;
-  qrisSales: number;
-  transferSales: number;
-  avgPerTransaction: number;
+  salesByPaymentMethod: {
+    cash: number;
+    qris: number;
+    transfer: number;
+  };
+  averageSalePerTransaction: number;
 }
 
 export const calculateSalesData = async (
@@ -286,7 +310,7 @@ export const calculateSalesData = async (
   return {
     grossSales,
     netSales,
-    totalDiscounts,
+    totalDiscount,
     totalTransactions,
     totalItems,
     cashSales,

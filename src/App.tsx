@@ -31,6 +31,9 @@ import RiderPerformance from "./pages/RiderPerformance";
 import InventoryProductionPage from "./pages/inventory/ProductionPage";
 import InventoryBranchTransfer from "./pages/inventory/BranchTransfer";
 import { LocationAnalytics } from "./pages/analytics/LocationAnalytics";
+import SettingsUserManagement from "./pages/settings/UserManagement";
+import SettingsRiderManagement from "./pages/settings/RiderManagement";
+import BranchManagement from "./pages/settings/BranchManagement";
 import { BranchHubReportLayout } from "./components/layout/BranchHubReportLayout";
 import { BranchHubReportDashboard } from "./components/dashboard/BranchHubReportDashboard";
 import CreateMalangBranch from "./pages/CreateMalangBranch";
@@ -199,7 +202,28 @@ const App = () => (
             <Route path="/settings" element={
               <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'sb_branch_manager']}>
                 <ModernLayout>
-                  <AdminUsers />
+                  <SettingsUserManagement />
+                </ModernLayout>
+              </RoleBasedRoute>
+            } />
+            <Route path="/settings/users" element={
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'sb_branch_manager']}>
+                <ModernLayout>
+                  <SettingsUserManagement />
+                </ModernLayout>
+              </RoleBasedRoute>
+            } />
+            <Route path="/settings/riders" element={
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'sb_branch_manager']}>
+                <ModernLayout>
+                  <SettingsRiderManagement />
+                </ModernLayout>
+              </RoleBasedRoute>
+            } />
+            <Route path="/settings/branches" element={
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager']}>
+                <ModernLayout>
+                  <BranchManagement />
                 </ModernLayout>
               </RoleBasedRoute>
             } />

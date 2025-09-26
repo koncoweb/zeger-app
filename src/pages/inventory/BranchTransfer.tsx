@@ -149,7 +149,7 @@ export default function InventoryBranchTransfer() {
           <Button 
             onClick={sendToBranch} 
             disabled={loading} 
-            className="w-full bg-destructive hover:bg-destructive/90 text-destructive-foreground font-medium px-6 py-3 rounded-lg transition-all duration-200 hover:shadow-lg"
+            className="w-full bg-red-600 hover:bg-red-700 text-white font-medium px-6 py-3 rounded-lg transition-all duration-200 hover:shadow-lg"
           >
             {loading ? 'Mengirim...' : 'Kirim Stok'}
           </Button>
