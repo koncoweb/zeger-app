@@ -32,6 +32,12 @@ interface Customer {
   phone?: string;
   address?: string;
 }
+// Helper function for consistent Jakarta timezone dates
+const getTodayJakarta = () => {
+  const jakartaNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+  return jakartaNow.toISOString().split('T')[0];
+};
+
 const MobileSellerEnhanced = () => {
   const {
     userProfile,
@@ -60,11 +66,32 @@ const MobileSellerEnhanced = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [discountType, setDiscountType] = useState<'amount' | 'percentage'>('amount');
   const [discountValue, setDiscountValue] = useState<number>(0);
+  
   useEffect(() => {
     checkPreConditions();
     fetchSellingStock();
     fetchCustomers();
     getCurrentLocation();
+  }, []);
+
+  // Listen for live updates from stock management
+  useEffect(() => {
+    const handleStockReceived = () => {
+      checkPreConditions();
+      fetchSellingStock();
+    };
+
+    const handleShiftStarted = () => {
+      checkPreConditions();
+    };
+
+    window.addEventListener('stock-received', handleStockReceived);
+    window.addEventListener('shift-started', handleShiftStarted);
+    
+    return () => {
+      window.removeEventListener('stock-received', handleStockReceived);
+      window.removeEventListener('shift-started', handleShiftStarted);
+    };
   }, []);
 
   const checkPreConditions = async () => {
@@ -80,8 +107,8 @@ const MobileSellerEnhanced = () => {
 
       if (!profile) return;
 
-      // Check for active shift today
-      const today = new Date().toISOString().split('T')[0];
+      // Check for active shift today using Jakarta timezone
+      const today = getTodayJakarta();
       const { data: shift } = await supabase
         .from('shift_management')
         .select('id')
@@ -387,17 +414,6 @@ const MobileSellerEnhanced = () => {
               Ke Kelola Stok
             </Button>
           </div>
-        ) : hasPendingStock ? (
-          <div className="text-center py-12">
-            <Package className="w-16 h-16 mx-auto mb-4 text-orange-500" />
-            <h3 className="text-lg font-semibold mb-2">Konfirmasi Penerimaan Stok</h3>
-            <p className="text-muted-foreground mb-4">
-              Konfirmasi semua barang yang dikirim oleh branch hub terlebih dahulu sebelum bisa berjualan
-            </p>
-            <Button onClick={() => window.dispatchEvent(new CustomEvent('navigate-tab', { detail: 'stock' }))}>
-              Ke Kelola Stok
-            </Button>
-          </div>
         ) : stockItems.length === 0 ? (
       // No stock available
       <div className="text-center py-12">
@@ -413,6 +429,28 @@ const MobileSellerEnhanced = () => {
         ) : (
       // Sales interface
       <div className="space-y-6">
+            {/* Pending stock warning banner */}
+            {hasPendingStock && (
+              <Card className="border-orange-200 bg-orange-50">
+                <CardContent className="pt-4">
+                  <div className="flex items-center gap-2 text-orange-700">
+                    <Package className="h-4 w-4" />
+                    <p className="text-sm font-medium">
+                      Masih ada stok yang belum dikonfirmasi. Konfirmasi segera untuk kelancaran operasional.
+                    </p>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="mt-2"
+                    onClick={() => window.dispatchEvent(new CustomEvent('navigate-tab', { detail: 'stock' }))}
+                  >
+                    Ke Kelola Stok
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-bold">Zeger Coffee OTW</h2>

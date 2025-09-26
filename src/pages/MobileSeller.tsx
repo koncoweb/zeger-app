@@ -16,7 +16,7 @@ import { Users } from "lucide-react";
 
 export default function MobileSeller() {
   const { user, userProfile, loading } = useAuth();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'dashboard';
 
   useEffect(() => {
@@ -28,14 +28,12 @@ export default function MobileSeller() {
   // Listen for tab navigation events
   useEffect(() => {
     const handleNavigateTab = (event: CustomEvent) => {
-      const params = new URLSearchParams(window.location.search);
-      params.set('tab', event.detail);
-      window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
+      setSearchParams({ tab: event.detail });
     };
 
     window.addEventListener('navigate-tab', handleNavigateTab as EventListener);
     return () => window.removeEventListener('navigate-tab', handleNavigateTab as EventListener);
-  }, []);
+  }, [setSearchParams]);
 
   if (loading) {
     return (

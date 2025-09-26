@@ -645,6 +645,11 @@ const MobileStockManagement = () => {
       toast.success('Stok dikonfirmasi diterima dan siap dijual!');
       await fetchStockData();
       window.dispatchEvent(new Event('stock-received')); // Trigger notification
+      
+      // Auto-navigate to selling tab
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('navigate-tab', { detail: 'selling' }));
+      }, 1000);
     } catch (error: any) {
       toast.error('Gagal konfirmasi: ' + error.message);
     } finally {
@@ -926,6 +931,11 @@ const MobileStockManagement = () => {
       setBulkConfirmPhoto(undefined);
       
       toast.success(`${selectedItems.length} stok berhasil dikonfirmasi!`);
+      
+      // Auto-navigate to selling tab after bulk confirmation
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('navigate-tab', { detail: 'selling' }));
+      }, 1000);
       
     } catch (error: any) {
       toast.error("Gagal konfirmasi stok: " + error.message);
