@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { MobileSuccessModal } from "./MobileSuccessModal";
 import { MobileCustomerQuickAdd } from "./MobileCustomerQuickAdd";
 import { cn } from "@/lib/utils";
+import { getTodayJakarta } from "@/lib/date";
 interface Product {
   id: string;
   name: string;
@@ -32,11 +33,6 @@ interface Customer {
   phone?: string;
   address?: string;
 }
-// Helper function for consistent Jakarta timezone dates
-const getTodayJakarta = () => {
-  const jakartaNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
-  return jakartaNow.toISOString().split('T')[0];
-};
 
 const MobileSellerEnhanced = () => {
   const {
@@ -109,15 +105,34 @@ const MobileSellerEnhanced = () => {
 
       // Check for active shift today using Jakarta timezone
       const today = getTodayJakarta();
-      const { data: shift } = await supabase
+      const { data: activeShifts } = await supabase
         .from('shift_management')
         .select('id')
         .eq('rider_id', profile.id)
         .eq('shift_date', today)
         .eq('status', 'active')
-        .maybeSingle();
+        .is('shift_end_time', null)
+        .limit(1);
 
-      setHasActiveShift(!!shift);
+      let hasActiveShiftToday = activeShifts && activeShifts.length > 0;
+
+      // Fallback: Check for any active shift without end time (for riders with wrong shift_date)
+      if (!hasActiveShiftToday) {
+        const { data: fallbackShifts } = await supabase
+          .from('shift_management')
+          .select('id, shift_date, shift_start_time')
+          .eq('rider_id', profile.id)
+          .eq('status', 'active')
+          .is('shift_end_time', null)
+          .limit(1);
+          
+        if (fallbackShifts && fallbackShifts.length > 0) {
+          console.log('Found fallback active shift:', fallbackShifts[0]);
+          hasActiveShiftToday = true;
+        }
+      }
+
+      setHasActiveShift(hasActiveShiftToday);
 
       // Check for pending stock transfers
       const { data: pendingTransfers } = await supabase

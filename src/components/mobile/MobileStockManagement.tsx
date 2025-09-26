@@ -25,12 +25,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { Label } from "@/components/ui/label";
-
-// Helper function for consistent Jakarta timezone dates
-const getTodayJakarta = () => {
-  const jakartaNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
-  return jakartaNow.toISOString().split('T')[0];
-};
+import { getTodayJakarta } from "@/lib/date";
 
 interface StockItem {
   id: string;
@@ -427,19 +422,22 @@ const MobileStockManagement = () => {
     try {
       if (!userProfile?.id) return;
 
-      // Get active shift
-      const { data: shift } = await supabase
+      // Get active shift - use limit to avoid multiple rows error
+      const today = getTodayJakarta();
+      const { data: shifts } = await supabase
         .from('shift_management')
         .select('*')
         .eq('rider_id', userProfile.id)
-        .eq('shift_date', getTodayJakarta())
+        .eq('shift_date', today)
         .eq('status', 'active')
-        .maybeSingle();
+        .is('shift_end_time', null)
+        .order('created_at', { ascending: false })
+        .limit(1);
 
+      const shift = shifts && shifts.length > 0 ? shifts[0] : null;
       setActiveShift(shift);
 
       // Get sales summary for entire day (not just from shift start time)
-      const today = getTodayJakarta();
       const startRange = `${today}T00:00:00`;
       const endRange = `${today}T23:59:59`;
       
@@ -597,14 +595,17 @@ const MobileStockManagement = () => {
       // AUTO SHIFT IN: Start shift automatically when receiving stock
       if (userProfile?.id) {
         const today = getTodayJakarta();
-        // Check if there's already an active shift today
-        const { data: existingShift } = await supabase
+        // Check if there's already an active shift today - use limit to avoid multiple rows error
+        const { data: existingShifts } = await supabase
           .from('shift_management')
-          .select('*')
+          .select('id')
           .eq('rider_id', userProfile.id)
           .eq('shift_date', today)
           .eq('status', 'active')
-          .maybeSingle();
+          .is('shift_end_time', null)
+          .limit(1);
+
+        const existingShift = existingShifts && existingShifts.length > 0 ? existingShifts[0] : null;
 
         if (!existingShift) {
           // Get next shift number
