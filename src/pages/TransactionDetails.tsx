@@ -141,7 +141,7 @@ export const TransactionDetails = () => {
       setSummary({
         grossSales: salesData.grossSales,
         netSales: salesData.netSales,
-        totalDiscounts: salesData.totalDiscounts,
+        totalDiscounts: salesData.totalDiscount,
         totalCost,
         totalProfit,
         totalQuantity

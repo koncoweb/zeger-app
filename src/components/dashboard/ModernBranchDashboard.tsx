@@ -349,9 +349,9 @@ export const ModernBranchDashboard = () => {
       console.log("📊 Sales data calculated:", {
         netSales: salesData.netSales,
         totalTransactions: salesData.totalTransactions,
-        cashSales: salesData.cashSales,
-        qrisSales: salesData.qrisSales,
-        transferSales: salesData.transferSales
+        cashSales: salesData.salesByPaymentMethod.cash,
+        qrisSales: salesData.salesByPaymentMethod.qris,
+        transferSales: salesData.salesByPaymentMethod.transfer
       });
 
       // Fetch active customers
@@ -391,7 +391,7 @@ export const ModernBranchDashboard = () => {
       const activeRidersCount = activeShifts?.length || 0;
 
       // Calculate cash deposit (cash sales minus operational expenses)
-      const cashDeposit = salesData.cashSales - operationalExpenses;
+      const cashDeposit = salesData.salesByPaymentMethod.cash - operationalExpenses;
 
       // Calculate food cost from raw material calculation with consistent parameters
       const rawMaterialCost = await calculateRawMaterialCost(
@@ -406,15 +406,15 @@ export const ModernBranchDashboard = () => {
       setStats({
         totalSales: salesData.netSales,
         totalTransactions: salesData.totalTransactions,
-        avgTransactionValue: salesData.avgPerTransaction,
+        avgTransactionValue: salesData.averageSalePerTransaction,
         totalFoodCost: rawMaterialCost,
         totalItemsSold: salesData.totalItems,
         totalProfit,
         totalMembers: customers?.length || 0,
         activeRiders: activeRidersCount,
-        cashSales: salesData.cashSales,
-        qrisSales: salesData.qrisSales,
-        transferSales: salesData.transferSales,
+        cashSales: salesData.salesByPaymentMethod.cash,
+        qrisSales: salesData.salesByPaymentMethod.qris,
+        transferSales: salesData.salesByPaymentMethod.transfer,
         operationalExpenses,
         cashDeposit
       });

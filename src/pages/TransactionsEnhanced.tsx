@@ -343,14 +343,14 @@ export const TransactionsEnhanced = () => {
       setSummary({
         grossSales: salesData.grossSales,
         netSales: salesData.netSales,
-        totalDiscounts: salesData.totalDiscounts,
+        totalDiscounts: salesData.totalDiscount,
         totalTransactions: salesData.totalTransactions,
-        avgPerTransaction: salesData.avgPerTransaction,
+        avgPerTransaction: salesData.averageSalePerTransaction,
         totalItemsSold,
         totalFoodCost,
-        cashSales: salesData.cashSales,
-        qrisSales: salesData.qrisSales,
-        transferSales: salesData.transferSales
+        cashSales: salesData.salesByPaymentMethod.cash,
+        qrisSales: salesData.salesByPaymentMethod.qris,
+        transferSales: salesData.salesByPaymentMethod.transfer
       });
 
     } catch (error) {

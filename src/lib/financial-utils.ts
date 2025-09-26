@@ -255,13 +255,15 @@ export const calculateSalesData = async (
     return {
       grossSales: 0,
       netSales: 0,
-      totalDiscounts: 0,
+      totalDiscount: 0,
       totalTransactions: 0,
       totalItems: 0,
-      cashSales: 0,
-      qrisSales: 0,
-      transferSales: 0,
-      avgPerTransaction: 0
+      salesByPaymentMethod: {
+        cash: 0,
+        qris: 0,
+        transfer: 0
+      },
+      averageSalePerTransaction: 0
     };
   }
 
@@ -305,18 +307,20 @@ export const calculateSalesData = async (
   });
 
   const totalTransactions = transactions.length;
-  const avgPerTransaction = totalTransactions > 0 ? netSales / totalTransactions : 0;
+  const averageSalePerTransaction = totalTransactions > 0 ? netSales / totalTransactions : 0;
 
   return {
     grossSales,
     netSales,
-    totalDiscount,
+    totalDiscount: totalDiscounts,
     totalTransactions,
     totalItems,
-    cashSales,
-    qrisSales,
-    transferSales,
-    avgPerTransaction
+    salesByPaymentMethod: {
+      cash: cashSales,
+      qris: qrisSales,
+      transfer: transferSales
+    },
+    averageSalePerTransaction
   };
 };
 
