@@ -4,24 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { NotificationSystem } from "@/components/notifications/NotificationSystem";
-
-type UserRole = 'ho_admin' | 'ho_owner' | 'ho_staff' | 'branch_manager' | 'bh_staff' | 'bh_kasir' | 'bh_rider' | 'bh_report' | 'sb_branch_manager' | 'sb_kasir' | 'sb_rider' | 'sb_report' | 'rider' | 'finance' | 'customer';
-
-interface Profile {
-  id: string;
-  role: UserRole;
-  branch_id?: string;
-  full_name: string;
-  app_access_type?: 'web_backoffice' | 'pos_app' | 'rider_app';
-}
-
-interface Branch {
-  id: string;
-  name: string;
-  code: string;
-  address: string;
-  branch_type: string;
-}
+import { UserRole, Profile, Branch } from "@/lib/types";
 
 interface ModernHeaderProps {
   profile: Profile;
@@ -39,6 +22,7 @@ export const ModernHeader = ({ profile, branch, onMenuClick }: ModernHeaderProps
 
   const getRoleDisplay = () => {
     const roleMap: { [key: string]: string } = {
+      // Legacy roles
       'ho_admin': 'HO Admin',
       'ho_owner': 'HO Owner',
       'ho_staff': 'HO Staff',
@@ -53,7 +37,19 @@ export const ModernHeader = ({ profile, branch, onMenuClick }: ModernHeaderProps
       'sb_report': 'Small Branch Report',
       'rider': 'Legacy Rider',
       'finance': 'Finance Staff',
-      'customer': 'Customer'
+      'customer': 'Customer',
+      // New hierarchical roles
+      '1_HO_Admin': 'HO Admin',
+      '1_HO_Owner': 'HO Owner', 
+      '1_HO_Staff': 'HO Staff',
+      '2_Hub_Branch_Manager': 'Hub Branch Manager',
+      '2_Hub_Staff': 'Hub Staff',
+      '2_Hub_Kasir': 'Hub Kasir',
+      '2_Hub_Rider': 'Hub Rider',
+      '3_SB_Branch_Manager': 'Small Branch Manager',
+      '3_SB_Staff': 'Small Branch Staff',
+      '3_SB_Kasir': 'Small Branch Kasir',
+      '3_SB_Rider': 'Small Branch Rider'
     };
     return roleMap[profile.role] || profile.role;
   };
@@ -74,7 +70,7 @@ export const ModernHeader = ({ profile, branch, onMenuClick }: ModernHeaderProps
           
           <div>
             <h1 className="text-2xl font-semibold text-gray-900">
-              {['ho_admin', 'ho_owner'].includes(profile.role) ? 'Dashboard' : 
+              {['ho_admin', 'ho_owner', '1_HO_Admin', '1_HO_Owner'].includes(profile.role) ? 'Dashboard' : 
                branch ? `${branch.name} Dashboard` : 'Dashboard'}
             </h1>
             <div className="flex items-center gap-2 mt-1">

@@ -1,14 +1,10 @@
 // Shared type definitions for the application
+import { Tables } from "@/integrations/supabase/types";
 
-export type UserRole = 
-  // Level 1: Head Office (new hierarchical)
-  | '1_HO_Admin' | '1_HO_Owner' | '1_HO_Staff'
-  // Level 2: Branch Hub (new hierarchical)  
-  | '2_Hub_Branch_Manager' | '2_Hub_Staff' | '2_Hub_Kasir' | '2_Hub_Rider'
-  // Level 3: Small Branch (new hierarchical)
-  | '3_SB_Branch_Manager' | '3_SB_Staff' | '3_SB_Kasir' | '3_SB_Rider'
-  // Legacy roles (for backwards compatibility)
-  | 'ho_admin' | 'ho_owner' | 'ho_staff' | 'branch_manager' | 'bh_staff' | 'bh_kasir' | 'bh_rider' | 'bh_report' | 'sb_branch_manager' | 'sb_kasir' | 'sb_rider' | 'sb_report' | 'rider' | 'finance' | 'customer';
+// Use Supabase generated types
+export type UserRole = Tables<'profiles'>['role'];
+export type Profile = Tables<'profiles'>;  
+export type Branch = Tables<'branches'>;
 
 // Helper function to get user level from role
 export const getUserLevel = (role: UserRole): number => {
@@ -36,30 +32,3 @@ export const canManageRole = (managerRole: UserRole, targetRole: UserRole): bool
   // Small Branch cannot manage anyone
   return false;
 };
-
-export interface Profile {
-  id: string;
-  user_id: string;
-  full_name: string;
-  role: UserRole;
-  phone?: string;
-  branch_id?: string;
-  is_active: boolean;
-  app_access_type?: 'web_backoffice' | 'pos_app' | 'rider_app';
-  created_at: string;
-  updated_at: string;
-}
-
-export interface Branch {
-  id: string;
-  name: string;
-  code?: string;
-  address?: string;
-  phone?: string;
-  level: number;
-  parent_branch_id?: string;
-  branch_type: string;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}

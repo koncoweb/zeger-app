@@ -4,7 +4,7 @@ import { ModernSidebar } from "./ModernSidebar";
 import { ModernHeader } from "./ModernHeader";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { Profile as SharedProfile, Branch as SharedBranch } from "@/lib/types";
+import { Profile, Branch } from "@/lib/types";
 
 interface ModernLayoutProps {
   children?: ReactNode;
@@ -12,8 +12,8 @@ interface ModernLayoutProps {
 
 export const ModernLayout = ({ children }: ModernLayoutProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [profile, setProfile] = useState<SharedProfile | null>(null);
-  const [branch, setBranch] = useState<SharedBranch | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [branch, setBranch] = useState<Branch | null>(null);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -31,7 +31,7 @@ export const ModernLayout = ({ children }: ModernLayoutProps) => {
         .single();
 
       if (error) throw error;
-      setProfile(profileData as SharedProfile);
+      setProfile(profileData as Profile);
 
       // Fetch branch info if user is branch manager
       if (profileData?.branch_id) {
@@ -42,7 +42,7 @@ export const ModernLayout = ({ children }: ModernLayoutProps) => {
           .single();
 
         if (!branchError) {
-          setBranch(branchData as SharedBranch);
+          setBranch(branchData as Branch);
         }
       }
     } catch (error: any) {

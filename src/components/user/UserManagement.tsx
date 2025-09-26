@@ -23,9 +23,10 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { UserRolePermissions } from "./UserRolePermissions";
+import { UserRole } from "@/lib/types";
 
 interface UserManagementProps {
-  role: 'ho_admin' | 'branch_manager';
+  role: UserRole;
   branchId?: string;
 }
 
@@ -34,7 +35,7 @@ interface User {
   user_id?: string;
   full_name: string;
   phone?: string;
-  role: 'ho_admin' | 'branch_manager' | 'rider' | 'finance' | 'customer';
+  role: UserRole;
   branch_id?: string;
   is_active: boolean;
   created_at: string;
