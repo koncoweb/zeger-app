@@ -78,12 +78,16 @@ export default function AdminUsers() {
         </Card>
       )}
 
-      {userProfile?.role === 'branch_manager' && (
+      {/* bh_report role access enhancement - Location Analytics now properly filters data */}
+      {userProfile?.role === 'bh_report' && (
         <Card>
           <CardHeader>
-            <CardTitle>Settings</CardTitle>
+            <CardTitle>BH Report Dashboard</CardTitle>
           </CardHeader>
           <CardContent>
+            <div className="text-sm text-muted-foreground mb-4">
+              Anda memiliki akses ke Location Analytics dan Operational Expenses (view-only) untuk rider yang ditugaskan.
+            </div>
             <SyncButton />
           </CardContent>
         </Card>

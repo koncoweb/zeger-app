@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { LocationMap } from "@/components/analytics/LocationMap";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
+import { useAuth } from "@/hooks/useAuth";
 
 interface LocationData {
   location_name: string;
@@ -30,6 +31,7 @@ interface Rider {
 }
 
 export const LocationAnalytics = () => {
+  const { userProfile } = useAuth();
   const [selectedRider, setSelectedRider] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<'today' | 'weekly' | 'monthly' | 'custom'>('today');
   const [startDate, setStartDate] = useState<string>("");
@@ -69,15 +71,50 @@ export const LocationAnalytics = () => {
     }
   }, [selectedRider, startDate, endDate]);
 
-  const fetchRiders = async () => {
+  // Helper function to get assigned rider for bh_report users
+  const getAssignedRiderId = async () => {
+    if (userProfile?.role !== 'bh_report') return null;
+    
     try {
       const { data, error } = await supabase
+        .from('branch_hub_report_assignments')
+        .select('rider_id')
+        .eq('user_id', userProfile.id)
+        .single();
+      
+      if (error) return null;
+      return data?.rider_id || null;
+    } catch (error) {
+      return null;
+    }
+  };
+
+  const fetchRiders = async () => {
+    try {
+      let riderQuery = supabase
         .from('profiles')
         .select('id, full_name')
         .eq('role', 'rider')
         .eq('is_active', true)
         .order('full_name');
 
+      // Filter based on user role and branch access
+      if (userProfile?.role === 'bh_report') {
+        // For bh_report users, only show the assigned rider
+        const assignedRiderId = await getAssignedRiderId();
+        if (assignedRiderId) {
+          riderQuery = riderQuery.eq('id', assignedRiderId);
+        } else {
+          // No assigned rider, return empty
+          setRiders([]);
+          return;
+        }
+      } else if (userProfile?.role === 'branch_manager' && userProfile?.branch_id) {
+        // For branch managers, show riders in their branch
+        riderQuery = riderQuery.eq('branch_id', userProfile.branch_id);
+      }
+
+      const { data, error } = await riderQuery;
       if (error) throw error;
       setRiders(data || []);
     } catch (error: any) {
@@ -89,7 +126,19 @@ export const LocationAnalytics = () => {
   const fetchLocationData = async () => {
     setLoading(true);
     try {
-      console.log('📍 Fetching location data...', { startDate, endDate, selectedRider });
+      console.log('📍 Fetching location data...', { startDate, endDate, selectedRider, userRole: userProfile?.role });
+      
+      // For bh_report users, automatically filter by assigned rider
+      let effectiveRiderId = selectedRider;
+      if (userProfile?.role === 'bh_report') {
+        const assignedRiderId = await getAssignedRiderId();
+        if (!assignedRiderId) {
+          console.log('No assigned rider found for bh_report user');
+          setLocationData([]);
+          return;
+        }
+        effectiveRiderId = assignedRiderId;
+      }
       
       // Step 1: Get transactions with location data
       let transactionQuery = supabase
@@ -110,8 +159,13 @@ export const LocationAnalytics = () => {
         .gte('transaction_date', `${startDate}T00:00:00+07:00`)
         .lte('transaction_date', `${endDate}T23:59:59+07:00`);
 
-      if (selectedRider !== "all") {
-        transactionQuery = transactionQuery.eq('rider_id', selectedRider);
+      if (effectiveRiderId !== "all") {
+        transactionQuery = transactionQuery.eq('rider_id', effectiveRiderId);
+      }
+
+      // Additional branch filtering for branch managers
+      if (userProfile?.role === 'branch_manager' && userProfile?.branch_id) {
+        transactionQuery = transactionQuery.eq('branch_id', userProfile.branch_id);
       }
 
       const { data: transactions, error: txError } = await transactionQuery;
@@ -264,6 +318,11 @@ export const LocationAnalytics = () => {
           <MapPin className="h-8 w-8 text-primary" />
           Location Analytics
         </h1>
+        {userProfile?.role === 'bh_report' && (
+          <Badge variant="secondary">
+            Filtered for assigned rider
+          </Badge>
+        )}
       </div>
 
       {/* Filters */}
@@ -278,7 +337,11 @@ export const LocationAnalytics = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <Label>Rider</Label>
-              <Select value={selectedRider} onValueChange={setSelectedRider}>
+              <Select 
+                value={selectedRider} 
+                onValueChange={setSelectedRider}
+                disabled={userProfile?.role === 'bh_report'}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Pilih Rider" />
                 </SelectTrigger>
@@ -291,6 +354,11 @@ export const LocationAnalytics = () => {
                   ))}
                 </SelectContent>
               </Select>
+              {userProfile?.role === 'bh_report' && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Data dibatasi untuk rider yang ditugaskan
+                </p>
+              )}
             </div>
 
             <div>

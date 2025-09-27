@@ -743,6 +743,78 @@ export type Database = {
           },
         ]
       }
+      purchase_items: {
+        Row: {
+          cost_per_unit: number
+          created_at: string
+          id: string
+          product_id: string
+          purchase_id: string
+          quantity: number
+          total_cost: number
+        }
+        Insert: {
+          cost_per_unit?: number
+          created_at?: string
+          id?: string
+          product_id: string
+          purchase_id: string
+          quantity?: number
+          total_cost?: number
+        }
+        Update: {
+          cost_per_unit?: number
+          created_at?: string
+          id?: string
+          product_id?: string
+          purchase_id?: string
+          quantity?: number
+          total_cost?: number
+        }
+        Relationships: []
+      }
+      purchases: {
+        Row: {
+          branch_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          purchase_date: string
+          purchase_number: string
+          status: string
+          supplier_name: string
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          purchase_date?: string
+          purchase_number: string
+          status?: string
+          supplier_name: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          purchase_date?: string
+          purchase_number?: string
+          status?: string
+          supplier_name?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       shift_management: {
         Row: {
           branch_id: string
