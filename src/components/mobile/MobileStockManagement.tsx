@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { Label } from "@/components/ui/label";
 import { getTodayJakarta } from "@/lib/date";
+import { MobileSuccessModal } from "@/components/mobile/MobileSuccessModal";
 
 interface StockItem {
   id: string;
@@ -362,6 +363,9 @@ const MobileStockManagement = () => {
   
   // New state for cash deposit notes
   const [cashDepositNotes, setCashDepositNotes] = useState<string>('');
+  
+  // State for success modal
+  const [showShiftSuccessModal, setShowShiftSuccessModal] = useState(false);
 
   useEffect(() => {
     fetchStockData();
@@ -882,7 +886,9 @@ const MobileStockManagement = () => {
 
       if (shiftError) throw shiftError;
 
-      toast.success("Laporan shift berhasil dikirim dan siap diverifikasi!");
+      // Show success modal instead of toast
+      setShowShiftSuccessModal(true);
+      
       setOperationalExpenses([{ type: '', amount: '', description: '' }]);
       setExpensePhotos([undefined]);
       setCashDepositPhoto(undefined);
@@ -895,8 +901,7 @@ const MobileStockManagement = () => {
       await fetchShiftData();
       setTimeout(() => {
         setTab('history');
-        toast.success("Shift telah ditutup! Laporan Anda telah dikirim untuk verifikasi.");
-      }, 500);
+      }, 2500); // Wait for modal to close (2s) plus buffer
       
       window.dispatchEvent(new Event('shift-updated'));
     } catch (error: any) {
@@ -1504,6 +1509,12 @@ const MobileStockManagement = () => {
           </CardContent>
         </Card>
       </div>
+      
+      <MobileSuccessModal 
+        isOpen={showShiftSuccessModal}
+        onClose={() => setShowShiftSuccessModal(false)}
+        title="Laporan Shift Berhasil Terkirim"
+      />
     </div>
   );
 };
