@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { chunkArray } from "@/lib/array-utils";
 import { calculateSalesData, calculateRawMaterialCost, type SalesData } from "@/lib/financial-utils";
+import { useAuth } from "@/hooks/useAuth";
 interface DashboardStats {
   totalSales: number;
   totalTransactions: number;
@@ -46,6 +47,8 @@ interface Rider {
 const COLORS = ['#3B82F6', '#DC2626', '#10B981', '#F87171', '#FCA5A5']; // Blue, Red, Green, Pink, Light Pink
 const SHIFT_COLORS = ['#10B981', '#3B82F6', '#DC2626']; // Green, Blue, Red
 export const ModernBranchDashboard = () => {
+  const { userProfile } = useAuth();
+  const navigate = useNavigate();
   const [selectedUser, setSelectedUser] = useState<string>("all");
   const [salesFilter, setSalesFilter] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
 
@@ -109,7 +112,6 @@ export const ModernBranchDashboard = () => {
   const [statsLoading, setStatsLoading] = useState(true);
   const [chartsLoading, setChartsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
   useEffect(() => {
     // Update dates automatically based on dateFilter (Asia/Jakarta)
     const now = getJakartaNow();
@@ -166,13 +168,22 @@ export const ModernBranchDashboard = () => {
 
   const fetchActiveRiders = async () => {
     try {
-      // Step 1: Get active shifts today
-      const { data: shifts, error: shiftsError } = await supabase
+      // Step 1: Get active shifts today with branch filtering
+      let shiftsQuery = supabase
         .from('shift_management')
-        .select('rider_id')
+        .select('rider_id, branch_id')
         .eq('shift_date', formatYMD(getJakartaNow()))
         .eq('status', 'active')
         .is('shift_end_time', null);
+
+      // Filter by branch for branch managers and small branch managers
+      if (userProfile?.role === 'branch_manager' && userProfile?.branch_id) {
+        shiftsQuery = shiftsQuery.eq('branch_id', userProfile.branch_id);
+      } else if (userProfile?.role === 'sb_branch_manager' && userProfile?.branch_id) {
+        shiftsQuery = shiftsQuery.eq('branch_id', userProfile.branch_id);
+      }
+
+      const { data: shifts, error: shiftsError } = await shiftsQuery;
 
       if (shiftsError) throw shiftsError;
 
@@ -326,9 +337,20 @@ export const ModernBranchDashboard = () => {
   };
   const fetchRiders = async () => {
     try {
-      const {
-        data
-      } = await supabase.from('profiles').select('id, full_name, is_active').eq('role', 'rider').order('full_name', { ascending: true });
+      let ridersQuery = supabase
+        .from('profiles')
+        .select('id, full_name, is_active')
+        .in('role', ['rider', 'bh_rider', 'sb_rider'])
+        .order('full_name', { ascending: true });
+
+      // Filter by branch for branch managers and small branch managers
+      if (userProfile?.role === 'branch_manager' && userProfile?.branch_id) {
+        ridersQuery = ridersQuery.eq('branch_id', userProfile.branch_id);
+      } else if (userProfile?.role === 'sb_branch_manager' && userProfile?.branch_id) {
+        ridersQuery = ridersQuery.eq('branch_id', userProfile.branch_id);
+      }
+
+      const { data } = await ridersQuery;
       setRiders(data || []);
     } catch (error) {
       console.error("Error fetching riders:", error);

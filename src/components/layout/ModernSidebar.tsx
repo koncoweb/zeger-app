@@ -65,13 +65,13 @@ const getMenuItems = (userRole: string): MenuItem[] => [
     label: "Dashboard",
     icon: Home,
     path: "/admin",
-    roles: ["1_HO_Admin", "1_HO_Owner", "2_Hub_Branch_Manager", "3_SB_Branch_Manager", "ho_admin", "branch_manager", "finance"]
+    roles: ["1_HO_Admin", "1_HO_Owner", "2_Hub_Branch_Manager", "3_SB_Branch_Manager", "ho_admin", "branch_manager", "sb_branch_manager", "finance"]
   },
   {
     id: "analytics",
     label: "Analytics", 
     icon: BarChart3,
-    roles: ["1_HO_Admin", "1_HO_Owner", "2_Hub_Branch_Manager", "3_SB_Branch_Manager", "ho_admin", "branch_manager", "bh_report"],
+    roles: ["1_HO_Admin", "1_HO_Owner", "2_Hub_Branch_Manager", "3_SB_Branch_Manager", "ho_admin", "branch_manager", "sb_branch_manager", "bh_report"],
     children: [
       { id: "transactions", label: "Transactions", icon: FileText, path: "/transactions" },
       { id: "transaction-details", label: "Details Transaction", icon: BarChart3, path: "/transaction-details" },
@@ -122,13 +122,13 @@ const getMenuItems = (userRole: string): MenuItem[] => [
     label: "Help & Support", 
     icon: HelpCircle, 
     path: "/help", 
-    roles: ["1_HO_Admin", "1_HO_Owner", "2_Hub_Branch_Manager", "3_SB_Branch_Manager", "ho_admin", "branch_manager"] 
+    roles: ["1_HO_Admin", "1_HO_Owner", "2_Hub_Branch_Manager", "3_SB_Branch_Manager", "ho_admin", "branch_manager", "sb_branch_manager"]
   },
   { 
     id: "settings", 
     label: "Settings", 
     icon: Settings, 
-    roles: ["1_HO_Admin", "1_HO_Owner", "2_Hub_Branch_Manager", "3_SB_Branch_Manager", "ho_admin", "branch_manager"],
+    roles: ["1_HO_Admin", "1_HO_Owner", "2_Hub_Branch_Manager", "3_SB_Branch_Manager", "ho_admin", "branch_manager", "sb_branch_manager"],
     children: [
       { 
         id: "user-management", 
