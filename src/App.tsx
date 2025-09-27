@@ -29,8 +29,8 @@ import StockTransfer from "./pages/StockTransfer";
 import CustomerManager from "./pages/CustomerManager";
 import RiderPerformance from "./pages/RiderPerformance";
 import InventoryProductionPage from "./pages/inventory/ProductionPage";
-import InventoryBranchTransfer from "./pages/inventory/BranchTransfer";
-import Purchasing from "./pages/inventory/PurchasingSimple";
+import { default as InventoryBranchTransfer } from "./pages/inventory/BranchTransfer";
+import PurchasingSimple from "./pages/inventory/PurchasingSimple";
 import { SmallBranchStockManagement } from "./components/inventory/SmallBranchStockManagement";
 import { LocationAnalytics } from "./pages/analytics/LocationAnalytics";
 import SettingsUserManagement from "./pages/settings/UserManagement";
@@ -261,7 +261,7 @@ const App = () => (
             <Route path="/inventory/purchasing" element={
               <RoleBasedRoute allowedRoles={['sb_branch_manager']}>
                 <ModernLayout>
-                  <Purchasing />
+                  <PurchasingSimple />
                 </ModernLayout>
               </RoleBasedRoute>
             } />
