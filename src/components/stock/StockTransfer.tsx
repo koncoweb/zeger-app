@@ -699,8 +699,8 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Bulk Transfer Form for Branch Manager */}
-          {role === 'branch_manager' && (
+          {/* Bulk Transfer Form for Branch Manager and Small Branch Manager */}
+          {(role === 'branch_manager' || role === 'sb_branch_manager') && (
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Kirim Stok ke Rider</h3>
               
@@ -710,6 +710,12 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
                 </SelectTrigger>
                 <SelectContent className="bg-white border-red-500 shadow-lg z-50 rounded-2xl">
                   {riders
+                    .filter(rider => 
+                      // For sb_branch_manager, only show riders from same branch
+                      role === 'sb_branch_manager' 
+                        ? rider.branch_id === branchId 
+                        : true
+                    )
                     .map((rider) => (
                       <SelectItem 
                         key={rider.id} 
@@ -844,7 +850,7 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
                       </Button>
                     </div>
                   </div>
-                ))}
+                  ))}
               </div>
             </div>
           )}

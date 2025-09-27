@@ -229,7 +229,7 @@ const App = () => (
               </RoleBasedRoute>
             } />
             <Route path="/help" element={
-              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'sb_branch_manager']}>
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager']}>
                 <ModernLayout>
                   <AdminUsers />
                 </ModernLayout>
