@@ -167,7 +167,7 @@ export const SmallBranchStockManagement = () => {
         .from('profiles')
         .select('id, full_name, phone')
         .eq('branch_id', userProfile?.branch_id)
-        .eq('role', 'rider')
+        .in('role', ['rider', 'sb_rider', 'bh_rider'])
         .eq('is_active', true)
         .order('full_name');
 

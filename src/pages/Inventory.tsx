@@ -158,7 +158,7 @@ export default function Inventory() {
       const { data: riderProfiles } = await supabase
         .from('profiles')
         .select('id, full_name, branch_id')
-        .eq('role', 'rider')
+        .in('role', ['rider', 'sb_rider', 'bh_rider'])
         .eq('is_active', true);
       const map: Record<string, Rider> = {};
       (riderProfiles || []).forEach(r => { map[r.id] = r as Rider; });

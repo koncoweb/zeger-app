@@ -22,7 +22,7 @@ export default function Riders() {
         const { data, error } = await supabase
           .from('profiles')
           .select('id, full_name, phone, branch_id, is_active, role')
-          .eq('role', 'rider')
+          .in('role', ['rider', 'sb_rider', 'bh_rider'])
           .order('full_name');
         if (error) throw error;
         setRiders((data as any[]) as RiderProfile[]);

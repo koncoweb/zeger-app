@@ -43,7 +43,7 @@ export default function CustomerManager() {
       const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name')
-        .eq('role', 'rider')
+        .in('role', ['rider', 'sb_rider', 'bh_rider'])
         .eq('is_active', true)
         .order('full_name');
       
