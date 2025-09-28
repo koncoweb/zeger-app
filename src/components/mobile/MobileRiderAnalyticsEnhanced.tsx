@@ -9,11 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { 
   TrendingUp, Package, DollarSign, ShoppingCart, Calendar, 
-  BarChart3, Receipt, Filter, ChevronRight, Eye, MapPin, X
+  BarChart3, Receipt, Filter, ChevronRight, Eye, MapPin, X, FileText
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { EReceipt } from './EReceipt';
 
 interface TransactionDetail {
   id: string;
@@ -80,9 +81,9 @@ const MobileRiderAnalyticsEnhanced = () => {
     productsSold: []
   });
   const [loading, setLoading] = useState(true);
-  const [filterPeriod, setFilterPeriod] = useState<string>("monthly");
+  const [filterPeriod, setFilterPeriod] = useState<string>("today");
   const [startDate, setStartDate] = useState(() => {
-    // Set to Jakarta timezone (UTC+7) - proper month to date
+    // Set to Jakarta timezone (UTC+7) - current date for today
     const now = new Date();
     const jakartaDate = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'Asia/Jakarta',
@@ -91,10 +92,7 @@ const MobileRiderAnalyticsEnhanced = () => {
       day: '2-digit'
     }).format(now);
     
-    // Get first day of current month in Jakarta timezone
-    const [year, month] = jakartaDate.split('-');
-    const firstDayOfMonth = `${year}-${month}-01`;
-    return firstDayOfMonth;
+    return jakartaDate;
   });
   const [endDate, setEndDate] = useState(() => {
     // Set to current date in Jakarta timezone
@@ -108,6 +106,7 @@ const MobileRiderAnalyticsEnhanced = () => {
   });
   const [showTransactionDetail, setShowTransactionDetail] = useState<string | null>(null);
   const [showLocationDetail, setShowLocationDetail] = useState<string | null>(null);
+  const [selectedReceipt, setSelectedReceipt] = useState<TransactionDetail | null>(null);
 
   useEffect(() => {
     fetchAnalytics();
@@ -693,6 +692,15 @@ const MobileRiderAnalyticsEnhanced = () => {
                               <p>Total:</p>
                               <p className="text-red-600">{formatCurrency(transaction.final_amount)}</p>
                             </div>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="w-full mt-3"
+                              onClick={() => setSelectedReceipt(transaction)}
+                            >
+                              <FileText className="h-4 w-4 mr-2" />
+                              E-Receipt
+                            </Button>
                           </div>
                         </div>
                       </div>
@@ -803,6 +811,24 @@ const MobileRiderAnalyticsEnhanced = () => {
           </Card>
         )}
       </div>
+      
+      {/* E-Receipt Modal */}
+      {selectedReceipt && (
+        <EReceipt 
+          transaction={{
+            ...selectedReceipt,
+            transaction_items: selectedReceipt.items.map(item => ({
+              id: crypto.randomUUID(),
+              product_id: crypto.randomUUID(),
+              quantity: item.quantity,
+              unit_price: item.unit_price,
+              total_price: item.total_price,
+              products: { name: item.product_name }
+            }))
+          }}
+          onClose={() => setSelectedReceipt(null)}
+        />
+      )}
     </ScrollArea>
   );
 };

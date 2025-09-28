@@ -161,25 +161,25 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
 
       // Fetch riders - filter by branch for branch managers
       console.log('Fetching riders for role:', role, 'branchId:', branchId);
-      const { data: ridersData, error: ridersError } = await supabase
+      let ridersQuery = supabase
         .from('profiles')
         .select('id, full_name, branch_id')
         .in('role', ['rider', 'sb_rider', 'bh_rider'])
         .eq('is_active', true)
-        .not('branch_id', 'is', null)
-        .order('full_name');
+        .not('branch_id', 'is', null);
+
+      // Filter by branch for branch managers and small branch managers
+      if ((role === 'branch_manager' || role === 'sb_branch_manager') && branchId) {
+        ridersQuery = ridersQuery.eq('branch_id', branchId);
+      }
+
+      const { data: ridersData, error: ridersError } = await ridersQuery.order('full_name');
       
       if (ridersError) {
         console.error('Error fetching riders:', ridersError);
       } else {
         console.log('Riders fetched:', ridersData);
-        // Filter riders by branch for all branch manager types
-        let filteredRiders = ridersData || [];
-        if ((role === 'branch_manager' || role === 'sb_branch_manager') && branchId) {
-          filteredRiders = ridersData?.filter(rider => rider.branch_id === branchId) || [];
-          console.log('Filtered riders for branch:', filteredRiders);
-        }
-        setRiders(filteredRiders);
+        setRiders(ridersData || []);
       }
 
       // Fetch branches
