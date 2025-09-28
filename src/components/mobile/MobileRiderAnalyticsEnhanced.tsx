@@ -482,8 +482,8 @@ const MobileRiderAnalyticsEnhanced = () => {
                   <Package className="h-5 w-5 text-orange-600" />
                 </div>
                 <div>
-                  <p className="text-lg font-bold">{analytics.stockStatus.total_items}</p>
-                  <p className="text-sm text-muted-foreground">Item Stok</p>
+                  <p className="text-lg font-bold">{analytics.productsSold.reduce((total, product) => total + product.quantity, 0)}</p>
+                  <p className="text-sm text-muted-foreground">Produk Terjual</p>
                 </div>
               </div>
             </CardContent>

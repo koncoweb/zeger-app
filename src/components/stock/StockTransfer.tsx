@@ -170,7 +170,19 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
 
       // Filter by branch for branch managers and small branch managers
       if ((role === 'branch_manager' || role === 'sb_branch_manager') && branchId) {
-        ridersQuery = ridersQuery.eq('branch_id', branchId);
+        if (role === 'branch_manager') {
+          // Branch managers can see riders from their hub and all small branches under their hub
+          const { data: childBranches } = await supabase
+            .from('branches')
+            .select('id')
+            .eq('parent_branch_id', branchId);
+          
+          const branchIds = [branchId, ...(childBranches || []).map(b => b.id)];
+          ridersQuery = ridersQuery.in('branch_id', branchIds);
+        } else {
+          // Small branch managers only see riders from their own branch
+          ridersQuery = ridersQuery.eq('branch_id', branchId);
+        }
       }
 
       const { data: ridersData, error: ridersError } = await ridersQuery.order('full_name');
