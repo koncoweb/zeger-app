@@ -68,12 +68,31 @@ export default function PurchasingSimple() {
     }]);
   };
 
+  const addAllProducts = () => {
+    const newItems = products.map(product => ({
+      product_id: product.id,
+      quantity: 1,
+      cost_per_unit: product.cost_price || 0,
+      total_cost: product.cost_price || 0
+    }));
+    setPurchaseItems(newItems);
+  };
+
   const updatePurchaseItem = (index: number, field: string, value: any) => {
     const updatedItems = [...purchaseItems];
     updatedItems[index] = {
       ...updatedItems[index],
       [field]: value
     };
+
+    // Auto-populate cost price when product is selected
+    if (field === 'product_id') {
+      const product = products.find(p => p.id === value);
+      if (product && product.cost_price) {
+        updatedItems[index].cost_per_unit = product.cost_price;
+        updatedItems[index].total_cost = updatedItems[index].quantity * product.cost_price;
+      }
+    }
 
     // Calculate total cost when quantity or cost per unit changes
     if (field === 'quantity' || field === 'cost_per_unit') {
@@ -113,8 +132,94 @@ export default function PurchasingSimple() {
 
     setSubmitting(true);
     try {
-      // For demo purposes, just show success message
-      toast.success("Pembelian berhasil dicatat! (Demo mode - database akan diperbarui setelah migration selesai)");
+      // Create the purchase record
+      const { data: purchaseData, error: purchaseError } = await supabase
+        .from('purchases')
+        .insert({
+          purchase_number: `PO-${Date.now()}`,
+          supplier_name: supplierName,
+          purchase_date: purchaseDate,
+          notes: notes,
+          total_amount: calculateTotal(),
+          branch_id: userProfile?.branch_id,
+          created_by: userProfile?.id,
+          status: 'completed'
+        })
+        .select()
+        .single();
+
+      if (purchaseError) throw purchaseError;
+
+      // Create purchase items
+      const purchaseItemsData = purchaseItems.map(item => ({
+        purchase_id: purchaseData.id,
+        product_id: item.product_id,
+        quantity: item.quantity,
+        cost_per_unit: item.cost_per_unit,
+        total_cost: item.total_cost
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('purchase_items')
+        .insert(purchaseItemsData);
+
+      if (itemsError) throw itemsError;
+
+      // Update branch inventory
+      for (const item of purchaseItems) {
+        const { data: existingInventory } = await supabase
+          .from('inventory')
+          .select('*')
+          .eq('product_id', item.product_id)
+          .eq('branch_id', userProfile?.branch_id)
+          .is('rider_id', null)
+          .single();
+
+        if (existingInventory) {
+          // Update existing inventory
+          const { error: updateError } = await supabase
+            .from('inventory')
+            .update({
+              stock_quantity: existingInventory.stock_quantity + item.quantity,
+              last_updated: new Date().toISOString()
+            })
+            .eq('id', existingInventory.id);
+
+          if (updateError) throw updateError;
+        } else {
+          // Create new inventory record
+          const { error: createError } = await supabase
+            .from('inventory')
+            .insert({
+              product_id: item.product_id,
+              branch_id: userProfile?.branch_id,
+              stock_quantity: item.quantity,
+              min_stock_level: 5,
+              max_stock_level: 100
+            });
+
+          if (createError) throw createError;
+        }
+
+        // Create stock movement record
+        const { error: movementError } = await supabase
+          .from('stock_movements')
+          .insert({
+            product_id: item.product_id,
+            branch_id: userProfile?.branch_id,
+            movement_type: 'in',
+            quantity: item.quantity,
+            status: 'completed',
+            reference_id: purchaseData.id,
+            reference_type: 'purchase',
+            notes: `Pembelian dari ${supplierName}`,
+            created_by: userProfile?.id
+          });
+
+        if (movementError) throw movementError;
+      }
+      
+      toast.success("Pembelian berhasil dicatat dan stok telah diperbarui!");
       
       // Reset form
       setSupplierName("");
@@ -192,10 +297,16 @@ export default function PurchasingSimple() {
           <div>
             <div className="flex items-center justify-between mb-4">
               <Label className="text-base font-medium">Item Pembelian</Label>
-              <Button variant="outline" size="sm" onClick={addPurchaseItem}>
-                <Plus className="h-4 w-4 mr-2" />
-                Tambah Item
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={addAllProducts}>
+                  <Package2 className="h-4 w-4 mr-2" />
+                  Tambah Semua Produk
+                </Button>
+                <Button variant="outline" size="sm" onClick={addPurchaseItem}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Tambah Item
+                </Button>
+              </div>
             </div>
 
             <div className="space-y-4">
@@ -214,7 +325,7 @@ export default function PurchasingSimple() {
                         <SelectContent>
                           {products.map(product => (
                             <SelectItem key={product.id} value={product.id}>
-                              {product.name} ({product.code})
+                              {product.name} ({product.code}) - {formatCurrency(product.cost_price || 0)}
                             </SelectItem>
                           ))}
                         </SelectContent>

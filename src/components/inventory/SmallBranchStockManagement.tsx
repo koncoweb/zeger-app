@@ -44,15 +44,32 @@ export const SmallBranchStockManagement = () => {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [riders, setRiders] = useState<Rider[]>([]);
   const [loading, setLoading] = useState(true);
+  const [branchName, setBranchName] = useState<string>("");
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
   const [selectedRider, setSelectedRider] = useState("");
   const [transferItems, setTransferItems] = useState<{ product_id: string; quantity: number; max_quantity: number }[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    fetchBranchName();
     fetchInventory();
     fetchRiders();
   }, []);
+
+  const fetchBranchName = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('branches')
+        .select('name')
+        .eq('id', userProfile?.branch_id)
+        .single();
+
+      if (error) throw error;
+      setBranchName(data?.name || 'Small Branch');
+    } catch (error) {
+      setBranchName('Small Branch');
+    }
+  };
 
   const fetchInventory = async () => {
     try {
@@ -342,7 +359,7 @@ export const SmallBranchStockManagement = () => {
         <div className="flex items-center gap-3">
           <Package className="h-8 w-8 text-primary" />
           <div>
-            <h1 className="text-3xl font-bold">Small Branch Stock Management</h1>
+            <h1 className="text-3xl font-bold">Stok {branchName}</h1>
             <p className="text-muted-foreground">Kelola stok cabang dan transfer ke rider</p>
           </div>
         </div>
@@ -469,7 +486,7 @@ export const SmallBranchStockManagement = () => {
       {/* Stock Overview */}
       <Card>
         <CardHeader>
-          <CardTitle>Stock Overview - Small Branch</CardTitle>
+          <CardTitle>Stok {branchName}</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
