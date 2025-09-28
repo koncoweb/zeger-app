@@ -77,6 +77,9 @@ interface Rider {
   id: string;
   full_name: string;
   branch_id: string;
+  branches?: {
+    name: string;
+  };
 }
 
 interface ShiftInfo {
@@ -163,26 +166,22 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
       console.log('Fetching riders for role:', role, 'branchId:', branchId);
       let ridersQuery = supabase
         .from('profiles')
-        .select('id, full_name, branch_id')
+        .select(`
+          id, 
+          full_name, 
+          branch_id,
+          branches(name)
+        `)
         .in('role', ['rider', 'sb_rider', 'bh_rider'])
         .eq('is_active', true)
         .not('branch_id', 'is', null);
 
       // Filter by branch for branch managers and small branch managers
       if ((role === 'branch_manager' || role === 'sb_branch_manager') && branchId) {
-        if (role === 'branch_manager') {
-          // Branch managers can see riders from their hub and all small branches under their hub
-          const { data: childBranches } = await supabase
-            .from('branches')
-            .select('id')
-            .eq('parent_branch_id', branchId);
-          
-          const branchIds = [branchId, ...(childBranches || []).map(b => b.id)];
-          ridersQuery = ridersQuery.in('branch_id', branchIds);
-        } else {
-          // Small branch managers only see riders from their own branch
-          ridersQuery = ridersQuery.eq('branch_id', branchId);
-        }
+        // Both branch managers and small branch managers only see riders from their own branch
+        // Small branches (like Zeger Coffee Malang, Zeger Coffee Graha Kota) are separate entities
+        ridersQuery = ridersQuery.eq('branch_id', branchId);
+        console.log('Filtering riders for branch_id:', branchId, 'role:', role);
       }
 
       const { data: ridersData, error: ridersError } = await ridersQuery.order('full_name');
@@ -908,7 +907,7 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
                     <SelectItem value="all">Semua Rider</SelectItem>
                     {riders.map(rider => (
                       <SelectItem key={rider.id} value={rider.id}>
-                        {rider.full_name}
+                        {rider.full_name} — {rider.branches?.name || 'Unknown Branch'}
                       </SelectItem>
                     ))}
                   </SelectContent>
