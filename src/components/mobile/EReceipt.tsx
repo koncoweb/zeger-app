@@ -33,9 +33,10 @@ interface Transaction {
 interface EReceiptProps {
   transaction: Transaction;
   onClose: () => void;
+  cashierName?: string;
 }
 
-export const EReceipt: React.FC<EReceiptProps> = ({ transaction, onClose }) => {
+export const EReceipt: React.FC<EReceiptProps> = ({ transaction, onClose, cashierName = 'Unknown' }) => {
   const receiptRef = useRef<HTMLDivElement>(null);
   const barcodeRef = useRef<HTMLCanvasElement>(null);
 
@@ -76,41 +77,53 @@ export const EReceipt: React.FC<EReceiptProps> = ({ transaction, onClose }) => {
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
-        format: [80, 200] // Receipt paper size
+        format: [80, 250] // Larger receipt paper size
       });
 
-      // Header
+      // Add logo (simplified representation)
       pdf.setFontSize(16);
       pdf.text('ZEGER COFFEE', 40, 15, { align: 'center' });
       
-      pdf.setFontSize(10);
+      pdf.setFontSize(8);
       pdf.text('Digital Receipt', 40, 22, { align: 'center' });
       
+      // Cashier info
+      pdf.text(`Cashier: ${cashierName}`, 5, 30);
+      
+      // Dashed line separator
+      pdf.setLineDashPattern([1, 1], 0);
+      pdf.line(5, 35, 75, 35);
+      pdf.setLineDashPattern([], 0);
+      
       // Transaction Details
-      pdf.setFontSize(8);
-      pdf.text(`No: ${transaction.transaction_number}`, 5, 35);
-      pdf.text(`Tanggal: ${formatDate(transaction.transaction_date)}`, 5, 42);
+      pdf.text(`No: ${transaction.transaction_number}`, 5, 42);
+      pdf.text(`Tanggal: ${formatDate(transaction.transaction_date)}`, 5, 47);
       
       if (transaction.customer_name) {
-        pdf.text(`Customer: ${transaction.customer_name}`, 5, 49);
+        pdf.text(`Customer: ${transaction.customer_name}`, 5, 52);
       }
       
-      // Separator
-      pdf.line(5, 55, 75, 55);
+      // Items separator
+      pdf.setLineDashPattern([1, 1], 0);
+      pdf.line(5, 58, 75, 58);
+      pdf.setLineDashPattern([], 0);
       
       // Items
-      let y = 65;
+      let y = 68;
       transaction.transaction_items.forEach((item) => {
         const productName = item.products?.name || 'Unknown Product';
         pdf.text(productName, 5, y);
-        pdf.text(`${item.quantity} x ${formatCurrency(item.unit_price)}`, 5, y + 5);
-        pdf.text(formatCurrency(item.total_price), 75, y + 5, { align: 'right' });
+        pdf.text(`${item.quantity} x ${formatCurrency(item.unit_price)}`, 5, y + 4);
+        pdf.text(formatCurrency(item.total_price), 75, y + 4, { align: 'right' });
         y += 12;
       });
       
-      // Total
+      // Total separator
+      pdf.setLineDashPattern([1, 1], 0);
       pdf.line(5, y, 75, y);
+      pdf.setLineDashPattern([], 0);
       y += 8;
+      
       pdf.setFontSize(10);
       pdf.text('TOTAL', 5, y);
       pdf.text(formatCurrency(transaction.final_amount), 75, y, { align: 'right' });
@@ -120,8 +133,15 @@ export const EReceipt: React.FC<EReceiptProps> = ({ transaction, onClose }) => {
       pdf.setFontSize(8);
       pdf.text(`Pembayaran: ${transaction.payment_method}`, 5, y);
       
-      // Footer
+      // Add barcode representation
       y += 15;
+      pdf.text('Barcode:', 5, y);
+      pdf.text(transaction.transaction_number, 5, y + 5);
+      
+      // Footer note
+      y += 20;
+      pdf.text('Enjoy A Happiness Coffee', 40, y, { align: 'center' });
+      y += 8;
       pdf.text('Terima kasih atas kunjungan Anda!', 40, y, { align: 'center' });
       
       pdf.save(`receipt-${transaction.transaction_number}.pdf`);
@@ -132,29 +152,69 @@ export const EReceipt: React.FC<EReceiptProps> = ({ transaction, onClose }) => {
   };
 
   const shareReceipt = async () => {
+    const receiptText = `*ZEGER COFFEE* ☕
+━━━━━━━━━━━━━━━
+📧 *Receipt #${transaction.transaction_number}*
+📅 ${formatDate(transaction.transaction_date)}
+👤 Cashier: ${cashierName}
+${transaction.customer_name ? `🧑‍💼 Customer: ${transaction.customer_name}` : ''}
+
+📋 *Items:*
+${transaction.transaction_items.map(item => 
+  `• ${item.products?.name || 'Unknown'}\n  ${item.quantity}x @ ${formatCurrency(item.unit_price)} = ${formatCurrency(item.total_price)}`
+).join('\n')}
+
+━━━━━━━━━━━━━━━
+💰 *TOTAL: ${formatCurrency(transaction.final_amount)}*
+💳 Payment: ${transaction.payment_method}
+
+✨ *Enjoy A Happiness Coffee* ✨
+Terima kasih atas kunjungan Anda!`;
+
     if (navigator.share) {
       try {
         await navigator.share({
           title: 'Zeger Coffee Receipt',
-          text: `Receipt #${transaction.transaction_number} - Total: ${formatCurrency(transaction.final_amount)}`,
-          url: window.location.href
+          text: receiptText
         });
       } catch (error) {
-        fallbackShare();
+        fallbackShare(receiptText);
       }
     } else {
-      fallbackShare();
+      fallbackShare(receiptText);
     }
   };
 
-  const fallbackShare = () => {
-    const text = `Receipt Zeger Coffee\nNo: ${transaction.transaction_number}\nTotal: ${formatCurrency(transaction.final_amount)}\nTanggal: ${formatDate(transaction.transaction_date)}`;
+  const fallbackShare = (text: string) => {
+    // Try WhatsApp first
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    const gmailUrl = `mailto:?subject=Zeger Coffee Receipt&body=${encodeURIComponent(text.replace(/\*/g, '').replace(/━/g, '-'))}`;
     
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(text);
-      toast.success('Receipt info disalin ke clipboard');
+    const shareOptions = [
+      { name: 'WhatsApp', url: whatsappUrl },
+      { name: 'Email', url: gmailUrl },
+      { name: 'Copy to Clipboard', action: () => {
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(text);
+          toast.success('Receipt info disalin ke clipboard');
+        } else {
+          toast.error('Clipboard tidak didukung');
+        }
+      }}
+    ];
+
+    // Create simple selection dialog
+    const choice = confirm('Pilih cara share:\n1. WhatsApp (OK)\n2. Email/Copy (Cancel)');
+    
+    if (choice) {
+      window.open(whatsappUrl, '_blank');
     } else {
-      toast.info('Share tidak tersedia di browser ini');
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text);
+        toast.success('Receipt info disalin ke clipboard');
+      } else {
+        window.open(gmailUrl, '_blank');
+      }
     }
   };
 
@@ -189,23 +249,34 @@ export const EReceipt: React.FC<EReceiptProps> = ({ transaction, onClose }) => {
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
       <Card className="w-full max-w-sm bg-white shadow-2xl">
         <CardContent className="p-6">
-          <div ref={receiptRef} className="space-y-4">
-            {/* Header */}
-            <div className="text-center space-y-2">
-              <div className="flex justify-center mb-2">
-                <ZegerLogo className="h-12 w-auto" />
+          <div ref={receiptRef} className="space-y-4 bg-white p-4 font-mono text-sm">
+            {/* Header with Logo Only */}
+            <div className="text-center space-y-2 pb-2">
+              <div className="flex justify-center">
+                <ZegerLogo size="sm" className="h-16 w-auto" />
               </div>
-              <h2 className="text-lg font-bold text-gray-800">ZEGER COFFEE</h2>
-              <p className="text-sm text-gray-600">Digital Receipt</p>
+              <p className="text-xs text-muted-foreground">Digital Receipt</p>
             </div>
 
-            <Separator />
+            {/* Dashed separator */}
+            <div className="border-t border-dashed border-gray-300"></div>
+
+            {/* Cashier Info */}
+            <div className="space-y-1 text-xs">
+              <div className="flex justify-between">
+                <span>Cashier/Rider:</span>
+                <span className="font-medium">{cashierName}</span>
+              </div>
+            </div>
+
+            {/* Dashed separator */}
+            <div className="border-t border-dashed border-gray-300"></div>
 
             {/* Transaction Info */}
-            <div className="space-y-2 text-sm">
+            <div className="space-y-1 text-xs">
               <div className="flex justify-between">
                 <span>No Receipt:</span>
-                <span className="font-mono">{transaction.transaction_number}</span>
+                <span className="font-mono font-medium">{transaction.transaction_number}</span>
               </div>
               <div className="flex justify-between">
                 <span>Tanggal:</span>
@@ -219,43 +290,47 @@ export const EReceipt: React.FC<EReceiptProps> = ({ transaction, onClose }) => {
               )}
             </div>
 
-            <Separator />
+            {/* Dashed separator */}
+            <div className="border-t border-dashed border-gray-300"></div>
 
             {/* Items */}
             <div className="space-y-2">
               {transaction.transaction_items.map((item) => (
                 <div key={item.id} className="space-y-1">
-                  <div className="font-medium text-sm">
+                  <div className="font-medium text-xs">
                     {item.products?.name || 'Unknown Product'}
                   </div>
-                  <div className="flex justify-between text-sm text-gray-600">
+                  <div className="flex justify-between text-xs text-muted-foreground">
                     <span>{item.quantity} x {formatCurrency(item.unit_price)}</span>
-                    <span>{formatCurrency(item.total_price)}</span>
+                    <span className="font-medium text-foreground">{formatCurrency(item.total_price)}</span>
                   </div>
                 </div>
               ))}
             </div>
 
-            <Separator />
+            {/* Dashed separator */}
+            <div className="border-t border-dashed border-gray-300"></div>
 
             {/* Total */}
-            <div className="flex justify-between text-lg font-bold">
+            <div className="flex justify-between text-sm font-bold pt-1">
               <span>TOTAL</span>
               <span>{formatCurrency(transaction.final_amount)}</span>
             </div>
 
             {/* Payment Method */}
-            <div className="text-center text-sm text-gray-600">
+            <div className="text-center text-xs text-muted-foreground">
               Pembayaran: {transaction.payment_method}
             </div>
 
             {/* Barcode */}
-            <div className="flex justify-center">
-              <canvas ref={barcodeRef} className="border rounded" />
+            <div className="flex justify-center py-2">
+              <canvas ref={barcodeRef} className="border border-dashed border-gray-300 rounded p-1" />
             </div>
 
-            <div className="text-center text-xs text-gray-500 pt-2">
-              Terima kasih atas kunjungan Anda!
+            {/* Footer Messages */}
+            <div className="text-center space-y-1 pt-2">
+              <p className="text-xs font-medium text-primary">✨ Enjoy A Happiness Coffee ✨</p>
+              <p className="text-xs text-muted-foreground">Terima kasih atas kunjungan Anda!</p>
             </div>
           </div>
 

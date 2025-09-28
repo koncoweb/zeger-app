@@ -107,6 +107,7 @@ const MobileRiderAnalyticsEnhanced = () => {
   const [showTransactionDetail, setShowTransactionDetail] = useState<string | null>(null);
   const [showLocationDetail, setShowLocationDetail] = useState<string | null>(null);
   const [selectedReceipt, setSelectedReceipt] = useState<TransactionDetail | null>(null);
+  const [riderName, setRiderName] = useState<string>('');
 
   useEffect(() => {
     fetchAnalytics();
@@ -177,11 +178,13 @@ const MobileRiderAnalyticsEnhanced = () => {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('id, branch_id')
+        .select('id, branch_id, full_name')
         .eq('user_id', user.id)
         .maybeSingle();
 
       if (!profile) return;
+      
+      setRiderName(profile.full_name || 'Unknown Rider');
 
       const startDateTime = `${startDate}T00:00:00`;
       const endDateTime = `${endDate}T23:59:59`;
@@ -826,6 +829,7 @@ const MobileRiderAnalyticsEnhanced = () => {
               products: { name: item.product_name }
             }))
           }}
+          cashierName={riderName}
           onClose={() => setSelectedReceipt(null)}
         />
       )}
