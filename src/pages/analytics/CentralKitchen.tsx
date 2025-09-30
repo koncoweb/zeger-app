@@ -12,17 +12,31 @@ import { Button } from "@/components/ui/button";
 import { CalendarIcon } from "lucide-react";
 import { toast } from "sonner";
 
-interface ProductionData {
+interface TransactionData {
   date: string;
-  totalQuantity: number;
+  riderName: string;
+  productsSold: number;
+  totalSales: number;
   totalCKPrice: number;
   totalHPP: number;
   profitCK: number;
 }
 
-interface ChartData {
+interface ResumeData {
+  dateRange: string;
+  riderName: string;
+  totalProductsSold: number;
+  totalSales: number;
+  totalCKPrice: number;
+  totalHPP: number;
+  totalProfitCK: number;
+}
+
+interface PriceChartData {
   product: string;
-  quantity: number;
+  ckPrice: number;
+  costPrice: number;
+  sellingPrice: number;
 }
 
 export default function CentralKitchenAnalytics() {
@@ -30,28 +44,30 @@ export default function CentralKitchenAnalytics() {
   const [selectedUser, setSelectedUser] = useState<string>("all");
   const [dateFilter, setDateFilter] = useState<string>("today");
   const [customDateRange, setCustomDateRange] = useState<{ from: Date; to?: Date } | undefined>();
-  const [users, setUsers] = useState<any[]>([]);
-  const [productionData, setProductionData] = useState<ProductionData[]>([]);
-  const [chartData, setChartData] = useState<ChartData[]>([]);
+  const [riders, setRiders] = useState<any[]>([]);
+  const [transactionData, setTransactionData] = useState<TransactionData[]>([]);
+  const [resumeData, setResumeData] = useState<ResumeData | null>(null);
+  const [chartData, setChartData] = useState<PriceChartData[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     document.title = "Central Kitchen Analytics | Zeger ERP";
-    fetchUsers();
+    fetchRiders();
   }, []);
 
   useEffect(() => {
-    fetchProductionData();
+    fetchSalesData();
   }, [selectedUser, dateFilter, customDateRange, userProfile]);
 
-  const fetchUsers = async () => {
+  const fetchRiders = async () => {
     if (!userProfile) return;
 
     try {
       let query = supabase
         .from('profiles')
         .select('id, full_name')
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .in('role', ['rider', 'bh_rider', 'sb_rider']);
 
       if (userProfile.role === 'branch_manager') {
         query = query.eq('branch_id', userProfile.branch_id);
@@ -60,9 +76,9 @@ export default function CentralKitchenAnalytics() {
       const { data, error } = await query.order('full_name');
       
       if (error) throw error;
-      setUsers(data || []);
+      setRiders(data || []);
     } catch (error) {
-      console.error('Error fetching users:', error);
+      console.error('Error fetching riders:', error);
     }
   };
 
@@ -86,137 +102,189 @@ export default function CentralKitchenAnalytics() {
     }
   };
 
-  const fetchProductionData = async () => {
+  const fetchSalesData = async () => {
     if (!userProfile) return;
     
     setLoading(true);
     try {
       const { start, end } = getDateRange();
 
-      // Fetch production batches
-      let batchQuery = supabase
-        .from('production_batches')
-        .select('id, produced_at, created_by, branch_id')
-        .gte('produced_at', start.toISOString())
-        .lte('produced_at', end.toISOString());
+      // Fetch transactions with rider and transaction items
+      let transactionQuery = supabase
+        .from('transactions')
+        .select(`
+          id,
+          transaction_date,
+          final_amount,
+          rider_id,
+          branch_id,
+          profiles!transactions_rider_id_fkey (
+            id,
+            full_name
+          ),
+          transaction_items (
+            quantity,
+            unit_price,
+            product_id,
+            products (
+              id,
+              name,
+              ck_price,
+              cost_price,
+              price
+            )
+          )
+        `)
+        .gte('transaction_date', start.toISOString())
+        .lte('transaction_date', end.toISOString())
+        .eq('status', 'completed');
 
       if (userProfile.role === 'branch_manager') {
-        batchQuery = batchQuery.eq('branch_id', userProfile.branch_id);
+        transactionQuery = transactionQuery.eq('branch_id', userProfile.branch_id);
       }
 
       if (selectedUser !== 'all') {
-        batchQuery = batchQuery.eq('created_by', selectedUser);
+        transactionQuery = transactionQuery.eq('rider_id', selectedUser);
       }
 
-      const { data: batches, error: batchError } = await batchQuery;
-      if (batchError) throw batchError;
+      const { data: transactions, error: transactionError } = await transactionQuery;
+      if (transactionError) throw transactionError;
 
-      if (!batches || batches.length === 0) {
-        setProductionData([]);
+      if (!transactions || transactions.length === 0) {
+        setTransactionData([]);
+        setResumeData(null);
         setChartData([]);
         setLoading(false);
         return;
       }
 
-      const batchIds = batches.map(b => b.id);
+      // Process transaction data
+      const transactionArray: TransactionData[] = [];
+      const productPriceMap = new Map<string, { ckPrice: number; costPrice: number; sellingPrice: number; count: number }>();
+      
+      let totalProductsSold = 0;
+      let totalSales = 0;
+      let totalCKPrice = 0;
+      let totalHPP = 0;
 
-      // Fetch production items
-      const { data: items, error: itemsError } = await supabase
-        .from('production_items')
-        .select('batch_id, product_id, quantity')
-        .in('batch_id', batchIds);
-
-      if (itemsError) throw itemsError;
-
-      // Fetch products
-      const productIds = [...new Set(items?.map(i => i.product_id) || [])];
-      const { data: products, error: productsError } = await supabase
-        .from('products')
-        .select('id, name, cost_price, ck_price')
-        .in('id', productIds);
-
-      if (productsError) throw productsError;
-
-      // Create product map
-      const productMap = new Map(products?.map(p => [p.id, p]) || []);
-
-      // Aggregate data by date
-      const dataByDate = new Map<string, ProductionData>();
-      const productQuantities = new Map<string, number>();
-
-      batches.forEach(batch => {
-        const dateKey = format(new Date(batch.produced_at), 'yyyy-MM-dd');
+      transactions.forEach(transaction => {
+        const riderName = transaction.profiles?.full_name || 'Unknown';
+        const items = transaction.transaction_items || [];
         
-        const batchItems = items?.filter(i => i.batch_id === batch.id) || [];
-        
-        batchItems.forEach(item => {
-          const product = productMap.get(item.product_id);
+        let txnProductsSold = 0;
+        let txnTotalSales = 0;
+        let txnTotalCKPrice = 0;
+        let txnTotalHPP = 0;
+
+        items.forEach(item => {
+          const product = item.products;
           if (!product) return;
 
+          const quantity = item.quantity;
           const ckPrice = Number(product.ck_price || 0);
           const costPrice = Number(product.cost_price || 0);
-          
-          const totalCK = item.quantity * ckPrice;
-          const totalHPP = item.quantity * costPrice;
+          const sellingPrice = Number(item.unit_price || product.price || 0);
 
-          // Aggregate by date
-          const existing = dataByDate.get(dateKey) || {
-            date: dateKey,
-            totalQuantity: 0,
-            totalCKPrice: 0,
-            totalHPP: 0,
-            profitCK: 0
+          txnProductsSold += quantity;
+          txnTotalSales += quantity * sellingPrice;
+          txnTotalCKPrice += quantity * ckPrice;
+          txnTotalHPP += quantity * costPrice;
+
+          // Aggregate for chart
+          const existing = productPriceMap.get(product.name) || {
+            ckPrice: 0,
+            costPrice: 0,
+            sellingPrice: 0,
+            count: 0
           };
-
-          existing.totalQuantity += item.quantity;
-          existing.totalCKPrice += totalCK;
-          existing.totalHPP += totalHPP;
-          existing.profitCK = existing.totalHPP - existing.totalCKPrice;
-
-          dataByDate.set(dateKey, existing);
-
-          // Aggregate by product for chart
-          const currentQty = productQuantities.get(product.name) || 0;
-          productQuantities.set(product.name, currentQty + item.quantity);
+          existing.ckPrice += ckPrice;
+          existing.costPrice += costPrice;
+          existing.sellingPrice += sellingPrice;
+          existing.count += 1;
+          productPriceMap.set(product.name, existing);
         });
+
+        const txnProfitCK = txnTotalHPP - txnTotalCKPrice;
+
+        transactionArray.push({
+          date: format(new Date(transaction.transaction_date), 'yyyy-MM-dd'),
+          riderName,
+          productsSold: txnProductsSold,
+          totalSales: txnTotalSales,
+          totalCKPrice: txnTotalCKPrice,
+          totalHPP: txnTotalHPP,
+          profitCK: txnProfitCK
+        });
+
+        totalProductsSold += txnProductsSold;
+        totalSales += txnTotalSales;
+        totalCKPrice += txnTotalCKPrice;
+        totalHPP += txnTotalHPP;
       });
 
-      // Convert to array and sort
-      const productionArray = Array.from(dataByDate.values()).sort((a, b) => 
-        a.date.localeCompare(b.date)
-      );
+      // Sort by date
+      transactionArray.sort((a, b) => a.date.localeCompare(b.date));
+      setTransactionData(transactionArray);
 
-      setProductionData(productionArray);
+      // Prepare resume data
+      const dateRangeText = customDateRange?.from && customDateRange?.to
+        ? `${format(customDateRange.from, 'dd/MM/yyyy')} - ${format(customDateRange.to, 'dd/MM/yyyy')}`
+        : dateFilter === 'today'
+        ? format(new Date(), 'dd/MM/yyyy')
+        : dateFilter === 'week'
+        ? `${format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'dd/MM/yyyy')} - ${format(endOfWeek(new Date(), { weekStartsOn: 1 }), 'dd/MM/yyyy')}`
+        : `${format(startOfMonth(new Date()), 'dd/MM/yyyy')} - ${format(endOfMonth(new Date()), 'dd/MM/yyyy')}`;
 
-      // Prepare chart data
-      const chartArray = Array.from(productQuantities.entries())
-        .map(([product, quantity]) => ({ product, quantity }))
-        .sort((a, b) => b.quantity - a.quantity)
+      const riderNameText = selectedUser === 'all' 
+        ? 'Semua Rider' 
+        : riders.find(r => r.id === selectedUser)?.full_name || 'Unknown';
+
+      setResumeData({
+        dateRange: dateRangeText,
+        riderName: riderNameText,
+        totalProductsSold,
+        totalSales,
+        totalCKPrice,
+        totalHPP,
+        totalProfitCK: totalHPP - totalCKPrice
+      });
+
+      // Prepare chart data (average prices per product)
+      const chartArray: PriceChartData[] = Array.from(productPriceMap.entries())
+        .map(([product, data]) => ({
+          product,
+          ckPrice: data.ckPrice / data.count,
+          costPrice: data.costPrice / data.count,
+          sellingPrice: data.sellingPrice / data.count
+        }))
+        .sort((a, b) => b.sellingPrice - a.sellingPrice)
         .slice(0, 10); // Top 10 products
 
       setChartData(chartArray);
 
     } catch (error) {
-      console.error('Error fetching production data:', error);
-      toast.error('Gagal memuat data produksi');
+      console.error('Error fetching sales data:', error);
+      toast.error('Gagal memuat data transaksi');
     } finally {
       setLoading(false);
     }
   };
 
-  const totals = productionData.reduce((acc, row) => ({
-    totalQuantity: acc.totalQuantity + row.totalQuantity,
+  const totals = transactionData.reduce((acc, row) => ({
+    productsSold: acc.productsSold + row.productsSold,
+    totalSales: acc.totalSales + row.totalSales,
     totalCKPrice: acc.totalCKPrice + row.totalCKPrice,
     totalHPP: acc.totalHPP + row.totalHPP,
     profitCK: acc.profitCK + row.profitCK
-  }), { totalQuantity: 0, totalCKPrice: 0, totalHPP: 0, profitCK: 0 });
+  }), { productsSold: 0, totalSales: 0, totalCKPrice: 0, totalHPP: 0, profitCK: 0 });
 
-  const averages = productionData.length > 0 ? {
-    avgQuantity: totals.totalQuantity / productionData.length,
-    avgCKPrice: totals.totalCKPrice / productionData.length,
-    avgHPP: totals.totalHPP / productionData.length,
-    avgProfit: totals.profitCK / productionData.length
-  } : { avgQuantity: 0, avgCKPrice: 0, avgHPP: 0, avgProfit: 0 };
+  const averages = transactionData.length > 0 ? {
+    avgProductsSold: totals.productsSold / transactionData.length,
+    avgSales: totals.totalSales / transactionData.length,
+    avgCKPrice: totals.totalCKPrice / transactionData.length,
+    avgHPP: totals.totalHPP / transactionData.length,
+    avgProfit: totals.profitCK / transactionData.length
+  } : { avgProductsSold: 0, avgSales: 0, avgCKPrice: 0, avgHPP: 0, avgProfit: 0 };
 
   if (!userProfile) return null;
 
@@ -224,23 +292,23 @@ export default function CentralKitchenAnalytics() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Central Kitchen Analytics</h1>
-        <p className="text-muted-foreground">Analisis produksi dan profit central kitchen</p>
+        <p className="text-muted-foreground">Analisis transaksi dan profit central kitchen</p>
       </div>
 
       {/* Filters */}
       <Card className="p-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="text-sm font-medium mb-2 block">User</label>
+            <label className="text-sm font-medium mb-2 block">Rider</label>
             <Select value={selectedUser} onValueChange={setSelectedUser}>
               <SelectTrigger>
-                <SelectValue placeholder="Pilih User" />
+                <SelectValue placeholder="Pilih Rider" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Semua User</SelectItem>
-                {users.map(user => (
-                  <SelectItem key={user.id} value={user.id}>
-                    {user.full_name}
+                <SelectItem value="all">Semua Rider</SelectItem>
+                {riders.map(rider => (
+                  <SelectItem key={rider.id} value={rider.id}>
+                    {rider.full_name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -298,7 +366,7 @@ export default function CentralKitchenAnalytics() {
 
       {/* Chart */}
       <Card className="p-6">
-        <h2 className="text-xl font-semibold mb-4">Grafik Produksi Stok</h2>
+        <h2 className="text-xl font-semibold mb-4">Grafik Harga CK vs HPP vs Harga Jual</h2>
         {loading ? (
           <div className="h-80 flex items-center justify-center">
             <p className="text-muted-foreground">Memuat data...</p>
@@ -309,46 +377,87 @@ export default function CentralKitchenAnalytics() {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="product" angle={-45} textAnchor="end" height={120} />
               <YAxis />
-              <Tooltip />
+              <Tooltip formatter={(value: any) => `Rp ${Number(value).toLocaleString()}`} />
               <Legend />
-              <Bar dataKey="quantity" fill="hsl(var(--primary))" name="Jumlah Produksi" />
+              <Bar dataKey="ckPrice" fill="#22c55e" name="Harga CK" />
+              <Bar dataKey="costPrice" fill="#ef4444" name="HPP" />
+              <Bar dataKey="sellingPrice" fill="#f97316" name="Harga Jual" />
             </BarChart>
           </ResponsiveContainer>
         ) : (
           <div className="h-80 flex items-center justify-center">
-            <p className="text-muted-foreground">Tidak ada data produksi</p>
+            <p className="text-muted-foreground">Tidak ada data transaksi</p>
           </div>
         )}
       </Card>
 
-      {/* Table */}
+      {/* Resume Analytics Table */}
+      {resumeData && (
+        <Card className="p-6">
+          <h2 className="text-xl font-semibold mb-4">Resume Analytic Central Kitchen</h2>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Tanggal</TableHead>
+                  <TableHead>Nama Rider</TableHead>
+                  <TableHead className="text-right">Produk Terjual</TableHead>
+                  <TableHead className="text-right">Total Sales</TableHead>
+                  <TableHead className="text-right">Harga CK</TableHead>
+                  <TableHead className="text-right">HPP</TableHead>
+                  <TableHead className="text-right">Profit CK</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell className="font-medium">{resumeData.dateRange}</TableCell>
+                  <TableCell className="font-medium">{resumeData.riderName}</TableCell>
+                  <TableCell className="text-right">{resumeData.totalProductsSold.toLocaleString()}</TableCell>
+                  <TableCell className="text-right">Rp {resumeData.totalSales.toLocaleString()}</TableCell>
+                  <TableCell className="text-right">Rp {resumeData.totalCKPrice.toLocaleString()}</TableCell>
+                  <TableCell className="text-right">Rp {resumeData.totalHPP.toLocaleString()}</TableCell>
+                  <TableCell className="text-right font-semibold text-green-600">
+                    Rp {resumeData.totalProfitCK.toLocaleString()}
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+        </Card>
+      )}
+
+      {/* Transaction Detail Table */}
       <Card className="p-6">
-        <h2 className="text-xl font-semibold mb-4">Riwayat Produksi Central Kitchen</h2>
+        <h2 className="text-xl font-semibold mb-4">Transaction Central Kitchen</h2>
         <div className="rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="w-16">No</TableHead>
                 <TableHead>Tanggal</TableHead>
-                <TableHead className="text-right">Jumlah</TableHead>
+                <TableHead>Nama Rider</TableHead>
+                <TableHead className="text-right">Produk Terjual</TableHead>
+                <TableHead className="text-right">Total Sales</TableHead>
                 <TableHead className="text-right">Harga CK</TableHead>
-                <TableHead className="text-right">Harga HPP</TableHead>
+                <TableHead className="text-right">HPP</TableHead>
                 <TableHead className="text-right">Profit CK</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center">
+                  <TableCell colSpan={8} className="text-center">
                     Memuat data...
                   </TableCell>
                 </TableRow>
-              ) : productionData.length > 0 ? (
-                productionData.map((row, index) => (
-                  <TableRow key={row.date}>
+              ) : transactionData.length > 0 ? (
+                transactionData.map((row, index) => (
+                  <TableRow key={`${row.date}-${index}`}>
                     <TableCell>{index + 1}</TableCell>
                     <TableCell>{format(new Date(row.date), 'dd/MM/yyyy')}</TableCell>
-                    <TableCell className="text-right">{row.totalQuantity.toLocaleString()}</TableCell>
+                    <TableCell>{row.riderName}</TableCell>
+                    <TableCell className="text-right">{row.productsSold.toLocaleString()}</TableCell>
+                    <TableCell className="text-right">Rp {row.totalSales.toLocaleString()}</TableCell>
                     <TableCell className="text-right">Rp {row.totalCKPrice.toLocaleString()}</TableCell>
                     <TableCell className="text-right">Rp {row.totalHPP.toLocaleString()}</TableCell>
                     <TableCell className="text-right font-semibold">
@@ -358,24 +467,26 @@ export default function CentralKitchenAnalytics() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground">
-                    Tidak ada data produksi
+                  <TableCell colSpan={8} className="text-center text-muted-foreground">
+                    Tidak ada data transaksi
                   </TableCell>
                 </TableRow>
               )}
             </TableBody>
-            {productionData.length > 0 && (
+            {transactionData.length > 0 && (
               <TableFooter>
                 <TableRow>
-                  <TableCell colSpan={2} className="font-bold">Total</TableCell>
-                  <TableCell className="text-right font-bold">{totals.totalQuantity.toLocaleString()}</TableCell>
+                  <TableCell colSpan={3} className="font-bold">Total</TableCell>
+                  <TableCell className="text-right font-bold">{totals.productsSold.toLocaleString()}</TableCell>
+                  <TableCell className="text-right font-bold">Rp {totals.totalSales.toLocaleString()}</TableCell>
                   <TableCell className="text-right font-bold">Rp {totals.totalCKPrice.toLocaleString()}</TableCell>
                   <TableCell className="text-right font-bold">Rp {totals.totalHPP.toLocaleString()}</TableCell>
                   <TableCell className="text-right font-bold">Rp {totals.profitCK.toLocaleString()}</TableCell>
                 </TableRow>
                 <TableRow>
-                  <TableCell colSpan={2} className="font-bold">Average</TableCell>
-                  <TableCell className="text-right font-bold">{Math.round(averages.avgQuantity).toLocaleString()}</TableCell>
+                  <TableCell colSpan={3} className="font-bold">Average</TableCell>
+                  <TableCell className="text-right font-bold">{Math.round(averages.avgProductsSold).toLocaleString()}</TableCell>
+                  <TableCell className="text-right font-bold">Rp {Math.round(averages.avgSales).toLocaleString()}</TableCell>
                   <TableCell className="text-right font-bold">Rp {Math.round(averages.avgCKPrice).toLocaleString()}</TableCell>
                   <TableCell className="text-right font-bold">Rp {Math.round(averages.avgHPP).toLocaleString()}</TableCell>
                   <TableCell className="text-right font-bold">Rp {Math.round(averages.avgProfit).toLocaleString()}</TableCell>
