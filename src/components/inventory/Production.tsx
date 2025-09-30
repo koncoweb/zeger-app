@@ -32,6 +32,7 @@ interface Product {
   name: string;
   category: string;
   cost_price: number;
+  ck_price: number;
 }
 
 interface ProductionHistoryProduct {
@@ -73,8 +74,11 @@ export const Production = ({ userProfile }: ProductionProps) => {
   const [stats, setStats] = useState({
     totalStock: 0,
     totalProduction: 0,
-    totalCost: 0
+    totalHPP: 0,
+    totalFoodCost: 0,
+    grossProfitCK: 0
   });
+  const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'month' | 'custom'>('today');
   const [dateRange, setDateRange] = useState({
     from: new Date(new Date().setDate(new Date().getDate() - 30)),
     to: new Date()
@@ -89,13 +93,14 @@ export const Production = ({ userProfile }: ProductionProps) => {
 
   useEffect(() => {
     fetchBatches();
-  }, [dateRange]);
+    fetchStats();
+  }, [dateRange, dateFilter]);
 
   const fetchProducts = async () => {
     try {
       const { data, error } = await supabase
         .from('products')
-        .select('id, name, category, cost_price')
+        .select('id, name, category, cost_price, ck_price')
         .eq('is_active', true)
         .order('name');
 
@@ -106,8 +111,37 @@ export const Production = ({ userProfile }: ProductionProps) => {
     }
   };
 
+  const getFilteredDateRange = () => {
+    const now = new Date();
+    let start: Date;
+    let end: Date = now;
+
+    switch (dateFilter) {
+      case 'today':
+        start = new Date(now.setHours(0, 0, 0, 0));
+        end = new Date(now.setHours(23, 59, 59, 999));
+        break;
+      case 'week':
+        start = new Date(now.setDate(now.getDate() - now.getDay()));
+        start.setHours(0, 0, 0, 0);
+        end = new Date();
+        break;
+      case 'month':
+        start = new Date(now.getFullYear(), now.getMonth(), 1);
+        end = new Date();
+        break;
+      case 'custom':
+        start = dateRange.from;
+        end = dateRange.to;
+        break;
+    }
+
+    return { start, end };
+  };
+
   const fetchBatches = async () => {
     try {
+      const { start, end } = getFilteredDateRange();
       const { data: batchData, error } = await supabase
         .from('production_batches')
         .select(`
@@ -123,8 +157,8 @@ export const Production = ({ userProfile }: ProductionProps) => {
           )
         `)
         .eq('branch_id', userProfile.branch_id)
-        .gte('produced_at', dateRange.from.toISOString())
-        .lte('produced_at', dateRange.to.toISOString())
+        .gte('produced_at', start.toISOString())
+        .lte('produced_at', end.toISOString())
         .order('produced_at', { ascending: false });
 
       if (error) throw error;
@@ -156,28 +190,43 @@ export const Production = ({ userProfile }: ProductionProps) => {
 
       const totalStock = inventory?.reduce((sum, item) => sum + item.stock_quantity, 0) || 0;
 
-      // Today's production
-      const today = new Date().toISOString().split('T')[0];
-      const { data: todayBatches } = await supabase
+      // Get filtered date range based on selected filter
+      const { start, end } = getFilteredDateRange();
+      
+      const { data: filteredBatches } = await supabase
         .from('production_batches')
         .select(`
-          production_items (quantity, cost_per_unit)
+          production_items (
+            quantity, 
+            cost_per_unit,
+            products!inner (cost_price, ck_price)
+          )
         `)
         .eq('branch_id', userProfile.branch_id)
-        .gte('produced_at', `${today}T00:00:00`)
-        .lte('produced_at', `${today}T23:59:59`);
+        .gte('produced_at', start.toISOString())
+        .lte('produced_at', end.toISOString());
 
       let totalProduction = 0;
-      let totalCost = 0;
+      let totalHPP = 0; // cost_price * quantity
+      let totalFoodCost = 0; // ck_price * quantity
 
-      todayBatches?.forEach(batch => {
+      filteredBatches?.forEach(batch => {
         batch.production_items?.forEach(item => {
           totalProduction += item.quantity;
-          totalCost += item.quantity * (item.cost_per_unit || 0);
+          totalHPP += item.quantity * (item.products?.cost_price || 0);
+          totalFoodCost += item.quantity * (item.products?.ck_price || 0);
         });
       });
 
-      setStats({ totalStock, totalProduction, totalCost });
+      const grossProfitCK = totalHPP - totalFoodCost;
+
+      setStats({ 
+        totalStock, 
+        totalProduction, 
+        totalHPP,
+        totalFoodCost,
+        grossProfitCK 
+      });
     } catch (error: any) {
       console.error("Error fetching stats:", error);
     }
@@ -314,8 +363,84 @@ export const Production = ({ userProfile }: ProductionProps) => {
 
   return (
     <div className="space-y-6">
+      {/* Date Filter */}
+      <Card className="dashboard-card">
+        <CardContent className="p-6">
+          <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+            <label className="text-sm font-medium">Filter Tanggal:</label>
+            <div className="flex flex-wrap gap-2">
+              <Button 
+                variant={dateFilter === 'today' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setDateFilter('today')}
+              >
+                Hari Ini
+              </Button>
+              <Button 
+                variant={dateFilter === 'week' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setDateFilter('week')}
+              >
+                Minggu Ini
+              </Button>
+              <Button 
+                variant={dateFilter === 'month' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setDateFilter('month')}
+              >
+                Bulan Ini
+              </Button>
+              <Button 
+                variant={dateFilter === 'custom' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setDateFilter('custom')}
+              >
+                <Filter className="h-4 w-4 mr-2" />
+                Custom
+              </Button>
+            </div>
+            {dateFilter === 'custom' && (
+              <Popover open={showDatePicker} onOpenChange={setShowDatePicker}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <CalendarIcon className="h-4 w-4 mr-2" />
+                    {format(dateRange.from, 'dd/MM/yyyy')} - {format(dateRange.to, 'dd/MM/yyyy')}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <div className="p-4 space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium">Dari:</label>
+                        <Calendar
+                          mode="single"
+                          selected={dateRange.from}
+                          onSelect={(date) => date && setDateRange(prev => ({ ...prev, from: date }))}
+                          initialFocus
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Sampai:</label>
+                        <Calendar
+                          mode="single"
+                          selected={dateRange.to}
+                          onSelect={(date) => date && setDateRange(prev => ({ ...prev, to: date }))}
+                        />
+                      </div>
+                    </div>
+                    <Button onClick={() => setShowDatePicker(false)} className="w-full">
+                      Terapkan Filter
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Stats Dashboard */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
         <Card className="stat-card">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -333,9 +458,9 @@ export const Production = ({ userProfile }: ProductionProps) => {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Produksi Hari Ini</p>
+                <p className="text-sm font-medium text-muted-foreground">Produksi</p>
                 <p className="text-2xl font-bold">{stats.totalProduction}</p>
-                <p className="text-xs text-muted-foreground">Total item diproduksi</p>
+                <p className="text-xs text-muted-foreground">Sesuai filter tanggal</p>
               </div>
               <ChefHat className="h-8 w-8 text-green-600" />
             </div>
@@ -346,11 +471,37 @@ export const Production = ({ userProfile }: ProductionProps) => {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Nilai Bahan Baku</p>
-                <p className="text-2xl font-bold">{formatCurrency(stats.totalCost)}</p>
-                <p className="text-xs text-muted-foreground">Total biaya produksi hari ini</p>
+                <p className="text-sm font-medium text-muted-foreground">Total HPP</p>
+                <p className="text-2xl font-bold">{formatCurrency(stats.totalHPP)}</p>
+                <p className="text-xs text-muted-foreground">cost_price × produksi</p>
+              </div>
+              <DollarSign className="h-8 w-8 text-red-600" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="stat-card">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total Food Cost</p>
+                <p className="text-2xl font-bold">{formatCurrency(stats.totalFoodCost)}</p>
+                <p className="text-xs text-muted-foreground">ck_price × produksi</p>
               </div>
               <DollarSign className="h-8 w-8 text-orange-600" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="stat-card">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Gross Profit CK</p>
+                <p className="text-2xl font-bold">{formatCurrency(stats.grossProfitCK)}</p>
+                <p className="text-xs text-muted-foreground">HPP - Food Cost</p>
+              </div>
+              <DollarSign className="h-8 w-8 text-green-600" />
             </div>
           </CardContent>
         </Card>
@@ -438,48 +589,10 @@ export const Production = ({ userProfile }: ProductionProps) => {
       {/* Production History */}
       <Card className="dashboard-card">
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Riwayat Produksi
-            </CardTitle>
-            <div className="flex items-center gap-2">
-              <Popover open={showDatePicker} onOpenChange={setShowDatePicker}>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <CalendarIcon className="h-4 w-4 mr-2" />
-                    {format(dateRange.from, 'dd/MM')} - {format(dateRange.to, 'dd/MM')}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="end">
-                  <div className="p-4 space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-sm font-medium">Dari:</label>
-                        <Calendar
-                          mode="single"
-                          selected={dateRange.from}
-                          onSelect={(date) => date && setDateRange(prev => ({ ...prev, from: date }))}
-                          initialFocus
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium">Sampai:</label>
-                        <Calendar
-                          mode="single"
-                          selected={dateRange.to}
-                          onSelect={(date) => date && setDateRange(prev => ({ ...prev, to: date }))}
-                        />
-                      </div>
-                    </div>
-                    <Button onClick={() => setShowDatePicker(false)} className="w-full">
-                      Terapkan Filter
-                    </Button>
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </div>
-          </div>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Riwayat Produksi (Filtered)
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <ScrollArea className="h-96">

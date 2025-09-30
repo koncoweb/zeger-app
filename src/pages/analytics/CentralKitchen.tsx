@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { calculateSalesData, calculateRawMaterialCost } from "@/lib/financial-utils";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
@@ -109,7 +110,20 @@ export default function CentralKitchenAnalytics() {
     try {
       const { start, end } = getDateRange();
 
-      // Fetch transactions with rider and transaction items
+      // Use same calculation functions as Dashboard for data consistency
+      const salesData = await calculateSalesData(
+        start,
+        end,
+        selectedUser === 'all' ? undefined : selectedUser
+      );
+
+      const rawMaterialCost = await calculateRawMaterialCost(
+        start,
+        end,
+        selectedUser === 'all' ? undefined : selectedUser
+      );
+
+      // Fetch transactions for detail table and chart
       let transactionQuery = supabase
         .from('transactions')
         .select(`
@@ -158,14 +172,11 @@ export default function CentralKitchenAnalytics() {
         return;
       }
 
-      // Process transaction data
+      // Process transaction data for detail table
       const transactionArray: TransactionData[] = [];
       const productPriceMap = new Map<string, { ckPrice: number; costPrice: number; sellingPrice: number; count: number }>();
       
-      let totalProductsSold = 0;
-      let totalSales = 0;
       let totalCKPrice = 0;
-      let totalHPP = 0;
 
       transactions.forEach(transaction => {
         const riderName = transaction.profiles?.full_name || 'Unknown';
@@ -216,17 +227,14 @@ export default function CentralKitchenAnalytics() {
           profitCK: txnProfitCK
         });
 
-        totalProductsSold += txnProductsSold;
-        totalSales += txnTotalSales;
         totalCKPrice += txnTotalCKPrice;
-        totalHPP += txnTotalHPP;
       });
 
       // Sort by date
       transactionArray.sort((a, b) => a.date.localeCompare(b.date));
       setTransactionData(transactionArray);
 
-      // Prepare resume data
+      // Prepare resume data using Dashboard calculation functions
       const dateRangeText = customDateRange?.from && customDateRange?.to
         ? `${format(customDateRange.from, 'dd/MM/yyyy')} - ${format(customDateRange.to, 'dd/MM/yyyy')}`
         : dateFilter === 'today'
@@ -242,11 +250,11 @@ export default function CentralKitchenAnalytics() {
       setResumeData({
         dateRange: dateRangeText,
         riderName: riderNameText,
-        totalProductsSold,
-        totalSales,
+        totalProductsSold: salesData.totalItems,
+        totalSales: salesData.grossSales,
         totalCKPrice,
-        totalHPP,
-        totalProfitCK: totalHPP - totalCKPrice
+        totalHPP: rawMaterialCost,
+        totalProfitCK: rawMaterialCost - totalCKPrice
       });
 
       // Prepare chart data (average prices per product)

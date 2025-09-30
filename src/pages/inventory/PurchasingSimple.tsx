@@ -191,21 +191,28 @@ export default function PurchasingSimple() {
             .eq('id', existingInventory.id);
 
           if (updateError) throw updateError;
-        } else {
-          // Create new inventory record
-          const { error: createError } = await supabase
-            .from('inventory')
-            .insert({
-              product_id: item.product_id,
-              branch_id: userProfile?.branch_id,
-              stock_quantity: item.quantity,
-              min_stock_level: 5,
-              max_stock_level: 100,
-              rider_id: null
-            });
-
-          if (createError) throw createError;
         }
+        
+        // Use upsert to handle race condition with partial unique index
+        const { error: upsertError } = await supabase
+          .from('inventory')
+          .upsert({
+            id: existingInventory?.id,
+            product_id: item.product_id,
+            branch_id: userProfile?.branch_id,
+            stock_quantity: existingInventory 
+              ? existingInventory.stock_quantity + item.quantity 
+              : item.quantity,
+            min_stock_level: existingInventory?.min_stock_level || 5,
+            max_stock_level: existingInventory?.max_stock_level || 100,
+            rider_id: null,
+            last_updated: new Date().toISOString()
+          }, {
+            onConflict: 'id',
+            ignoreDuplicates: false
+          });
+
+        if (upsertError) throw upsertError;
 
         // Create stock movement record
         const { error: movementError } = await supabase
