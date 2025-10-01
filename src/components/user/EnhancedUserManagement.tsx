@@ -414,16 +414,28 @@ export function EnhancedUserManagement({ role, branchId }: UserManagementProps) 
     }
   };
 
-  const editUser = (user: User) => {
+  const editUser = async (user: User) => {
     // Find current assignments for this user
     const reportAssignment = assignments.find(a => a.report_user_id === user.id);
     const riderAssignment = assignments.find(a => a.rider_id === user.id);
     
+    // Fetch email from auth if user_id exists
+    let userEmail = '';
+    if (user.user_id) {
+      try {
+        const { data: authUser } = await supabase.auth.admin.getUserById(user.user_id);
+        userEmail = authUser.user?.email || '';
+      } catch (error) {
+        console.error('Error fetching user email:', error);
+      }
+    }
+    
     setEditingUser({ 
       ...user, 
+      email: userEmail,
       assigned_rider: reportAssignment?.rider_id || '',
       assigned_reporter: riderAssignment?.report_user_id || ''
-    });
+    } as any);
     setIsEditDialogOpen(true);
   };
 
@@ -432,6 +444,7 @@ export function EnhancedUserManagement({ role, branchId }: UserManagementProps) 
     
     setCreating(true);
     try {
+      // Update profile data
       const { error } = await supabase
         .from('profiles')
         .update({
@@ -444,6 +457,21 @@ export function EnhancedUserManagement({ role, branchId }: UserManagementProps) 
         .eq('id', editingUser.id);
 
       if (error) throw error;
+
+      // Update email if changed and user_id exists
+      if (editingUser.user_id && (editingUser as any).email) {
+        const { error: emailError } = await supabase.functions.invoke('update-user-email', {
+          body: {
+            userId: editingUser.user_id,
+            newEmail: (editingUser as any).email
+          }
+        });
+
+        if (emailError) {
+          console.error('Email update error:', emailError);
+          toast.warning(`User diupdate tapi email gagal diubah: ${emailError.message}`);
+        }
+      }
 
       // Handle assignment updates using RPC
       try {
@@ -1193,6 +1221,19 @@ export function EnhancedUserManagement({ role, branchId }: UserManagementProps) 
                   value={editingUser.phone || ''}
                   onChange={(e) => setEditingUser(prev => prev ? {...prev, phone: e.target.value} : null)}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-email">Email Login</Label>
+                <Input
+                  id="edit-email"
+                  type="email"
+                  className="form-glass"
+                  value={(editingUser as any).email || ''}
+                  onChange={(e) => setEditingUser(prev => prev ? {...prev, email: e.target.value} as any : null)}
+                  placeholder="email@example.com"
+                />
+                <p className="text-xs text-muted-foreground">Ubah email untuk autentikasi login user</p>
               </div>
               
               <div className="space-y-2">

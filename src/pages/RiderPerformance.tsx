@@ -70,13 +70,15 @@ const RiderPerformance = () => {
     try {
       let query = supabase
         .from('profiles')
-        .select('id, full_name')
+        .select('id, full_name, branch_id')
         .in('role', ['rider', 'sb_rider', 'bh_rider'])
         .eq('is_active', true)
         .order('full_name');
 
-      // Filter by branch for regular users, but not for bh_report users with assigned riders
-      if (userProfile?.branch_id && !shouldAutoFilter) {
+      // Always filter by branch for branch managers and non-HO users
+      if (userProfile?.branch_id && userProfile?.role === 'branch_manager') {
+        query = query.eq('branch_id', userProfile.branch_id);
+      } else if (userProfile?.branch_id && !shouldAutoFilter && userProfile?.role !== 'ho_admin') {
         query = query.eq('branch_id', userProfile.branch_id);
       }
       

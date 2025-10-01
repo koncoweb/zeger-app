@@ -180,26 +180,33 @@ export default function PurchasingSimple() {
           throw invError;
         }
         
-        // Use upsert to handle both create and update cases
-        const { error: upsertError } = await supabase
-          .from('inventory')
-          .upsert({
-            product_id: item.product_id,
-            branch_id: userProfile?.branch_id,
-            stock_quantity: existingInventory 
-              ? existingInventory.stock_quantity + item.quantity 
-              : item.quantity,
-            min_stock_level: existingInventory?.min_stock_level || 5,
-            max_stock_level: existingInventory?.max_stock_level || 100,
-            rider_id: null,
-            last_updated: new Date().toISOString(),
-            ...(existingInventory?.id && { id: existingInventory.id })
-          }, {
-            onConflict: 'branch_id,product_id',
-            ignoreDuplicates: false
-          });
+        if (existingInventory) {
+          // Update existing inventory
+          const { error: updateError } = await supabase
+            .from('inventory')
+            .update({
+              stock_quantity: existingInventory.stock_quantity + item.quantity,
+              last_updated: new Date().toISOString(),
+            })
+            .eq('id', existingInventory.id);
 
-        if (upsertError) throw upsertError;
+          if (updateError) throw updateError;
+        } else {
+          // Insert new inventory
+          const { error: insertError } = await supabase
+            .from('inventory')
+            .insert({
+              product_id: item.product_id,
+              branch_id: userProfile?.branch_id,
+              stock_quantity: item.quantity,
+              min_stock_level: 5,
+              max_stock_level: 100,
+              rider_id: null,
+              last_updated: new Date().toISOString(),
+            });
+
+          if (insertError) throw insertError;
+        }
 
         // Create stock movement record
         const { error: movementError } = await supabase
