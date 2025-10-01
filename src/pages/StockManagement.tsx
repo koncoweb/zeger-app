@@ -20,12 +20,14 @@ import {
   CalendarIcon,
   Download,
   Eye,
-  AlertTriangle
+  AlertTriangle,
+  Wallet
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { CashDepositHistory } from "@/components/dashboard/CashDepositHistory";
 
 interface StockStats {
   totalStockIn: number;
@@ -587,7 +589,10 @@ export default function StockManagement() {
           <TabsTrigger value="waste" className="rounded-full">Waste Stock</TabsTrigger>
           <TabsTrigger value="inventory-adjustment" className="rounded-full">Inventory Adjustment</TabsTrigger>
           <TabsTrigger value="movements" className="rounded-full">Riwayat Pergerakan</TabsTrigger>
-          <TabsTrigger value="transfer-history" className="rounded-full">Riwayat Transfer Stock</TabsTrigger>
+          <TabsTrigger value="cash-deposit" className="rounded-full">
+            <Wallet className="w-4 h-4 mr-2" />
+            Riwayat Setoran Tunai
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="stock-in">
@@ -885,101 +890,8 @@ export default function StockManagement() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="transfer-history">
-          <Card>
-            <CardHeader>
-              <CardTitle>Riwayat Transfer Stock</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Filter Section */}
-              <div className="flex gap-4 items-end">
-                <div>
-                  <Label>Filter User:</Label>
-                  <Select>
-                    <SelectTrigger className="w-48">
-                      <SelectValue placeholder="Semua User" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Semua User</SelectItem>
-                      <SelectItem value="pak-fajar">Pak Fajar</SelectItem>
-                      <SelectItem value="pak-budi">Pak Budi</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Tanggal Awal:</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-40">
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {format(startDate, "dd/MM/yyyy")}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar mode="single" selected={startDate} onSelect={(date) => date && setStartDate(date)} />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                <div>
-                  <Label>Tanggal Akhir:</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-40">
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {format(endDate, "dd/MM/yyyy")}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar mode="single" selected={endDate} onSelect={(date) => date && setEndDate(date)} />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-              </div>
-
-              {/* Transfer History Data */}
-              <div className="space-y-4">
-                <div className="p-4 border rounded-lg bg-white">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h4 className="font-medium">30/08/2025 - Pak Fajar</h4>
-                      <p className="text-sm text-muted-foreground">Transfer & Penjualan Harian</p>
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                    <div className="space-y-2">
-                      <h5 className="font-medium text-green-600">Stok Diterima:</h5>
-                      <ul className="space-y-1">
-                        <li>• Kopi Arabica: 20 pcs</li>
-                        <li>• Gula: 10 kg</li>
-                        <li>• Susu: 15 liter</li>
-                      </ul>
-                      <p className="font-medium">Total: 45 items</p>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <h5 className="font-medium text-blue-600">Terjual:</h5>
-                      <ul className="space-y-1">
-                        <li>• Americano: 15 cup</li>
-                        <li>• Cappuccino: 8 cup</li>
-                        <li>• Latte: 12 cup</li>
-                      </ul>
-                      <p className="font-medium">Total: 35 items</p>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <h5 className="font-medium text-red-600">Dikembalikan:</h5>
-                      <ul className="space-y-1">
-                        <li>• Kopi Arabica: 5 pcs</li>
-                        <li>• Gula: 2 kg</li>
-                      </ul>
-                      <p className="font-medium">Total: 7 items</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <TabsContent value="cash-deposit">
+          <CashDepositHistory />
         </TabsContent>
       </Tabs>
     </main>
