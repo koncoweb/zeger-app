@@ -102,7 +102,7 @@ export function CustomerCart({ cart, onUpdateQuantity, onNavigate }: CustomerCar
 
       <Button 
         className="w-full h-12"
-        onClick={() => onNavigate('riders')}
+        onClick={() => onNavigate('map')}
       >
         Pesan Sekarang
       </Button>

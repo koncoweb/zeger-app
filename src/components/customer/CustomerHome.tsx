@@ -119,18 +119,18 @@ export function CustomerHome({
       <div className="grid grid-cols-2 gap-4">
         <Button 
           className="h-20 flex flex-col items-center justify-center space-y-2 bg-primary hover:bg-primary/90"
-          onClick={() => onNavigate('menu')}
+          onClick={() => onNavigate('outlets')}
         >
-          <Truck className="h-6 w-6" />
-          <span className="font-medium">Delivery</span>
+          <Coffee className="h-6 w-6" />
+          <span className="font-medium">☕ Zeger Outlet</span>
         </Button>
         <Button 
           variant="outline"
           className="h-20 flex flex-col items-center justify-center space-y-2 border-primary text-primary hover:bg-primary/5"
           onClick={() => onNavigate('map')}
         >
-          <MapPin className="h-6 w-6" />
-          <span className="font-medium">Pick Up</span>
+          <Truck className="h-6 w-6" />
+          <span className="font-medium">🛵 Zeger On The Wheels</span>
         </Button>
       </div>
 

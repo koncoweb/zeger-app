@@ -26,6 +26,7 @@ import { CustomerProfile } from '@/components/customer/CustomerProfile';
 import { CustomerMap } from '@/components/customer/CustomerMap';
 import { CustomerMenu } from '@/components/customer/CustomerMenu';
 import { CustomerCart } from '@/components/customer/CustomerCart';
+import { CustomerOutletList } from '@/components/customer/CustomerOutletList';
 import { useToast } from '@/hooks/use-toast';
 
 interface CustomerUser {
@@ -53,7 +54,7 @@ interface CartItem extends Product {
   customizations: any;
 }
 
-type View = 'home' | 'vouchers' | 'orders' | 'profile' | 'map' | 'menu' | 'cart';
+type View = 'home' | 'vouchers' | 'orders' | 'profile' | 'map' | 'menu' | 'cart' | 'outlets';
 
 export default function CustomerApp() {
   const { user } = useAuth();
@@ -246,6 +247,11 @@ export default function CustomerApp() {
         {activeView === 'orders' && <CustomerOrders customerUser={customerUser} />}
         {activeView === 'profile' && <CustomerProfile customerUser={customerUser} onUpdateProfile={() => fetchCustomerProfile()} />}
         {activeView === 'map' && <CustomerMap />}
+        {activeView === 'outlets' && (
+          <CustomerOutletList 
+            onNavigate={(view: string) => setActiveView(view as View)}
+          />
+        )}
         {activeView === 'menu' && (
           <CustomerMenu 
             products={products}
