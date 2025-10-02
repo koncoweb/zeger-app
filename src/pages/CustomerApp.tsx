@@ -523,31 +523,31 @@ export default function CustomerApp() {
       </div>
 
       {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg">
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-50">
         <div className="flex items-center justify-around py-2">
           {[
-            { key: 'home', icon: Home, label: 'Home', badge: 0 },
-            { key: 'vouchers', icon: Ticket, label: 'Voucher', badge: 0 },
-            { key: 'orders', icon: ClipboardList, label: 'Pesanan', badge: activeOrdersCount },
-            { key: 'profile', icon: User, label: 'Akun', badge: 0 }
-          ].map(({ key, icon: Icon, label, badge }) => (
+            { key: 'home', icon: Home, label: 'Home' },
+            { key: 'vouchers', icon: Ticket, label: 'Voucher' },
+            { key: 'orders', icon: ClipboardList, label: 'Pesanan' },
+            { key: 'profile', icon: User, label: 'Akun' }
+          ].map(({ key, icon: Icon, label }) => (
             <Button
               key={key}
               variant="ghost"
               size="sm"
-              className={`relative flex flex-col items-center space-y-1 h-auto py-2 px-3 touch-target ${
+              className={`relative flex flex-col items-center space-y-1 h-auto py-2 px-3 ${
                 activeView === key ? 'text-primary' : 'text-muted-foreground'
               }`}
               onClick={() => setActiveView(key as View)}
             >
               <Icon className={`h-5 w-5 ${activeView === key ? 'fill-primary/20' : ''}`} />
               <span className="text-xs font-medium">{label}</span>
-              {badge > 0 && (
+              {key === 'orders' && activeOrdersCount > 0 && (
                 <Badge 
                   variant="destructive" 
-                  className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs badge-pulse"
+                  className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-[10px] rounded-full"
                 >
-                  {badge}
+                  {activeOrdersCount}
                 </Badge>
               )}
             </Button>

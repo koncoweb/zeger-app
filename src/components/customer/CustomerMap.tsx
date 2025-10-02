@@ -29,6 +29,7 @@ const CustomerMap = () => {
   const [nearbyRiders, setNearbyRiders] = useState<Rider[]>([]);
   const [loading, setLoading] = useState(true);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [mapError, setMapError] = useState<string | null>(null);
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<mapboxgl.Marker[]>([]);
@@ -49,57 +50,75 @@ const CustomerMap = () => {
     if (map.current) return; // Map already initialized
 
     console.log('🗺️ Initializing map with user location:', userLocation);
-    mapboxgl.accessToken = MAPBOX_TOKEN;
     
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/streets-v12',
-      center: [userLocation.lng, userLocation.lat],
-      zoom: 12
-    });
+    try {
+      mapboxgl.accessToken = MAPBOX_TOKEN;
+      
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: 'mapbox://styles/mapbox/streets-v12',
+        center: [userLocation.lng, userLocation.lat],
+        zoom: 12
+      });
 
-    map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+      map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
-    // Add customer marker (blue)
-    const customerEl = document.createElement('div');
-    customerEl.className = 'w-8 h-8 bg-primary rounded-full border-4 border-white shadow-lg';
-    new mapboxgl.Marker(customerEl)
-      .setLngLat([userLocation.lng, userLocation.lat])
-      .setPopup(new mapboxgl.Popup().setHTML('<strong>Lokasi Anda</strong>'))
-      .addTo(map.current);
+      // Add customer marker (blue)
+      const customerEl = document.createElement('div');
+      customerEl.className = 'w-8 h-8 bg-primary rounded-full border-4 border-white shadow-lg';
+      new mapboxgl.Marker(customerEl)
+        .setLngLat([userLocation.lng, userLocation.lat])
+        .setPopup(new mapboxgl.Popup().setHTML('<strong>Lokasi Anda</strong>'))
+        .addTo(map.current);
 
-    // Add rider markers (if any)
-    console.log('📍 Adding markers for riders:', nearbyRiders.length);
-    nearbyRiders.forEach(rider => {
-      if (rider.lat && rider.lng) {
-        const riderEl = document.createElement('div');
-        riderEl.className = rider.is_online 
-          ? 'w-6 h-6 bg-green-500 rounded-full border-2 border-white shadow-lg'
-          : 'w-6 h-6 bg-gray-400 rounded-full border-2 border-white shadow-lg';
-        
-        const marker = new mapboxgl.Marker(riderEl)
-          .setLngLat([rider.lng, rider.lat])
-          .setPopup(new mapboxgl.Popup().setHTML(
-            `<strong>${rider.full_name}</strong><br/>
-             ${rider.is_online ? '🟢 Online' : '⚪ Offline'}<br/>
-             ${rider.distance_km < 999 ? `📍 ${rider.distance_km} km` : '📍 Lokasi tidak tersedia'}`
-          ))
-          .addTo(map.current!);
-        
-        markers.current.push(marker);
-      }
-    });
-
-    // Fit bounds to show all markers (if riders exist)
-    if (nearbyRiders.length > 0) {
-      const bounds = new mapboxgl.LngLatBounds();
-      bounds.extend([userLocation.lng, userLocation.lat]);
+      // Add rider markers (if any)
+      console.log('📍 Adding markers for riders:', nearbyRiders.length);
       nearbyRiders.forEach(rider => {
         if (rider.lat && rider.lng) {
-          bounds.extend([rider.lng, rider.lat]);
+          const riderEl = document.createElement('div');
+          riderEl.className = rider.is_online 
+            ? 'w-6 h-6 bg-green-500 rounded-full border-2 border-white shadow-lg'
+            : 'w-6 h-6 bg-gray-400 rounded-full border-2 border-white shadow-lg';
+          
+          const marker = new mapboxgl.Marker(riderEl)
+            .setLngLat([rider.lng, rider.lat])
+            .setPopup(new mapboxgl.Popup().setHTML(
+              `<strong>${rider.full_name}</strong><br/>
+               ${rider.is_online ? '🟢 Online' : '⚪ Offline'}<br/>
+               ${rider.distance_km < 999 ? `📍 ${rider.distance_km} km` : '📍 Lokasi tidak tersedia'}`
+            ))
+            .addTo(map.current!);
+          
+          markers.current.push(marker);
         }
       });
-      map.current.fitBounds(bounds, { padding: 50, maxZoom: 14 });
+
+      // Fit bounds to show all markers (if riders exist)
+      if (nearbyRiders.length > 0) {
+        const bounds = new mapboxgl.LngLatBounds();
+        bounds.extend([userLocation.lng, userLocation.lat]);
+        nearbyRiders.forEach(rider => {
+          if (rider.lat && rider.lng) {
+            bounds.extend([rider.lng, rider.lat]);
+          }
+        });
+        map.current.fitBounds(bounds, { padding: 50, maxZoom: 14 });
+      }
+      
+      // Map loaded successfully
+      map.current.on('load', () => {
+        console.log('✅ Map loaded successfully');
+        setMapError(null);
+      });
+
+      // Handle map errors
+      map.current.on('error', (e) => {
+        console.error('❌ Map error:', e);
+        setMapError('Gagal memuat peta. Periksa koneksi internet Anda.');
+      });
+    } catch (error) {
+      console.error('❌ Error initializing map:', error);
+      setMapError('Gagal menginisialisasi peta.');
     }
   }, [userLocation, nearbyRiders]);
 
@@ -118,12 +137,21 @@ const CustomerMap = () => {
         },
         (error) => {
           console.error('❌ Error getting location:', error);
-          setLoading(false);
+          // Use Jakarta as fallback location
+          const fallbackLocation = { lat: -6.2088, lng: 106.8456 };
+          console.log('📍 Using fallback location (Jakarta):', fallbackLocation);
+          setUserLocation(fallbackLocation);
+          fetchNearbyRiders(fallbackLocation.lat, fallbackLocation.lng);
+          setMapError('Lokasi tidak dapat diakses. Menggunakan lokasi default (Jakarta).');
         }
       );
     } else {
       console.error('❌ Geolocation not supported');
-      setLoading(false);
+      // Use Jakarta as fallback location
+      const fallbackLocation = { lat: -6.2088, lng: 106.8456 };
+      setUserLocation(fallbackLocation);
+      fetchNearbyRiders(fallbackLocation.lat, fallbackLocation.lng);
+      setMapError('Browser tidak mendukung geolokasi. Menggunakan lokasi default (Jakarta).');
     }
   };
 
@@ -175,15 +203,22 @@ const CustomerMap = () => {
       </CardHeader>
 
       {/* Interactive Map */}
-      <Card className="mb-6">
+      {mapError && (
+        <Card className="mb-4 border-yellow-500 bg-yellow-50">
+          <CardContent className="p-4">
+            <p className="text-sm text-yellow-800">{mapError}</p>
+          </CardContent>
+        </Card>
+      )}
+      <Card className="mb-6 overflow-hidden shadow-lg">
         <CardContent className="p-0">
-          <div ref={mapContainer} className="h-80 w-full rounded-lg" />
+          <div ref={mapContainer} className="h-80 w-full" />
         </CardContent>
       </Card>
 
       {/* Riders List */}
       {nearbyRiders.length === 0 ? (
-        <Card>
+        <Card className="shadow-lg">
           <CardContent className="py-12 text-center">
             <p className="text-muted-foreground">
               Tidak ada rider yang tersedia saat ini
@@ -195,64 +230,68 @@ const CustomerMap = () => {
           {nearbyRiders.map((rider) => (
             <Card 
               key={rider.id} 
-              className={`overflow-hidden hover:shadow-lg transition-shadow ${
+              className={`overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 shadow-lg ${
                 !rider.is_online ? 'opacity-60' : ''
               }`}
             >
-              <CardHeader className="pb-3">
+              <CardHeader className="pb-3 bg-gradient-to-br from-gray-50 to-white">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center space-x-3">
                     <div className="relative">
-                      <Avatar className="h-12 w-12">
+                      <Avatar className="h-14 w-14 ring-2 ring-primary/10">
                         <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${rider.id}`} />
-                        <AvatarFallback>{rider.full_name.charAt(0)}</AvatarFallback>
+                        <AvatarFallback className="bg-primary/10 text-primary font-bold">
+                          {rider.full_name.charAt(0)}
+                        </AvatarFallback>
                       </Avatar>
-                      <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${
+                      <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-white shadow-md ${
                         rider.is_online ? 'bg-green-500' : 'bg-gray-400'
                       }`} />
                     </div>
                     <div>
-                      <CardTitle className="text-lg">{rider.full_name}</CardTitle>
+                      <CardTitle className="text-lg font-bold">{rider.full_name}</CardTitle>
                       <div className="flex items-center gap-2 mt-1">
-                        <div className="flex items-center gap-1">
-                          <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                          <span className="text-sm font-medium">{rider.rating}</span>
+                        <div className="flex items-center gap-1 bg-yellow-50 px-2 py-0.5 rounded-full">
+                          <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                          <span className="text-xs font-semibold">{rider.rating}</span>
                         </div>
                         <Badge variant={rider.is_online ? "default" : "secondary"} className="text-xs">
-                          {rider.is_online ? 'Online' : 'Offline'}
+                          {rider.is_online ? '🟢 Online' : '⚪ Offline'}
                         </Badge>
                       </div>
                     </div>
                   </div>
-                  <Badge variant="secondary" className="flex items-center gap-1">
+                  <Badge variant="secondary" className="flex items-center gap-1 shadow-sm">
                     <Package className="h-3 w-3" />
-                    {rider.total_stock}
+                    <span className="font-bold">{rider.total_stock}</span>
                   </Badge>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-3 pt-4">
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="flex items-center gap-2 text-sm">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">
+                  <div className="flex items-center gap-2 text-sm bg-blue-50 p-2 rounded-lg">
+                    <MapPin className="h-4 w-4 text-blue-600" />
+                    <span className="font-semibold">
                       {rider.distance_km < 999 ? `${rider.distance_km} km` : 'N/A'}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Navigation className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">
+                  <div className="flex items-center gap-2 text-sm bg-green-50 p-2 rounded-lg">
+                    <Navigation className="h-4 w-4 text-green-600" />
+                    <span className="font-semibold">
                       {rider.eta_minutes > 0 ? `~${rider.eta_minutes} min` : 'N/A'}
                     </span>
                   </div>
                 </div>
                 {!rider.lat || !rider.lng ? (
-                  <p className="text-xs text-muted-foreground">📍 Lokasi tidak tersedia</p>
+                  <p className="text-xs text-muted-foreground bg-gray-50 p-2 rounded">
+                    📍 Lokasi tidak tersedia
+                  </p>
                 ) : null}
-                <div className="flex gap-2">
+                <div className="flex gap-2 pt-2">
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="flex-1"
+                    className="flex-1 shadow-sm hover:shadow-md transition-shadow"
                     onClick={() => callRider(rider.id)}
                     disabled={!rider.is_online || !rider.phone}
                   >
@@ -261,7 +300,7 @@ const CustomerMap = () => {
                   </Button>
                   <Button 
                     size="sm" 
-                    className="flex-1"
+                    className="flex-1 shadow-md hover:shadow-lg transition-shadow"
                     disabled={!rider.is_online || !rider.lat || !rider.lng}
                   >
                     <Navigation className="h-4 w-4 mr-2" />

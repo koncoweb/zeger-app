@@ -25,36 +25,12 @@ Deno.serve(async (req) => {
 
     console.log('Finding nearby riders for location:', { customer_lat, customer_lng, radius_km });
 
-    // Get all active riders with active shifts today
-    const today = new Date().toISOString().split('T')[0];
-    
-    const { data: activeShifts, error: shiftsError } = await supabase
-      .from('shift_management')
-      .select('rider_id')
-      .eq('shift_date', today)
-      .eq('status', 'active')
-      .is('shift_end_time', null);
-
-    if (shiftsError) {
-      console.error('Error fetching shifts:', shiftsError);
-      throw shiftsError;
-    }
-
-    const activeRiderIds = activeShifts?.map(s => s.rider_id) || [];
-    console.log('Active riders today:', activeRiderIds);
-
-    if (activeRiderIds.length === 0) {
-      return new Response(
-        JSON.stringify({ riders: [], message: 'No active riders found' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Get ALL rider profiles (with or without location)
+    // DEMO MODE: Show all riders regardless of shift status
+    // Get ALL rider profiles (active riders with role 'rider')
     const { data: riders, error: ridersError } = await supabase
       .from('profiles')
       .select('id, full_name, phone, last_known_lat, last_known_lng, location_updated_at')
-      .in('id', activeRiderIds)
+      .eq('role', 'rider')
       .eq('is_active', true);
 
     if (ridersError) {
@@ -64,22 +40,41 @@ Deno.serve(async (req) => {
 
     console.log('Total riders found:', riders?.length);
 
+    // DEMO: Dummy locations around Jakarta if rider has no location
+    const demoLocations = [
+      { lat: -6.2088, lng: 106.8456 }, // Central Jakarta
+      { lat: -6.1751, lng: 106.8650 }, // North Jakarta
+      { lat: -6.2615, lng: 106.7837 }, // West Jakarta
+      { lat: -6.2297, lng: 106.9239 }, // East Jakarta
+      { lat: -6.3011, lng: 106.8165 }, // South Jakarta
+    ];
+
     // Calculate distances for ALL riders
     const ridersWithDistance = await Promise.all(
-      (riders || []).map(async (rider) => {
+      (riders || []).map(async (rider, index) => {
         let distance_km = 9999;
         let eta_minutes = 0;
         let is_online = false;
+        let rider_lat = rider.last_known_lat;
+        let rider_lng = rider.last_known_lng;
 
-        // Only calculate distance if rider has location
-        if (rider.last_known_lat && rider.last_known_lng) {
+        // DEMO: Use dummy location if rider has no location
+        if (!rider_lat || !rider_lng) {
+          const demoLoc = demoLocations[index % demoLocations.length];
+          rider_lat = demoLoc.lat;
+          rider_lng = demoLoc.lng;
+          console.log(`Using demo location for ${rider.full_name}: ${rider_lat}, ${rider_lng}`);
+        }
+
+        // Calculate distance
+        if (rider_lat && rider_lng) {
           // Haversine formula for distance calculation
           const R = 6371; // Earth radius in km
-          const dLat = (customer_lat - rider.last_known_lat) * Math.PI / 180;
-          const dLng = (customer_lng - rider.last_known_lng) * Math.PI / 180;
+          const dLat = (customer_lat - rider_lat) * Math.PI / 180;
+          const dLng = (customer_lng - rider_lng) * Math.PI / 180;
           const a = 
             Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(rider.last_known_lat * Math.PI / 180) * 
+            Math.cos(rider_lat * Math.PI / 180) * 
             Math.cos(customer_lat * Math.PI / 180) *
             Math.sin(dLng / 2) * Math.sin(dLng / 2);
           const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
@@ -88,11 +83,8 @@ Deno.serve(async (req) => {
           // Calculate ETA (assuming 20 km/h average speed)
           eta_minutes = Math.round((distance_km / 20) * 60);
 
-          // Check if location is recent (within last 5 minutes)
-          const locationAge = rider.location_updated_at 
-            ? (Date.now() - new Date(rider.location_updated_at).getTime()) / 1000 / 60
-            : 999;
-          is_online = locationAge < 5;
+          // DEMO: Mark all riders as online for testing
+          is_online = true;
         }
 
         // Get rider inventory count
@@ -111,8 +103,8 @@ Deno.serve(async (req) => {
           eta_minutes,
           total_stock,
           rating: 4.5, // TODO: Implement real rating system
-          lat: rider.last_known_lat,
-          lng: rider.last_known_lng,
+          lat: rider_lat, // Use demo location if original is null
+          lng: rider_lng, // Use demo location if original is null
           last_updated: rider.location_updated_at,
           is_online
         };

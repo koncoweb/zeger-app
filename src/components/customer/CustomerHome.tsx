@@ -13,8 +13,11 @@ import {
   Plus,
   ArrowRight,
   Clock,
-  Heart
+  Heart,
+  Store,
+  Bike
 } from 'lucide-react';
+import PromoBannerCarousel from './PromoBannerCarousel';
 
 interface CustomerHomeProps {
   customerUser: any;
@@ -88,9 +91,45 @@ export function CustomerHome({
   const membership = getMembershipBadge();
 
   return (
-    <div className="space-y-6 p-4">
+    <div className="space-y-6 p-4 pb-24">
+      {/* Promo Banner Carousel */}
+      <PromoBannerCarousel />
+
+      {/* Order Type Selection - Redesigned with 3D Icons */}
+      <div className="grid grid-cols-2 gap-4">
+        <Card 
+          className="cursor-pointer hover:shadow-xl transition-all duration-300 border-2 hover:border-primary overflow-hidden"
+          onClick={() => onNavigate('outlets')}
+        >
+          <CardContent className="p-6 text-center space-y-3">
+            <div className="mx-auto w-20 h-20 bg-gradient-to-br from-orange-400 to-red-500 rounded-2xl flex items-center justify-center shadow-lg transform hover:scale-110 transition-transform">
+              <Store className="h-10 w-10 text-white" />
+            </div>
+            <div>
+              <h3 className="font-bold text-lg">Zeger Outlet</h3>
+              <p className="text-xs text-muted-foreground">Takeaway di outlet</p>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card 
+          className="cursor-pointer hover:shadow-xl transition-all duration-300 border-2 hover:border-primary overflow-hidden"
+          onClick={() => onNavigate('map')}
+        >
+          <CardContent className="p-6 text-center space-y-3">
+            <div className="mx-auto w-20 h-20 bg-gradient-to-br from-blue-400 to-purple-500 rounded-2xl flex items-center justify-center shadow-lg transform hover:scale-110 transition-transform">
+              <Bike className="h-10 w-10 text-white" />
+            </div>
+            <div>
+              <h3 className="font-bold text-lg">On The Wheels</h3>
+              <p className="text-xs text-muted-foreground">Delivery langsung</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Points and Membership Card */}
-      <Card className="bg-gradient-to-r from-red-500 to-red-600 text-white">
+      <Card className="bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg">
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -115,23 +154,22 @@ export function CustomerHome({
         </CardContent>
       </Card>
 
-      {/* Order Type Selection */}
+      {/* Quick Action Banners */}
       <div className="grid grid-cols-2 gap-4">
-        <Button 
-          className="h-20 flex flex-col items-center justify-center space-y-2 bg-primary hover:bg-primary/90"
-          onClick={() => onNavigate('outlets')}
-        >
-          <Coffee className="h-6 w-6" />
-          <span className="font-medium">☕ Zeger Outlet</span>
-        </Button>
-        <Button 
-          variant="outline"
-          className="h-20 flex flex-col items-center justify-center space-y-2 border-primary text-primary hover:bg-primary/5"
-          onClick={() => onNavigate('map')}
-        >
-          <Truck className="h-6 w-6" />
-          <span className="font-medium">🛵 Zeger On The Wheels</span>
-        </Button>
+        <Card className="bg-gradient-to-br from-purple-500 to-pink-500 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer">
+          <CardContent className="p-4 text-center">
+            <ShoppingBag className="h-8 w-8 mx-auto mb-2" />
+            <p className="font-semibold">Big Order</p>
+            <p className="text-xs opacity-90">Pesan banyak</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-green-500 to-teal-500 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer">
+          <CardContent className="p-4 text-center">
+            <Heart className="h-8 w-8 mx-auto mb-2" />
+            <p className="font-semibold">Menu Favorit</p>
+            <p className="text-xs opacity-90">Pilihan terbaik</p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Active Promotions */}
@@ -152,7 +190,7 @@ export function CustomerHome({
           
           <div className="space-y-2">
             {activeVouchers.slice(0, 2).map((voucher) => (
-              <Card key={voucher.id} className="border-dashed border-2 border-orange-300 bg-orange-50">
+              <Card key={voucher.id} className="border-dashed border-2 border-orange-300 bg-orange-50 shadow-md hover:shadow-lg transition-shadow">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
@@ -197,14 +235,14 @@ export function CustomerHome({
         
         <div className="grid grid-cols-2 gap-4">
           {recentProducts.slice(0, 4).map((product) => (
-            <Card key={product.id} className="hover:shadow-md transition-shadow">
+            <Card key={product.id} className="hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
               <CardContent className="p-3">
-                <div className="aspect-square bg-gray-100 rounded-lg mb-3 flex items-center justify-center">
+                <div className="aspect-square bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl mb-3 flex items-center justify-center overflow-hidden">
                   {product.image_url ? (
                     <img 
                       src={product.image_url} 
                       alt={product.name}
-                      className="w-full h-full object-cover rounded-lg"
+                      className="w-full h-full object-cover"
                     />
                   ) : (
                     <Coffee className="h-8 w-8 text-gray-400" />
@@ -217,10 +255,10 @@ export function CustomerHome({
                   </span>
                   <Button 
                     size="sm" 
-                    className="h-6 w-6 p-0"
+                    className="h-7 w-7 p-0 rounded-full shadow-md"
                     onClick={() => onAddToCart(product)}
                   >
-                    <Plus className="h-3 w-3" />
+                    <Plus className="h-4 w-4" />
                   </Button>
                 </div>
               </CardContent>
@@ -247,7 +285,7 @@ export function CustomerHome({
           
           <div className="space-y-2">
             {recentOrders.slice(0, 2).map((order: any) => (
-              <Card key={order.id} className="border-l-4 border-l-primary">
+              <Card key={order.id} className="border-l-4 border-l-primary shadow-md hover:shadow-lg transition-shadow">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
@@ -275,30 +313,39 @@ export function CustomerHome({
 
       {/* Quick Actions */}
       <div className="grid grid-cols-3 gap-4">
-        <Button 
-          variant="outline" 
-          className="h-16 flex flex-col items-center justify-center space-y-1"
-          onClick={() => onNavigate('vouchers')}
-        >
-          <Gift className="h-5 w-5" />
-          <span className="text-xs">Voucher</span>
-        </Button>
-        <Button 
-          variant="outline" 
-          className="h-16 flex flex-col items-center justify-center space-y-1"
-          onClick={() => onNavigate('orders')}
-        >
-          <Clock className="h-5 w-5" />
-          <span className="text-xs">Riwayat</span>
-        </Button>
-        <Button 
-          variant="outline" 
-          className="h-16 flex flex-col items-center justify-center space-y-1"
-          onClick={() => onNavigate('profile')}
-        >
-          <Heart className="h-5 w-5" />
-          <span className="text-xs">Favorit</span>
-        </Button>
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow">
+          <CardContent 
+            className="p-4 flex flex-col items-center justify-center space-y-2"
+            onClick={() => onNavigate('vouchers')}
+          >
+            <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+              <Gift className="h-5 w-5 text-orange-600" />
+            </div>
+            <span className="text-xs font-medium">Voucher</span>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow">
+          <CardContent 
+            className="p-4 flex flex-col items-center justify-center space-y-2"
+            onClick={() => onNavigate('orders')}
+          >
+            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+              <Clock className="h-5 w-5 text-blue-600" />
+            </div>
+            <span className="text-xs font-medium">Riwayat</span>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:shadow-lg transition-shadow">
+          <CardContent 
+            className="p-4 flex flex-col items-center justify-center space-y-2"
+            onClick={() => onNavigate('profile')}
+          >
+            <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+              <Heart className="h-5 w-5 text-red-600" />
+            </div>
+            <span className="text-xs font-medium">Favorit</span>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
