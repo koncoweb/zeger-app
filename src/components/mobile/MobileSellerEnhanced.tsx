@@ -339,7 +339,14 @@ const MobileSellerEnhanced = () => {
       });
 
       const discountAmount = calculateDiscount(totalAmount);
-      const finalAmount = Math.max(0, totalAmount - discountAmount);
+      let finalAmount = Math.max(0, totalAmount - discountAmount);
+      
+      // Safety check: Prevent Rp 0 transactions when items exist
+      if (finalAmount === 0 && totalAmount > 0) {
+        console.error('Transaction would have Rp 0 final amount. Using total instead.');
+        toast.error("Diskon terlalu besar. Diskon dibatalkan untuk transaksi ini.");
+        finalAmount = totalAmount;
+      }
 
       // Create transaction
       const transactionNumber = `TRX-${Date.now()}`;
@@ -403,15 +410,26 @@ const MobileSellerEnhanced = () => {
 
   const calculateDiscount = (subtotal: number) => {
     if (discountType === 'percentage') {
-      return (subtotal * discountValue) / 100;
+      const percentageDiscount = (subtotal * discountValue) / 100;
+      // Cap percentage discount at 100%
+      return Math.min(percentageDiscount, subtotal);
     }
-    return discountValue;
+    // Cap amount discount at subtotal (prevent negative final amount)
+    return Math.min(discountValue, subtotal);
   };
 
   const calculateFinalTotal = () => {
     const subtotal = calculateCartTotal();
     const discount = calculateDiscount(subtotal);
-    return Math.max(0, subtotal - discount);
+    const final = Math.max(0, subtotal - discount);
+    
+    // Additional safety check: if items exist but final is 0, use subtotal
+    if (cart.length > 0 && final === 0 && subtotal > 0) {
+      console.warn('Final amount is 0 but cart has items. Using subtotal instead.');
+      return subtotal;
+    }
+    
+    return final;
   };
   return <div className="w-full max-w-md mx-auto min-h-screen bg-gradient-to-br from-white via-red-50/30 to-white overflow-x-hidden">
       <div className="bg-white/95 backdrop-blur-md text-gray-800 min-h-screen p-4 max-w-full">

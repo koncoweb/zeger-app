@@ -39,6 +39,7 @@ import SettingsUserManagement from "./pages/settings/UserManagement";
 import SettingsRiderManagement from "./pages/settings/RiderManagement";
 import BranchManagement from "./pages/settings/BranchManagement";
 import RiderReassignment from "./pages/settings/RiderReassignment";
+import FixZeroTransactions from "./pages/settings/FixZeroTransactions";
 import { BranchHubReportLayout } from "./components/layout/BranchHubReportLayout";
 import { BranchHubReportDashboard } from "./components/dashboard/BranchHubReportDashboard";
 import CreateMalangBranch from "./pages/CreateMalangBranch";
@@ -249,6 +250,13 @@ const App = () => (
               <RoleBasedRoute allowedRoles={['ho_admin']}>
                 <ModernLayout>
                   <RiderReassignment />
+                </ModernLayout>
+              </RoleBasedRoute>
+            } />
+            <Route path="/settings/fix-transactions" element={
+              <RoleBasedRoute allowedRoles={['ho_admin']}>
+                <ModernLayout>
+                  <FixZeroTransactions />
                 </ModernLayout>
               </RoleBasedRoute>
             } />

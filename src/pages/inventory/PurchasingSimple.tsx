@@ -27,10 +27,27 @@ interface PurchaseItem {
   total_cost: number;
 }
 
+interface PurchaseHistory {
+  id: string;
+  purchase_number: string;
+  supplier_name: string;
+  purchase_date: string;
+  total_amount: number;
+  notes?: string;
+  items: {
+    product_id: string;
+    product_name: string;
+    quantity: number;
+    cost_per_unit: number;
+    total_cost: number;
+  }[];
+}
+
 export default function PurchasingSimple() {
   const { userProfile } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [purchaseHistory, setPurchaseHistory] = useState<PurchaseHistory[]>([]);
   
   // Form states
   const [supplierName, setSupplierName] = useState("");
@@ -41,8 +58,9 @@ export default function PurchasingSimple() {
 
   useEffect(() => {
     fetchProducts();
+    fetchPurchaseHistory();
     setLoading(false);
-  }, []);
+  }, [userProfile?.branch_id]);
 
   const fetchProducts = async () => {
     try {
@@ -56,6 +74,61 @@ export default function PurchasingSimple() {
       setProducts(data || []);
     } catch (error: any) {
       toast.error("Gagal memuat data produk: " + error.message);
+    }
+  };
+
+  const fetchPurchaseHistory = async () => {
+    if (!userProfile?.branch_id) return;
+    
+    try {
+      // Fetch purchases for this branch
+      const { data: purchases, error: purchasesError } = await supabase
+        .from('purchases')
+        .select('*')
+        .eq('branch_id', userProfile.branch_id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (purchasesError) throw purchasesError;
+      if (!purchases || purchases.length === 0) {
+        setPurchaseHistory([]);
+        return;
+      }
+
+      // Fetch purchase items for these purchases
+      const purchaseIds = purchases.map(p => p.id);
+      const { data: items, error: itemsError } = await supabase
+        .from('purchase_items')
+        .select(`
+          *,
+          products (name)
+        `)
+        .in('purchase_id', purchaseIds);
+
+      if (itemsError) throw itemsError;
+
+      // Combine data
+      const history: PurchaseHistory[] = purchases.map(p => ({
+        id: p.id,
+        purchase_number: p.purchase_number,
+        supplier_name: p.supplier_name,
+        purchase_date: p.purchase_date,
+        total_amount: p.total_amount,
+        notes: p.notes || '',
+        items: (items || [])
+          .filter((item: any) => item.purchase_id === p.id)
+          .map((item: any) => ({
+            product_id: item.product_id,
+            product_name: item.products?.name || 'Unknown',
+            quantity: item.quantity,
+            cost_per_unit: item.cost_per_unit,
+            total_cost: item.total_cost
+          }))
+      }));
+
+      setPurchaseHistory(history);
+    } catch (error: any) {
+      console.error('Error fetching purchase history:', error);
     }
   };
 
@@ -157,6 +230,9 @@ export default function PurchasingSimple() {
         setPurchaseDate(new Date().toISOString().split('T')[0]);
         setNotes("");
         setPurchaseItems([]);
+        
+        // Refresh history
+        fetchPurchaseHistory();
       } else {
         throw new Error(data?.error || 'Unknown error occurred');
       }
@@ -337,18 +413,61 @@ export default function PurchasingSimple() {
         </CardContent>
       </Card>
 
-      {/* Purchases List */}
+      {/* Purchase History */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Package2 className="h-5 w-5" />
-            Riwayat Pembelian
+            Riwayat Pembelian (10 Terakhir)
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-8 text-muted-foreground">
-            Fitur riwayat pembelian akan tersedia setelah migration database selesai.
-          </div>
+          {purchaseHistory.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              Belum ada riwayat pembelian
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {purchaseHistory.map(purchase => (
+                <Card key={purchase.id} className="border-l-4 border-l-primary">
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge variant="secondary">{purchase.purchase_number}</Badge>
+                          <span className="text-sm text-muted-foreground">
+                            {new Date(purchase.purchase_date).toLocaleDateString('id-ID')}
+                          </span>
+                        </div>
+                        <p className="font-medium">{purchase.supplier_name}</p>
+                        {purchase.notes && (
+                          <p className="text-sm text-muted-foreground mt-1">{purchase.notes}</p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-muted-foreground">Total</p>
+                        <p className="text-lg font-bold text-primary">
+                          {formatCurrency(purchase.total_amount)}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="text-sm">
+                      <p className="font-medium mb-2">{purchase.items.length} Item:</p>
+                      <div className="space-y-1">
+                        {purchase.items.map((item, idx) => (
+                          <div key={idx} className="flex justify-between text-xs text-muted-foreground">
+                            <span>{item.product_name} × {item.quantity}</span>
+                            <span>{formatCurrency(item.total_cost)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

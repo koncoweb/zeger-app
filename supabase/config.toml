@@ -8,3 +8,6 @@ verify_jwt = true
 
 [functions.create-purchase]
 verify_jwt = true
+
+[functions.fix-zero-transactions]
+verify_jwt = true

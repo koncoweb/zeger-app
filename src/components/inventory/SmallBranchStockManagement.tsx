@@ -180,13 +180,26 @@ export const SmallBranchStockManagement = () => {
 
   const fetchRiders = async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('profiles')
         .select('id, full_name, phone')
         .eq('branch_id', userProfile?.branch_id)
-        .in('role', ['rider', 'sb_rider', 'bh_rider'])
         .eq('is_active', true)
         .order('full_name');
+
+      // Filter by role based on branch type
+      if (userProfile?.role === 'sb_branch_manager') {
+        // Small branch: only sb_rider
+        query = query.in('role', ['rider', 'sb_rider']);
+      } else if (userProfile?.role === 'branch_manager') {
+        // Hub: only bh_rider (exclude sb_rider)
+        query = query.in('role', ['rider', 'bh_rider']);
+      } else {
+        // For other roles, show all
+        query = query.in('role', ['rider', 'sb_rider', 'bh_rider']);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setRiders(data || []);

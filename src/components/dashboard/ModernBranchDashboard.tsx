@@ -347,9 +347,15 @@ export const ModernBranchDashboard = () => {
 
       // Filter by branch for branch managers and small branch managers
       if (userProfile?.role === 'branch_manager' && userProfile?.branch_id) {
-        ridersQuery = ridersQuery.eq('branch_id', userProfile.branch_id);
+        // Branch Hub managers: only see their hub riders (bh_rider), NOT small branch riders (sb_rider)
+        ridersQuery = ridersQuery
+          .eq('branch_id', userProfile.branch_id)
+          .in('role', ['rider', 'bh_rider']); // Exclude sb_rider
       } else if (userProfile?.role === 'sb_branch_manager' && userProfile?.branch_id) {
-        ridersQuery = ridersQuery.eq('branch_id', userProfile.branch_id);
+        // Small branch managers: only see their small branch riders (sb_rider)
+        ridersQuery = ridersQuery
+          .eq('branch_id', userProfile.branch_id)
+          .in('role', ['rider', 'sb_rider']); // Exclude bh_rider
       }
 
       const { data } = await ridersQuery;
