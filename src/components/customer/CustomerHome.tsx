@@ -1,53 +1,36 @@
-import React, { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent } from '@/components/ui/card';
+import { useEffect, useState } from 'react';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  MapPin, 
-  ShoppingBag, 
-  Star, 
-  Gift, 
-  Coffee,
-  Truck,
-  Plus,
-  ArrowRight,
-  Clock,
-  Heart,
-  Store,
-  Bike
-} from 'lucide-react';
+import { Store, Bike, Gift, Star, Bell, Users, CreditCard, ChevronRight, ShoppingBag } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import PromoBannerCarousel from './PromoBannerCarousel';
 
 interface CustomerHomeProps {
   customerUser: any;
-  onNavigate: (view: any) => void;
-  recentProducts: any[];
-  onAddToCart: (product: any, customizations?: any) => void;
+  onNavigate: any;
+  recentProducts?: any[];
+  onAddToCart?: (product: any) => void;
 }
 
 interface Voucher {
   id: string;
   code: string;
-  description: string;
   discount_type: string;
   discount_value: number;
   valid_until: string;
 }
 
-export function CustomerHome({ 
-  customerUser, 
-  onNavigate, 
-  recentProducts,
-  onAddToCart 
-}: CustomerHomeProps) {
+export function CustomerHome({ customerUser, onNavigate, recentProducts = [], onAddToCart }: CustomerHomeProps) {
   const [activeVouchers, setActiveVouchers] = useState<Voucher[]>([]);
-  const [recentOrders, setRecentOrders] = useState([]);
-  
+  const [recentOrders, setRecentOrders] = useState<any[]>([]);
+
   useEffect(() => {
-    fetchActiveVouchers();
-    fetchRecentOrders();
-  }, []);
+    if (customerUser) {
+      fetchActiveVouchers();
+      fetchRecentOrders();
+    }
+  }, [customerUser]);
 
   const fetchActiveVouchers = async () => {
     try {
@@ -55,298 +38,277 @@ export function CustomerHome({
         .from('customer_vouchers')
         .select('*')
         .eq('is_active', true)
-        .gte('valid_until', new Date().toISOString().split('T')[0])
+        .gte('valid_until', new Date().toISOString())
         .limit(3);
 
       if (error) throw error;
-      setActiveVouchers(data || []);
-    } catch (error) {
+      setActiveVouchers(data as any || []);
+    } catch (error: any) {
       console.error('Error fetching vouchers:', error);
     }
   };
 
   const fetchRecentOrders = async () => {
+    if (!customerUser) return;
+
     try {
       const { data, error } = await supabase
         .from('customer_orders')
         .select('*')
-        .eq('user_id', customerUser?.id)
+        .eq('user_id', customerUser.id)
         .order('created_at', { ascending: false })
         .limit(3);
 
       if (error) throw error;
-      setRecentOrders(data || []);
-    } catch (error) {
+      setRecentOrders(data as any || []);
+    } catch (error: any) {
       console.error('Error fetching recent orders:', error);
     }
   };
 
   const getMembershipBadge = () => {
     const points = customerUser?.points || 0;
-    if (points >= 1000) return { level: 'Gold', color: 'bg-yellow-500', textColor: 'text-yellow-700' };
-    if (points >= 500) return { level: 'Silver', color: 'bg-gray-400', textColor: 'text-gray-700' };
-    return { level: 'Bronze', color: 'bg-amber-600', textColor: 'text-amber-700' };
+    if (points >= 1000) return { level: 'Gold', color: 'bg-yellow-500', icon: '👑' };
+    if (points >= 500) return { level: 'Silver', color: 'bg-gray-400', icon: '⭐' };
+    return { level: 'Bronze', color: 'bg-orange-600', icon: '🔥' };
   };
 
-  const membership = getMembershipBadge();
+  const membershipInfo = getMembershipBadge();
+  const firstName = customerUser?.full_name?.split(' ')[0] || 'Guest';
 
   return (
-    <div className="space-y-6 p-4 pb-24">
-      {/* Promo Banner Carousel */}
-      <PromoBannerCarousel />
+    <div className="min-h-screen bg-gray-50">
+      {/* Hero Banner with Promo Carousel */}
+      <div className="relative">
+        <PromoBannerCarousel />
+      </div>
 
-      {/* Order Type Selection - Redesigned with 3D Icons */}
-      <div className="grid grid-cols-2 gap-4">
-        <Card 
-          className="cursor-pointer hover:shadow-xl transition-all duration-300 border-2 hover:border-primary overflow-hidden"
-          onClick={() => onNavigate('outlets')}
-        >
-          <CardContent className="p-6 text-center space-y-3">
-            <div className="mx-auto w-20 h-20 bg-gradient-to-br from-orange-400 to-red-500 rounded-2xl flex items-center justify-center shadow-lg transform hover:scale-110 transition-transform">
-              <Store className="h-10 w-10 text-white" />
+      {/* Member Card - Below Banner */}
+      <div className="px-4 -mt-6 mb-4">
+        <Card className="bg-white rounded-2xl shadow-lg p-4">
+          {/* Greeting & Notification */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center text-white font-bold text-lg">
+                {firstName.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Hi,</p>
+                <h2 className="text-lg font-bold text-gray-900">{firstName}</h2>
+              </div>
             </div>
-            <div>
-              <h3 className="font-bold text-lg">Zeger Outlet</h3>
-              <p className="text-xs text-muted-foreground">Takeaway di outlet</p>
+            <Button variant="ghost" size="icon" className="relative">
+              <Bell className="h-5 w-5 text-gray-600" />
+              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+            </Button>
+          </div>
+
+          {/* Membership Info Circles */}
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            <div className="flex flex-col items-center">
+              <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mb-2">
+                <Star className="h-8 w-8 text-red-500" fill="currentColor" />
+              </div>
+              <p className="text-xs font-semibold text-gray-900">{membershipInfo.level}</p>
+              <p className="text-xs text-gray-500">Level</p>
             </div>
-          </CardContent>
-        </Card>
-        
-        <Card 
-          className="cursor-pointer hover:shadow-xl transition-all duration-300 border-2 hover:border-primary overflow-hidden"
-          onClick={() => onNavigate('map')}
-        >
-          <CardContent className="p-6 text-center space-y-3">
-            <div className="mx-auto w-20 h-20 bg-gradient-to-br from-blue-400 to-purple-500 rounded-2xl flex items-center justify-center shadow-lg transform hover:scale-110 transition-transform">
-              <Bike className="h-10 w-10 text-white" />
+            <div className="flex flex-col items-center">
+              <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mb-2">
+                <div className="text-2xl font-bold text-red-500">{customerUser?.points || 0}</div>
+              </div>
+              <p className="text-xs font-semibold text-gray-900">Zeger Point</p>
+              <p className="text-xs text-gray-500">Points</p>
             </div>
-            <div>
-              <h3 className="font-bold text-lg">On The Wheels</h3>
-              <p className="text-xs text-muted-foreground">Delivery langsung</p>
+            <div className="flex flex-col items-center">
+              <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-2">
+                <CreditCard className="h-8 w-8 text-gray-400" />
+              </div>
+              <p className="text-xs font-semibold text-gray-900">Membership</p>
+              <p className="text-xs text-gray-500">Inactive</p>
             </div>
-          </CardContent>
+          </div>
+
+          {/* Voucher & Referral Cards */}
+          <div className="grid grid-cols-2 gap-3">
+            <Button 
+              variant="outline" 
+              className="h-auto py-3 px-4 flex items-center justify-between border-2 border-gray-200 hover:border-red-500"
+              onClick={() => onNavigate('vouchers')}
+            >
+              <div className="flex items-center gap-2">
+                <Gift className="h-5 w-5 text-red-500" />
+                <div className="text-left">
+                  <p className="text-xs font-semibold text-gray-900">Voucher</p>
+                  <p className="text-xs text-gray-500">{activeVouchers.length} Active</p>
+                </div>
+              </div>
+              <ChevronRight className="h-4 w-4 text-gray-400" />
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              className="h-auto py-3 px-4 flex items-center justify-between border-2 border-gray-200 hover:border-red-500"
+            >
+              <div className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-red-500" />
+                <div className="text-left">
+                  <p className="text-xs font-semibold text-gray-900">Referral</p>
+                  <p className="text-xs text-gray-500">Share & Earn</p>
+                </div>
+              </div>
+              <ChevronRight className="h-4 w-4 text-gray-400" />
+            </Button>
+          </div>
         </Card>
       </div>
 
-      {/* Points and Membership Card */}
-      <Card className="bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center space-x-2 mb-2">
-                <Star className="h-5 w-5 fill-yellow-300 text-yellow-300" />
-                <span className="text-lg font-bold">{customerUser?.points || 0} Poin</span>
-                <Badge className={`${membership.color} text-white`}>
-                  {membership.level}
-                </Badge>
+      {/* Order Type Section */}
+      <div className="px-4 mb-6">
+        <Card className="bg-white rounded-2xl shadow-lg p-5">
+          <h3 className="text-lg font-bold text-gray-900 mb-4">Buat Pesanan Sekarang</h3>
+          
+          {/* Outlet Selection */}
+          <div className="flex items-center justify-between mb-4 p-3 bg-gray-50 rounded-xl">
+            <div className="flex items-center gap-2">
+              <Store className="h-5 w-5 text-red-500" />
+              <div>
+                <p className="text-xs text-gray-500">Outlet</p>
+                <p className="text-sm font-semibold text-gray-900">BALAM (Main Branch)</p>
               </div>
-              <p className="text-red-100 text-sm">
-                {membership.level === 'Bronze' 
-                  ? `${500 - (customerUser?.points || 0)} poin lagi ke Silver`
-                  : membership.level === 'Silver'
-                  ? `${1000 - (customerUser?.points || 0)} poin lagi ke Gold`
-                  : 'Selamat! Anda sudah Gold Member'
-                }
-              </p>
             </div>
-            <Gift className="h-8 w-8 text-red-200" />
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="text-red-500 hover:text-red-600 hover:bg-red-50"
+              onClick={() => onNavigate('outlets')}
+            >
+              Ubah
+            </Button>
           </div>
-        </CardContent>
-      </Card>
+
+          {/* Order Type Buttons */}
+          <div className="grid grid-cols-2 gap-3">
+            {/* TAKE AWAY Button */}
+            <Button
+              onClick={() => onNavigate('outlets')}
+              className="h-32 flex-col gap-3 bg-gradient-to-br from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-lg relative overflow-hidden group"
+            >
+              <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIgZmlsbD0id2hpdGUiIG9wYWNpdHk9IjAuMSIvPjwvc3ZnPg==')] opacity-50"></div>
+              <Store className="h-12 w-12 relative z-10 drop-shadow-lg" strokeWidth={1.5} />
+              <div className="relative z-10">
+                <p className="text-lg font-bold">TAKE AWAY</p>
+                <p className="text-xs opacity-90">Zeger Outlet</p>
+              </div>
+            </Button>
+
+            {/* DELIVERY Button */}
+            <Button
+              onClick={() => onNavigate('map')}
+              className="h-32 flex-col gap-3 bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg relative overflow-hidden group"
+            >
+              <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIgZmlsbD0id2hpdGUiIG9wYWNpdHk9IjAuMSIvPjwvc3ZnPg==')] opacity-50"></div>
+              <Bike className="h-12 w-12 relative z-10 drop-shadow-lg" strokeWidth={1.5} />
+              <div className="relative z-10">
+                <p className="text-lg font-bold">DELIVERY</p>
+                <p className="text-xs opacity-90">Zeger on the Wheels</p>
+              </div>
+            </Button>
+          </div>
+        </Card>
+      </div>
 
       {/* Quick Action Banners */}
-      <div className="grid grid-cols-2 gap-4">
-        <Card className="bg-gradient-to-br from-purple-500 to-pink-500 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer">
-          <CardContent className="p-4 text-center">
-            <ShoppingBag className="h-8 w-8 mx-auto mb-2" />
-            <p className="font-semibold">Big Order</p>
-            <p className="text-xs opacity-90">Pesan banyak</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-gradient-to-br from-green-500 to-teal-500 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer">
-          <CardContent className="p-4 text-center">
-            <Heart className="h-8 w-8 mx-auto mb-2" />
-            <p className="font-semibold">Menu Favorit</p>
-            <p className="text-xs opacity-90">Pilihan terbaik</p>
-          </CardContent>
-        </Card>
+      <div className="px-4 mb-6">
+        <div className="grid grid-cols-2 gap-3">
+          <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-4 rounded-2xl shadow-lg cursor-pointer hover:shadow-xl transition-all">
+            <ShoppingBag className="h-8 w-8 mb-2" />
+            <p className="text-sm font-bold">Big Order</p>
+            <p className="text-xs opacity-90">For Events</p>
+          </Card>
+          
+          <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white p-4 rounded-2xl shadow-lg cursor-pointer hover:shadow-xl transition-all">
+            <Star className="h-8 w-8 mb-2" />
+            <p className="text-sm font-bold">Menu Favorit</p>
+            <p className="text-xs opacity-90">Best Seller</p>
+          </Card>
+        </div>
       </div>
 
       {/* Active Promotions */}
       {activeVouchers.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Promo Hari Ini</h3>
+        <div className="px-4 mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-bold text-gray-900">Promo Aktif</h3>
             <Button 
               variant="ghost" 
-              size="sm"
+              size="sm" 
+              className="text-red-500 hover:text-red-600"
               onClick={() => onNavigate('vouchers')}
-              className="text-primary"
             >
               Lihat Semua
-              <ArrowRight className="h-4 w-4 ml-1" />
             </Button>
           </div>
-          
-          <div className="space-y-2">
-            {activeVouchers.slice(0, 2).map((voucher) => (
-              <Card key={voucher.id} className="border-dashed border-2 border-orange-300 bg-orange-50 shadow-md hover:shadow-lg transition-shadow">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center space-x-2">
-                        <Badge variant="secondary" className="bg-orange-200 text-orange-700">
-                          {voucher.discount_type === 'percentage' 
-                            ? `${voucher.discount_value}% OFF`
-                            : `Rp ${voucher.discount_value.toLocaleString()}`
-                          }
-                        </Badge>
-                        <span className="text-sm text-muted-foreground">
-                          s/d {new Date(voucher.valid_until).toLocaleDateString('id-ID')}
-                        </span>
-                      </div>
-                      <p className="text-sm font-medium mt-1">{voucher.description}</p>
-                    </div>
-                    <Button size="sm" variant="outline">
-                      Pakai
-                    </Button>
+          <div className="space-y-3">
+            {activeVouchers.map((voucher) => (
+              <Card key={voucher.id} className="p-4 rounded-2xl shadow-md border-2 border-red-100 hover:border-red-500 transition-all cursor-pointer">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                    <Gift className="h-6 w-6 text-red-500" />
                   </div>
-                </CardContent>
+                  <div className="flex-1">
+                    <h4 className="font-bold text-gray-900">{voucher.code}</h4>
+                    <p className="text-sm text-gray-600">
+                      {voucher.discount_type === 'percentage' 
+                        ? `${voucher.discount_value}% OFF` 
+                        : `Rp ${voucher.discount_value.toLocaleString('id-ID')} OFF`}
+                    </p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-gray-400" />
+                </div>
               </Card>
             ))}
           </div>
         </div>
       )}
-
-      {/* Menu Rekomendasi */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold">Menu Favorit</h3>
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={() => onNavigate('menu')}
-            className="text-primary"
-          >
-            Lihat Menu
-            <ArrowRight className="h-4 w-4 ml-1" />
-          </Button>
-        </div>
-        
-        <div className="grid grid-cols-2 gap-4">
-          {recentProducts.slice(0, 4).map((product) => (
-            <Card key={product.id} className="hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-              <CardContent className="p-3">
-                <div className="aspect-square bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl mb-3 flex items-center justify-center overflow-hidden">
-                  {product.image_url ? (
-                    <img 
-                      src={product.image_url} 
-                      alt={product.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <Coffee className="h-8 w-8 text-gray-400" />
-                  )}
-                </div>
-                <h4 className="font-medium text-sm mb-1 line-clamp-2">{product.name}</h4>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-primary">
-                    Rp {product.price.toLocaleString()}
-                  </span>
-                  <Button 
-                    size="sm" 
-                    className="h-7 w-7 p-0 rounded-full shadow-md"
-                    onClick={() => onAddToCart(product)}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
 
       {/* Recent Orders */}
       {recentOrders.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Pesanan Terakhir</h3>
+        <div className="px-4 mb-20">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-bold text-gray-900">Pesanan Terakhir</h3>
             <Button 
               variant="ghost" 
-              size="sm"
+              size="sm" 
+              className="text-red-500 hover:text-red-600"
               onClick={() => onNavigate('orders')}
-              className="text-primary"
             >
               Lihat Semua
-              <ArrowRight className="h-4 w-4 ml-1" />
             </Button>
           </div>
-          
-          <div className="space-y-2">
-            {recentOrders.slice(0, 2).map((order: any) => (
-              <Card key={order.id} className="border-l-4 border-l-primary shadow-md hover:shadow-lg transition-shadow">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Order #{order.id.slice(0, 8)}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {new Date(order.created_at).toLocaleDateString('id-ID')}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-semibold">Rp {order.total_price.toLocaleString()}</p>
-                      <Badge 
-                        variant={order.status === 'delivered' ? 'default' : 'secondary'}
-                        className="text-xs"
-                      >
-                        {order.status}
-                      </Badge>
-                    </div>
-                  </div>
-                </CardContent>
+          <div className="space-y-3">
+            {recentOrders.map((order) => (
+              <Card 
+                key={order.id} 
+                className="p-4 rounded-2xl shadow-md hover:shadow-lg transition-all cursor-pointer"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <Badge variant={
+                    order.status === 'completed' ? 'default' :
+                    order.status === 'pending' ? 'secondary' : 'outline'
+                  }>
+                    {order.status}
+                  </Badge>
+                  <p className="text-xs text-gray-500">
+                    {new Date(order.created_at).toLocaleDateString('id-ID')}
+                  </p>
+                </div>
+                <p className="font-bold text-gray-900">Order #{order.id.slice(0, 8)}</p>
+                <p className="text-sm text-gray-600">Rp {order.total_price.toLocaleString('id-ID')}</p>
               </Card>
             ))}
           </div>
         </div>
       )}
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-3 gap-4">
-        <Card className="cursor-pointer hover:shadow-lg transition-shadow">
-          <CardContent 
-            className="p-4 flex flex-col items-center justify-center space-y-2"
-            onClick={() => onNavigate('vouchers')}
-          >
-            <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-              <Gift className="h-5 w-5 text-orange-600" />
-            </div>
-            <span className="text-xs font-medium">Voucher</span>
-          </CardContent>
-        </Card>
-        <Card className="cursor-pointer hover:shadow-lg transition-shadow">
-          <CardContent 
-            className="p-4 flex flex-col items-center justify-center space-y-2"
-            onClick={() => onNavigate('orders')}
-          >
-            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-              <Clock className="h-5 w-5 text-blue-600" />
-            </div>
-            <span className="text-xs font-medium">Riwayat</span>
-          </CardContent>
-        </Card>
-        <Card className="cursor-pointer hover:shadow-lg transition-shadow">
-          <CardContent 
-            className="p-4 flex flex-col items-center justify-center space-y-2"
-            onClick={() => onNavigate('profile')}
-          >
-            <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-              <Heart className="h-5 w-5 text-red-600" />
-            </div>
-            <span className="text-xs font-medium">Favorit</span>
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 }

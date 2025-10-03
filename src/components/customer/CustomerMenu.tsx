@@ -1,31 +1,31 @@
-import React, { useState, useMemo } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import { useState, useMemo } from 'react';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Progress } from '@/components/ui/progress';
-import { ZegerLogo } from '@/components/ui/zeger-logo';
-import { Plus, Search, Gift, MapPin } from 'lucide-react';
+import { Search, Store, Plus, Coffee, Sandwich, IceCream, Pizza, Salad, Cake } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface Product {
   id: string;
   name: string;
-  description: string;
+  description: string | null;
   price: number;
-  image_url: string;
-  category: string;
+  image_url: string | null;
+  category: string | null;
   custom_options: any;
 }
 
 interface CustomerMenuProps {
   products: Product[];
-  onAddToCart: (product: Product, customizations?: any, quantity?: number) => void;
+  onAddToCart: (product: Product) => void;
   outletId?: string;
   outletName?: string;
   outletAddress?: string;
   onChangeOutlet?: () => void;
 }
+
+type OrderType = 'dine-in' | 'take-away' | 'delivery';
 
 export function CustomerMenu({ 
   products, 
@@ -33,160 +33,227 @@ export function CustomerMenu({
   outletId,
   outletName,
   outletAddress,
-  onChangeOutlet
+  onChangeOutlet 
 }: CustomerMenuProps) {
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeCategory, setActiveCategory] = useState<string>('all');
+  const [orderType, setOrderType] = useState<OrderType>('take-away');
 
   const filteredProducts = useMemo(() => {
     return products.filter(product =>
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.category.toLowerCase().includes(searchTerm.toLowerCase())
+      (product.description?.toLowerCase() || '').includes(searchTerm.toLowerCase())
     );
   }, [products, searchTerm]);
 
   const groupedProducts = useMemo(() => {
-    return filteredProducts.reduce((acc, product) => {
-      const category = product.category || 'Lainnya';
-      if (!acc[category]) {
-        acc[category] = [];
+    const groups: { [key: string]: Product[] } = {};
+    filteredProducts.forEach(product => {
+      const category = product.category || 'Other';
+      if (!groups[category]) {
+        groups[category] = [];
       }
-      acc[category].push(product);
-      return acc;
-    }, {} as Record<string, Product[]>);
+      groups[category].push(product);
+    });
+    return groups;
   }, [filteredProducts]);
 
-  const categories = Object.keys(groupedProducts);
+  const categories = useMemo(() => {
+    return ['all', ...Object.keys(groupedProducts)];
+  }, [groupedProducts]);
 
-  const categoryIcons: Record<string, string> = {
-    'Kopi': '☕',
-    'Non-Kopi': '🥤',
-    'Makanan': '🍰',
-    'Snack': '🍪',
-    'Lainnya': '📋'
+  const getCategoryIcon = (category: string) => {
+    const icons: { [key: string]: any } = {
+      'all': Store,
+      'Coffee': Coffee,
+      'Food': Sandwich,
+      'Dessert': IceCream,
+      'Pizza': Pizza,
+      'Salad': Salad,
+      'Cake': Cake
+    };
+    return icons[category] || Coffee;
   };
 
-  // Mock loyalty data - in real app this would come from props
-  const loyaltyData = {
-    tier: 'Bronze',
-    points: 150,
-    nextTierPoints: 500
-  };
+  const displayProducts = activeCategory === 'all' 
+    ? filteredProducts 
+    : groupedProducts[activeCategory] || [];
 
   return (
-    <div className="space-y-6 pb-20 p-4">
-      {outletId && outletName ? (
-        <Card className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground">
-          <CardContent className="p-4">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <p className="text-sm opacity-90 mb-1">Pesan dari</p>
-                <h2 className="text-xl font-bold mb-2">{outletName}</h2>
-                <p className="text-sm opacity-80 flex items-start gap-1">
-                  <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                  <span>{outletAddress}</span>
-                </p>
+    <div className="min-h-screen bg-gray-50">
+      {/* Order Type Tabs */}
+      <div className="bg-white px-4 py-3 shadow-sm sticky top-0 z-10">
+        <div className="flex gap-2 bg-gray-100 p-1 rounded-full">
+          <button
+            onClick={() => setOrderType('dine-in')}
+            className={cn(
+              "flex-1 py-2 px-4 rounded-full text-sm font-medium transition-all",
+              orderType === 'dine-in' 
+                ? "bg-red-500 text-white shadow-md" 
+                : "text-gray-600 hover:text-gray-900"
+            )}
+          >
+            Dine In
+          </button>
+          <button
+            onClick={() => setOrderType('take-away')}
+            className={cn(
+              "flex-1 py-2 px-4 rounded-full text-sm font-medium transition-all",
+              orderType === 'take-away' 
+                ? "bg-red-500 text-white shadow-md" 
+                : "text-gray-600 hover:text-gray-900"
+            )}
+          >
+            Take Away
+          </button>
+          <button
+            onClick={() => setOrderType('delivery')}
+            className={cn(
+              "flex-1 py-2 px-4 rounded-full text-sm font-medium transition-all",
+              orderType === 'delivery' 
+                ? "bg-red-500 text-white shadow-md" 
+                : "text-gray-600 hover:text-gray-900"
+            )}
+          >
+            Delivery
+          </button>
+        </div>
+      </div>
+
+      {/* Outlet Selection Card */}
+      {outletName && (
+        <div className="px-4 py-3 bg-white border-b">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                <Store className="h-6 w-6 text-red-500" />
               </div>
-              {onChangeOutlet && (
-                <Button 
-                  variant="secondary" 
-                  size="sm"
-                  onClick={onChangeOutlet}
-                  className="ml-2"
-                >
-                  Ganti
-                </Button>
-              )}
+              <div>
+                <p className="text-sm font-bold text-gray-900">{outletName}</p>
+                <p className="text-xs text-gray-500">{outletAddress}</p>
+              </div>
             </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="text-center py-4">
-          <ZegerLogo size="md" />
-          <p className="text-muted-foreground mt-2">Kopi premium untuk hari yang sempurna</p>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              className="text-red-500 hover:text-red-600 hover:bg-red-50"
+              onClick={onChangeOutlet}
+            >
+              Ubah
+            </Button>
+          </div>
         </div>
       )}
 
-      {/* Loyalty Status */}
-      <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <Gift className="h-5 w-5 text-primary" />
-              <span className="font-medium">Level {loyaltyData.tier}</span>
-            </div>
-            <Badge variant="secondary">{loyaltyData.points} Poin</Badge>
-          </div>
-          <Progress 
-            value={(loyaltyData.points / loyaltyData.nextTierPoints) * 100} 
-            className="h-2"
+      {/* Search Bar */}
+      <div className="px-4 py-3 bg-white border-b">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <Input
+            type="text"
+            placeholder="Search menu..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 pr-4 py-2 rounded-full border-2 border-gray-200 focus:border-red-500"
           />
-          <p className="text-xs text-muted-foreground mt-2">
-            {loyaltyData.nextTierPoints - loyaltyData.points} poin lagi untuk level Gold
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Cari menu favorit..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10"
-        />
+        </div>
       </div>
 
-      {/* Products */}
-      <ScrollArea className="h-96">
-        <div className="space-y-6">
-          {categories.map((category) => (
-            <div key={category} className="space-y-3">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">{categoryIcons[category] || '📋'}</span>
-                <h3 className="font-bold text-base text-primary">{category}</h3>
-                <div className="flex-1 h-px bg-border"></div>
-                <Badge variant="outline" className="text-xs">
-                  {groupedProducts[category].length} item
-                </Badge>
-              </div>
-              <div className="space-y-2">
-                {groupedProducts[category].map((product) => (
-                  <Card key={product.id} className="hover:shadow-md transition-all duration-300">
-                    <CardContent className="p-4">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <h4 className="font-semibold">{product.name}</h4>
-                          <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
-                            {product.description}
-                          </p>
-                          <p className="text-lg font-bold text-primary">
-                            Rp {product.price.toLocaleString('id-ID')}
-                          </p>
-                        </div>
-                        <Button
-                          size="sm"
-                          onClick={() => onAddToCart(product)}
-                          className="ml-4"
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+      {/* Content Area with Sidebar */}
+      <div className="flex h-[calc(100vh-280px)]">
+        {/* Category Sidebar */}
+        <div className="w-24 bg-white border-r">
+          <ScrollArea className="h-full">
+            <div className="py-2">
+              {categories.map((category) => {
+                const Icon = getCategoryIcon(category);
+                return (
+                  <button
+                    key={category}
+                    onClick={() => setActiveCategory(category)}
+                    className={cn(
+                      "w-full py-4 px-2 flex flex-col items-center gap-1 transition-all",
+                      activeCategory === category
+                        ? "bg-red-50 border-r-4 border-red-500"
+                        : "hover:bg-gray-50"
+                    )}
+                  >
+                    <Icon className={cn(
+                      "h-6 w-6",
+                      activeCategory === category ? "text-red-500" : "text-gray-400"
+                    )} />
+                    <span className={cn(
+                      "text-xs font-medium text-center",
+                      activeCategory === category ? "text-red-500" : "text-gray-600"
+                    )}>
+                      {category === 'all' ? 'Semua' : category}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
-          ))}
-          
-          {categories.length === 0 && (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">Tidak ada menu ditemukan</p>
-            </div>
-          )}
+          </ScrollArea>
         </div>
-      </ScrollArea>
+
+        {/* Product Grid */}
+        <div className="flex-1 overflow-hidden">
+          <ScrollArea className="h-full">
+            <div className="p-4 grid grid-cols-2 gap-3 pb-20">
+              {displayProducts.length === 0 ? (
+                <div className="col-span-2 text-center py-12">
+                  <p className="text-gray-500">Tidak ada produk ditemukan</p>
+                </div>
+              ) : (
+                displayProducts.map((product) => (
+                  <Card 
+                    key={product.id} 
+                    className="overflow-hidden rounded-2xl shadow-md hover:shadow-xl transition-all border-0"
+                  >
+                    {/* Product Image */}
+                    <div className="aspect-square relative bg-gray-100">
+                      {product.image_url ? (
+                        <img
+                          src={product.image_url}
+                          alt={product.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Coffee className="h-12 w-12 text-gray-300" />
+                        </div>
+                      )}
+                      {/* Add Button Overlay */}
+                      <button
+                        onClick={() => onAddToCart(product)}
+                        className="absolute bottom-2 right-2 w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110"
+                      >
+                        <Plus className="h-5 w-5" />
+                      </button>
+                    </div>
+
+                    {/* Product Info */}
+                    <div className="p-3">
+                      <h3 className="text-base font-semibold text-gray-900 mb-1 line-clamp-2">
+                        {product.name}
+                      </h3>
+                      {product.description && (
+                        <p className="text-xs text-gray-500 mb-2 line-clamp-1">
+                          {product.description}
+                        </p>
+                      )}
+                      <div className="flex items-center justify-between">
+                        <p className="text-lg font-bold text-red-500">
+                          Rp {product.price.toLocaleString('id-ID')}
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                ))
+              )}
+            </div>
+          </ScrollArea>
+        </div>
+      </div>
     </div>
   );
 }

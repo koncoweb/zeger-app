@@ -17,8 +17,10 @@ import {
   Gift,
   Plus,
   Minus,
-  Phone
+  Phone,
+  Package
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { CustomerAuth } from '@/components/customer/CustomerAuth';
 import { CustomerHome } from '@/components/customer/CustomerHome';
 import { CustomerVouchers } from '@/components/customer/CustomerVouchers';
@@ -35,12 +37,14 @@ import { useToast } from '@/hooks/use-toast';
 
 interface CustomerUser {
   id: string;
-  name: string;
+  name?: string;
+  full_name?: string;
   email: string;
   phone: string;
   points: number;
   address: string;
   photo_url?: string;
+  membership_level?: string;
 }
 
 interface Product {
@@ -523,37 +527,47 @@ export default function CustomerApp() {
       </div>
 
       {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-50">
-        <div className="flex items-center justify-around py-2">
-          {[
-            { key: 'home', icon: Home, label: 'Home' },
-            { key: 'vouchers', icon: Ticket, label: 'Voucher' },
-            { key: 'orders', icon: ClipboardList, label: 'Pesanan' },
-            { key: 'profile', icon: User, label: 'Akun' }
-          ].map(({ key, icon: Icon, label }) => (
-            <Button
-              key={key}
-              variant="ghost"
-              size="sm"
-              className={`relative flex flex-col items-center space-y-1 h-auto py-2 px-3 ${
-                activeView === key ? 'text-primary' : 'text-muted-foreground'
-              }`}
-              onClick={() => setActiveView(key as View)}
-            >
-              <Icon className={`h-5 w-5 ${activeView === key ? 'fill-primary/20' : ''}`} />
-              <span className="text-xs font-medium">{label}</span>
-              {key === 'orders' && activeOrdersCount > 0 && (
-                <Badge 
-                  variant="destructive" 
-                  className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-[10px] rounded-full"
-                >
-                  {activeOrdersCount}
-                </Badge>
-              )}
-            </Button>
-          ))}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-50">
+        <div className="flex items-center justify-around py-3">
+          <Button
+            variant="ghost"
+            className={cn("flex-col h-auto py-2 gap-1", activeView === 'home' ? 'text-red-500' : 'text-gray-500')}
+            onClick={() => setActiveView('home')}
+          >
+            <Home className="h-6 w-6" />
+            <span className="text-xs font-medium">Home</span>
+          </Button>
+          <Button
+            variant="ghost"
+            className={cn("flex-col h-auto py-2 gap-1", activeView === 'vouchers' ? 'text-red-500' : 'text-gray-500')}
+            onClick={() => setActiveView('vouchers')}
+          >
+            <Gift className="h-6 w-6" />
+            <span className="text-xs font-medium">Voucher</span>
+          </Button>
+          <Button
+            variant="ghost"
+            className={cn("flex-col h-auto py-2 gap-1 relative", activeView === 'orders' ? 'text-red-500' : 'text-gray-500')}
+            onClick={() => setActiveView('orders')}
+          >
+            <Package className="h-6 w-6" />
+            <span className="text-xs font-medium">Pesanan</span>
+            {activeOrdersCount > 0 && (
+              <Badge className="absolute top-0 right-6 h-5 w-5 flex items-center justify-center p-0 bg-red-500 border-2 border-white">
+                {activeOrdersCount}
+              </Badge>
+            )}
+          </Button>
+          <Button
+            variant="ghost"
+            className={cn("flex-col h-auto py-2 gap-1", activeView === 'profile' ? 'text-red-500' : 'text-gray-500')}
+            onClick={() => setActiveView('profile')}
+          >
+            <User className="h-6 w-6" />
+            <span className="text-xs font-medium">Akun</span>
+          </Button>
         </div>
-      </div>
+      </nav>
     </div>
   );
 }
