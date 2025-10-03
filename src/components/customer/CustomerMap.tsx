@@ -20,6 +20,7 @@ interface Rider {
   lng: number | null;
   last_updated: string | null;
   is_online: boolean;
+  photo_url?: string | null;
 }
 
 // Temporary: User should add their Mapbox token
@@ -239,7 +240,7 @@ const CustomerMap = () => {
                   <div className="flex items-center space-x-3">
                     <div className="relative">
                       <Avatar className="h-14 w-14 ring-2 ring-primary/10">
-                        <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${rider.id}`} />
+                        <AvatarImage src={rider.photo_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${rider.id}`} />
                         <AvatarFallback className="bg-primary/10 text-primary font-bold">
                           {rider.full_name.charAt(0)}
                         </AvatarFallback>
@@ -288,23 +289,33 @@ const CustomerMap = () => {
                   </p>
                 ) : null}
                 <div className="flex gap-2 pt-2">
+                  {/* Kunjungi Rider - Open Google Maps Direction */}
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="flex-1 shadow-sm hover:shadow-md transition-shadow"
-                    onClick={() => callRider(rider.id)}
-                    disabled={!rider.is_online || !rider.phone}
-                  >
-                    <Phone className="h-4 w-4 mr-2" />
-                    Call
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    className="flex-1 shadow-md hover:shadow-lg transition-shadow"
+                    className="flex-1 shadow-sm hover:shadow-md transition-shadow rounded-full"
+                    onClick={() => {
+                      if (rider.lat && rider.lng) {
+                        window.open(`https://www.google.com/maps/dir/?api=1&destination=${rider.lat},${rider.lng}`, '_blank');
+                      }
+                    }}
                     disabled={!rider.is_online || !rider.lat || !rider.lng}
                   >
                     <Navigation className="h-4 w-4 mr-2" />
-                    Navigate
+                    Kunjungi Rider
+                  </Button>
+                  {/* Panggil Rider - Create Order Request */}
+                  <Button 
+                    size="sm" 
+                    className="flex-1 shadow-md hover:shadow-lg transition-shadow bg-red-500 hover:bg-red-600 rounded-full"
+                    onClick={() => {
+                      // TODO: Implement order creation and rider notification
+                      window.location.href = `/customer-app?tab=menu&rider=${rider.id}`;
+                    }}
+                    disabled={!rider.is_online || !rider.lat || !rider.lng}
+                  >
+                    <Phone className="h-4 w-4 mr-2" />
+                    Panggil Rider
                   </Button>
                 </div>
               </CardContent>

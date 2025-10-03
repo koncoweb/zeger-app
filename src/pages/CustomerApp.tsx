@@ -378,9 +378,10 @@ export default function CustomerApp() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="sticky top-0 z-50 bg-white border-b shadow-sm">
-        <div className="flex items-center justify-between p-4">
+      {/* Header - Hidden on home view */}
+      {activeView !== 'home' && (
+        <div className="sticky top-0 z-50 bg-white border-b shadow-sm">
+          <div className="flex items-center justify-between p-4">
           <div className="flex items-center space-x-3">
             <ZegerLogo size="sm" />
             <div>
@@ -415,10 +416,11 @@ export default function CustomerApp() {
             )}
           </div>
         </div>
-      </div>
+        </div>
+      )}
 
       {/* Main Content */}
-      <div className="pb-20">
+      <div className={cn("pb-20", activeView === 'home' && "pt-0")}>
         {tab === 'order-detail' && orderId ? (
           <OrderDetail 
             orderId={orderId} 
@@ -539,11 +541,17 @@ export default function CustomerApp() {
           </Button>
           <Button
             variant="ghost"
-            className={cn("flex-col h-auto py-2 gap-1", activeView === 'vouchers' ? 'text-red-500' : 'text-gray-500')}
-            onClick={() => setActiveView('vouchers')}
+            className={cn("flex-col h-auto py-2 gap-1", activeView === 'menu' ? 'text-red-500' : 'text-gray-500')}
+            onClick={() => {
+              if (!selectedOutlet) {
+                setActiveView('outlets');
+              } else {
+                setActiveView('menu');
+              }
+            }}
           >
             <Gift className="h-6 w-6" />
-            <span className="text-xs font-medium">Voucher</span>
+            <span className="text-xs font-medium">Menu</span>
           </Button>
           <Button
             variant="ghost"

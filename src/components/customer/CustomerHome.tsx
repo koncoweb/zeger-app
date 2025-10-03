@@ -78,14 +78,12 @@ export function CustomerHome({ customerUser, onNavigate, recentProducts = [], on
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Hero Banner with Promo Carousel */}
-      <div className="relative">
-        <PromoBannerCarousel />
-      </div>
+      {/* Hero Banner with Promo Carousel - Full Width */}
+      <PromoBannerCarousel />
 
       {/* Member Card - Below Banner */}
       <div className="px-4 -mt-6 mb-4">
-        <Card className="bg-white rounded-2xl shadow-lg p-4">
+        <Card className="bg-white rounded-3xl shadow-lg p-4">
           {/* Greeting & Notification */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -191,7 +189,7 @@ export function CustomerHome({ customerUser, onNavigate, recentProducts = [], on
             {/* TAKE AWAY Button */}
             <Button
               onClick={() => onNavigate('outlets')}
-              className="h-32 flex-col gap-3 bg-gradient-to-br from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-lg relative overflow-hidden group"
+              className="h-32 flex-col gap-3 bg-gradient-to-br from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-2xl relative overflow-hidden group rounded-3xl"
             >
               <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIgZmlsbD0id2hpdGUiIG9wYWNpdHk9IjAuMSIvPjwvc3ZnPg==')] opacity-50"></div>
               <Store className="h-12 w-12 relative z-10 drop-shadow-lg" strokeWidth={1.5} />
@@ -204,7 +202,7 @@ export function CustomerHome({ customerUser, onNavigate, recentProducts = [], on
             {/* DELIVERY Button */}
             <Button
               onClick={() => onNavigate('map')}
-              className="h-32 flex-col gap-3 bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg relative overflow-hidden group"
+              className="h-32 flex-col gap-3 bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-2xl relative overflow-hidden group rounded-3xl"
             >
               <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIgZmlsbD0id2hpdGUiIG9wYWNpdHk9IjAuMSIvPjwvc3ZnPg==')] opacity-50"></div>
               <Bike className="h-12 w-12 relative z-10 drop-shadow-lg" strokeWidth={1.5} />
