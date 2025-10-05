@@ -25,24 +25,10 @@ Deno.serve(async (req) => {
 
     console.log('Finding nearby riders for location:', { customer_lat, customer_lng, radius_km });
 
-    // Fetch ALL active riders - including those without GPS
+    // Fetch ALL active riders
     const { data: riders, error: ridersError } = await supabase
       .from('profiles')
-      .select(`
-        id,
-        full_name,
-        phone,
-        last_known_lat,
-        last_known_lng,
-        location_updated_at,
-        branch_id,
-        branches!inner (
-          name,
-          address,
-          latitude,
-          longitude
-        )
-      `)
+      .select('id, full_name, phone, last_known_lat, last_known_lng, location_updated_at, branch_id')
       .eq('role', 'rider')
       .eq('is_active', true);
 
@@ -53,39 +39,65 @@ Deno.serve(async (req) => {
 
     console.log('Total riders found:', riders?.length);
 
-    // Calculate distances for all riders with fallback to branch location
+    // Get unique branch IDs and fetch branch data
+    const branchIds = [...new Set(riders?.map(r => r.branch_id).filter(Boolean) || [])];
+    const { data: branches } = await supabase
+      .from('branches')
+      .select('id, name, address')
+      .in('id', branchIds);
+
+    const branchMap = new Map(branches?.map(b => [b.id, b]) || []);
+
+    // Calculate distances for all riders with fallback
     const ridersWithDistance = await Promise.all(
       (riders || []).map(async (rider) => {
-        // Check if rider has GPS location
-        const hasGPS = rider.last_known_lat !== null && rider.last_known_lng !== null;
+        let riderLat = rider.last_known_lat;
+        let riderLng = rider.last_known_lng;
+        let hasGPS = riderLat !== null && riderLng !== null;
         
-        // Use rider GPS if available, otherwise fallback to branch location
-        const riderLat = hasGPS ? rider.last_known_lat : (rider.branches?.latitude || 0);
-        const riderLng = hasGPS ? rider.last_known_lng : (rider.branches?.longitude || 0);
+        // Fallback: try to get latest location from rider_locations table
+        if (!hasGPS) {
+          const { data: recentLocation } = await supabase
+            .from('rider_locations')
+            .select('latitude, longitude, updated_at')
+            .eq('rider_id', rider.id)
+            .order('updated_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (recentLocation) {
+            riderLat = recentLocation.latitude;
+            riderLng = recentLocation.longitude;
+            hasGPS = true;
+          }
+        }
+
+        // Skip rider if no valid location
+        if (!riderLat || !riderLng) {
+          return null;
+        }
         
         let distance_km = 9999;
         let eta_minutes = 0;
 
         // Calculate distance using Haversine formula
-        if (riderLat && riderLng) {
-          const R = 6371; // Earth radius in km
-          const dLat = (customer_lat - riderLat) * Math.PI / 180;
-          const dLng = (customer_lng - riderLng) * Math.PI / 180;
-          const a = 
-            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(riderLat * Math.PI / 180) * 
-            Math.cos(customer_lat * Math.PI / 180) *
-            Math.sin(dLng / 2) * Math.sin(dLng / 2);
-          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-          distance_km = Math.round((R * c) * 100) / 100;
+        const R = 6371; // Earth radius in km
+        const dLat = (customer_lat - riderLat) * Math.PI / 180;
+        const dLng = (customer_lng - riderLng) * Math.PI / 180;
+        const a = 
+          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos(riderLat * Math.PI / 180) * 
+          Math.cos(customer_lat * Math.PI / 180) *
+          Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        distance_km = Math.round((R * c) * 100) / 100;
 
-          // Calculate ETA (assuming 20 km/h average speed)
-          eta_minutes = Math.round((distance_km / 20) * 60);
-        }
+        // Calculate ETA (assuming 20 km/h average speed)
+        eta_minutes = Math.round((distance_km / 20) * 60);
 
         // Check if rider is online (location updated within last 10 minutes)
         let is_online = false;
-        if (hasGPS && rider.location_updated_at) {
+        if (rider.location_updated_at) {
           const lastUpdate = new Date(rider.location_updated_at).getTime();
           const now = new Date().getTime();
           const tenMinutes = 10 * 60 * 1000;
@@ -100,6 +112,8 @@ Deno.serve(async (req) => {
 
         const total_stock = inventory?.reduce((sum, item) => sum + (item.stock_quantity || 0), 0) || 0;
 
+        const branch = branchMap.get(rider.branch_id);
+
         return {
           id: rider.id,
           full_name: rider.full_name,
@@ -113,14 +127,17 @@ Deno.serve(async (req) => {
           last_updated: rider.location_updated_at,
           is_online,
           has_gps: hasGPS,
-          branch_name: rider.branches?.name || '',
-          branch_address: rider.branches?.address || ''
+          branch_name: branch?.name || '',
+          branch_address: branch?.address || ''
         };
       })
     );
 
+    // Filter out null entries and apply radius filter
+    const validRiders = ridersWithDistance.filter((r): r is NonNullable<typeof r> => r !== null)
+
     // Filter by radius and sort: online riders first (by distance), then offline riders
-    const nearbyRiders = ridersWithDistance
+    const nearbyRiders = validRiders
       .filter(rider => rider.distance_km <= radius_km)
       .sort((a, b) => {
         if (a.is_online && !b.is_online) return -1;

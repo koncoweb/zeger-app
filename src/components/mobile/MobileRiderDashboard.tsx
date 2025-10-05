@@ -157,9 +157,9 @@ const MobileRiderDashboard = () => {
 
       const { error } = await supabase.functions.invoke('update-rider-location-live', {
         body: {
-          rider_id: profile.id,
-          latitude: coords.latitude,
-          longitude: coords.longitude,
+          rider_profile_id: profile.id,
+          lat: coords.latitude,
+          lng: coords.longitude,
           accuracy: coords.accuracy,
           heading: coords.heading,
           speed: coords.speed
