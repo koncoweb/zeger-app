@@ -277,7 +277,7 @@ export const SmallBranchStockManagement = () => {
 
       // Process each transfer item
       for (const item of validItems) {
-        // Reduce branch inventory
+        // 1. Reduce branch inventory
         const branchInventoryItem = inventory.find(inv => 
           inv.product_id === item.product_id && !inv.rider_id
         );
@@ -296,8 +296,46 @@ export const SmallBranchStockManagement = () => {
           if (updateBranchError) throw updateBranchError;
         }
 
-        // Create stock movement record with 'sent' status
-        // Rider will need to confirm receipt in mobile app
+        // 2. Check if rider inventory exists for this product
+        const { data: existingRiderInventory, error: checkError } = await supabase
+          .from('inventory')
+          .select('*')
+          .eq('product_id', item.product_id)
+          .eq('rider_id', selectedRider)
+          .eq('branch_id', userProfile?.branch_id)
+          .maybeSingle();
+
+        if (checkError) throw checkError;
+
+        // 3. Update or insert rider inventory
+        if (existingRiderInventory) {
+          // Update existing inventory
+          const { error: updateRiderError } = await supabase
+            .from('inventory')
+            .update({
+              stock_quantity: existingRiderInventory.stock_quantity + item.quantity,
+              last_updated: new Date().toISOString()
+            })
+            .eq('id', existingRiderInventory.id);
+
+          if (updateRiderError) throw updateRiderError;
+        } else {
+          // Insert new inventory record for rider
+          const { error: insertRiderError } = await supabase
+            .from('inventory')
+            .insert({
+              product_id: item.product_id,
+              branch_id: userProfile?.branch_id,
+              rider_id: selectedRider,
+              stock_quantity: item.quantity,
+              min_stock_level: 0,
+              max_stock_level: 100
+            });
+
+          if (insertRiderError) throw insertRiderError;
+        }
+
+        // 4. Create stock movement record with 'completed' status (no confirmation needed for small branch)
         const { error: movementError } = await supabase
           .from('stock_movements')
           .insert({
@@ -306,18 +344,18 @@ export const SmallBranchStockManagement = () => {
             rider_id: selectedRider,
             movement_type: 'transfer',
             quantity: item.quantity,
-            status: 'sent', // Changed from 'completed' to 'sent'
+            status: 'completed', // Directly completed for small branch
             reference_id: batchId,
             reference_type: 'small_branch_to_rider_transfer',
             expected_delivery_date: expectedDelivery.toISOString(),
-            notes: `Transfer dari small branch ke rider - menunggu konfirmasi`,
+            notes: `Transfer dari small branch ke rider - langsung masuk inventory`,
             created_by: userProfile?.id
           });
 
         if (movementError) throw movementError;
       }
 
-      toast.success(`Berhasil mengirim ${validItems.length} item ke rider. Menunggu konfirmasi penerimaan dari rider.`);
+      toast.success(`Berhasil transfer ${validItems.length} item ke rider`);
       
       // Reset form
       setSelectedRider("");

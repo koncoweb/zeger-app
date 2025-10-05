@@ -121,6 +121,12 @@ const RiderPerformance = () => {
       case "today":
         return { startDate: todayStr, endDate: todayStr };
       
+      case "yesterday":
+        const yesterday = new Date(jakartaNow);
+        yesterday.setDate(jakartaNow.getDate() - 1);
+        const yesterdayStr = formatJktYMD(yesterday);
+        return { startDate: yesterdayStr, endDate: yesterdayStr };
+      
       case "weekly":
         const weekStart = new Date(jakartaNow);
         weekStart.setDate(jakartaNow.getDate() - jakartaNow.getDay());
@@ -346,6 +352,7 @@ const RiderPerformance = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="today">Hari Ini</SelectItem>
+                  <SelectItem value="yesterday">Kemarin</SelectItem>
                   <SelectItem value="weekly">Minggu Ini</SelectItem>
                   <SelectItem value="monthly">Bulan Ini</SelectItem>
                   <SelectItem value="custom">Custom</SelectItem>

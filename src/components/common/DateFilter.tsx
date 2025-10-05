@@ -46,7 +46,7 @@ export const DateFilter = ({
     return `${year}-${month}-${day}`;
   };
 
-  const handleQuickFilter = (type: 'today' | 'week' | 'month') => {
+  const handleQuickFilter = (type: 'today' | 'yesterday' | 'week' | 'month') => {
     const now = getJakartaDate();
     const today = formatYMD(now);
 
@@ -54,6 +54,13 @@ export const DateFilter = ({
       case 'today':
         onStartDateChange(today);
         onEndDateChange(today);
+        break;
+      case 'yesterday':
+        const yesterday = new Date(now);
+        yesterday.setDate(now.getDate() - 1);
+        const yesterdayStr = formatYMD(yesterday);
+        onStartDateChange(yesterdayStr);
+        onEndDateChange(yesterdayStr);
         break;
       case 'week':
         const weekStart = new Date(now);
@@ -89,6 +96,14 @@ export const DateFilter = ({
                 className="text-xs"
               >
                 Hari Ini
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleQuickFilter('yesterday')}
+                className="text-xs"
+              >
+                Kemarin
               </Button>
               <Button
                 variant="outline"

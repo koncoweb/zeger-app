@@ -68,12 +68,12 @@ export const ModernBranchDashboard = () => {
   
   const [startDate, setStartDate] = useState<string>(formatYMD(getFirstOfMonth()));
   const [endDate, setEndDate] = useState<string>(formatYMD(getJakartaNow()));
-  const [dateFilter, setDateFilter] = useState<'today' | 'weekly' | 'monthly'>('monthly');
+  const [dateFilter, setDateFilter] = useState<'today' | 'yesterday' | 'weekly' | 'monthly'>('monthly');
 
   // Individual filters for each section
-  const [menuFilter, setMenuFilter] = useState<'today' | 'week' | 'month'>('today');
-  const [hourlyFilter, setHourlyFilter] = useState<'today' | 'week' | 'month'>('today');
-  const [riderFilter, setRiderFilter] = useState<'today' | 'week' | 'month'>('today');
+  const [menuFilter, setMenuFilter] = useState<'today' | 'yesterday' | 'week' | 'month'>('today');
+  const [hourlyFilter, setHourlyFilter] = useState<'today' | 'yesterday' | 'week' | 'month'>('today');
+  const [riderFilter, setRiderFilter] = useState<'today' | 'yesterday' | 'week' | 'month'>('today');
   const [riders, setRiders] = useState<Rider[]>([]);
   // State for active riders
   const [activeRiders, setActiveRiders] = useState<any[]>([]);
@@ -171,7 +171,7 @@ export const ModernBranchDashboard = () => {
     };
   }, []);
 
-  const getDateRange = (filter: 'today' | 'week' | 'month') => {
+  const getDateRange = (filter: 'today' | 'yesterday' | 'week' | 'month') => {
     const today = getJakartaNow();
     let start = startDate;
     let end = endDate;
@@ -179,6 +179,12 @@ export const ModernBranchDashboard = () => {
       const t = formatYMD(today);
       start = t;
       end = t;
+    } else if (filter === 'yesterday') {
+      const yesterday = new Date(today);
+      yesterday.setDate(today.getDate() - 1);
+      const y = formatYMD(yesterday);
+      start = y;
+      end = y;
     } else if (filter === 'week') {
       const weekStart = new Date(today);
       weekStart.setDate(today.getDate() - 7);
@@ -1136,11 +1142,12 @@ export const ModernBranchDashboard = () => {
               
               {/* Quick Filter Dropdown */}
               <Select value={dateFilter} onValueChange={(value: any) => setDateFilter(value)}>
-                <SelectTrigger className="w-24 h-8 text-xs border-gray-200 rounded-full">
+                <SelectTrigger className="w-28 h-8 text-xs border-gray-200 rounded-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="yesterday">Yesterday</SelectItem>
                   <SelectItem value="weekly">Weekly</SelectItem>
                   <SelectItem value="monthly">Monthly</SelectItem>
                 </SelectContent>
@@ -1220,11 +1227,12 @@ export const ModernBranchDashboard = () => {
                   <p className="text-sm text-gray-500">Track your product sales</p>
                 </div>
                 <Select value={menuFilter} onValueChange={(value: any) => setMenuFilter(value)}>
-                  <SelectTrigger className="w-18 h-7 text-xs border-gray-200 rounded-full">
+                  <SelectTrigger className="w-22 h-7 text-xs border-gray-200 rounded-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="today">Today</SelectItem>
+                    <SelectItem value="yesterday">Yesterday</SelectItem>
                     <SelectItem value="week">Week</SelectItem>
                     <SelectItem value="month">Month</SelectItem>
                   </SelectContent>
@@ -1324,11 +1332,12 @@ export const ModernBranchDashboard = () => {
                   <p className="text-sm text-gray-500">Track your sales by hour</p>
                 </div>
                 <Select value={hourlyFilter} onValueChange={(value: any) => setHourlyFilter(value)}>
-                  <SelectTrigger className="w-18 h-7 text-xs border-gray-200 rounded-full">
+                  <SelectTrigger className="w-22 h-7 text-xs border-gray-200 rounded-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="today">Today</SelectItem>
+                    <SelectItem value="yesterday">Yesterday</SelectItem>
                     <SelectItem value="week">Week</SelectItem>
                     <SelectItem value="month">Month</SelectItem>
                   </SelectContent>
@@ -1386,11 +1395,12 @@ export const ModernBranchDashboard = () => {
                   <p className="text-sm text-gray-500">Track your rider sales habits</p>
                 </div>
                 <Select value={riderFilter} onValueChange={(value: any) => setRiderFilter(value)}>
-                  <SelectTrigger className="w-18 h-7 text-xs border-gray-200 rounded-full">
+                  <SelectTrigger className="w-22 h-7 text-xs border-gray-200 rounded-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="today">Today</SelectItem>
+                    <SelectItem value="yesterday">Yesterday</SelectItem>
                     <SelectItem value="week">Week</SelectItem>
                     <SelectItem value="month">Month</SelectItem>
                   </SelectContent>

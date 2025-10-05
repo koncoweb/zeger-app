@@ -33,8 +33,8 @@ interface ResumeData {
   totalProfitCK: number;
 }
 
-interface AggregatedChartData {
-  label: string;
+interface DailyChartData {
+  date: string; // DD/MM format
   sales: number;
   hpp: number;
   foodCost: number;
@@ -49,7 +49,7 @@ export default function CentralKitchenAnalytics() {
   const [riders, setRiders] = useState<any[]>([]);
   const [transactionData, setTransactionData] = useState<TransactionData[]>([]);
   const [resumeData, setResumeData] = useState<ResumeData | null>(null);
-  const [chartData, setChartData] = useState<AggregatedChartData[]>([]);
+  const [chartData, setChartData] = useState<DailyChartData[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -90,6 +90,10 @@ export default function CentralKitchenAnalytics() {
     switch (dateFilter) {
       case 'today':
         return { start: startOfDay(now), end: endOfDay(now) };
+      case 'yesterday':
+        const yesterday = new Date(now);
+        yesterday.setDate(now.getDate() - 1);
+        return { start: startOfDay(yesterday), end: endOfDay(yesterday) };
       case 'week':
         return { start: startOfWeek(now, { weekStartsOn: 1 }), end: endOfWeek(now, { weekStartsOn: 1 }) };
       case 'month':
@@ -244,16 +248,37 @@ export default function CentralKitchenAnalytics() {
         totalProfitCK: rawMaterialCost - totalCKPrice
       });
 
-      // Prepare aggregated chart data showing Sales, HPP, Food Cost, and Profit CK
-      const aggregatedData: AggregatedChartData = {
-        label: 'Total',
-        sales: salesData.grossSales,
-        hpp: rawMaterialCost,
-        foodCost: totalCKPrice,
-        profitCK: rawMaterialCost - totalCKPrice
-      };
+      // Prepare chart data per date
+      const dailyDataMap = new Map<string, DailyChartData>();
+      
+      transactionArray.forEach(txn => {
+        const dateKey = format(new Date(txn.date), 'dd/MM');
+        
+        if (dailyDataMap.has(dateKey)) {
+          const existing = dailyDataMap.get(dateKey)!;
+          existing.sales += txn.totalSales;
+          existing.hpp += txn.totalHPP;
+          existing.foodCost += txn.totalCKPrice;
+          existing.profitCK += txn.profitCK;
+        } else {
+          dailyDataMap.set(dateKey, {
+            date: dateKey,
+            sales: txn.totalSales,
+            hpp: txn.totalHPP,
+            foodCost: txn.totalCKPrice,
+            profitCK: txn.profitCK
+          });
+        }
+      });
 
-      setChartData([aggregatedData]);
+      const dailyChartData = Array.from(dailyDataMap.values()).sort((a, b) => {
+        // Sort by date (parse DD/MM format)
+        const [dayA, monthA] = a.date.split('/').map(Number);
+        const [dayB, monthB] = b.date.split('/').map(Number);
+        return monthA !== monthB ? monthA - monthB : dayA - dayB;
+      });
+
+      setChartData(dailyChartData);
 
     } catch (error) {
       console.error('Error fetching sales data:', error);
@@ -316,6 +341,7 @@ export default function CentralKitchenAnalytics() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="today">Hari Ini</SelectItem>
+                <SelectItem value="yesterday">Kemarin</SelectItem>
                 <SelectItem value="week">Minggu Ini</SelectItem>
                 <SelectItem value="month">Bulan Ini</SelectItem>
                 <SelectItem value="custom">Custom</SelectItem>
@@ -378,14 +404,20 @@ export default function CentralKitchenAnalytics() {
         ) : chartData.length > 0 ? (
           <ResponsiveContainer width="100%" height={400}>
             <LineChart data={chartData}>
-              <XAxis dataKey="label" />
-              <YAxis />
+              <XAxis 
+                dataKey="date" 
+                label={{ value: 'Tanggal', position: 'insideBottom', offset: -5 }}
+              />
+              <YAxis 
+                label={{ value: 'Nominal (Rp)', angle: -90, position: 'insideLeft' }}
+                tickFormatter={(value) => `${(value / 1000)}k`}
+              />
               <Tooltip formatter={(value: any) => `Rp ${Number(value).toLocaleString()}`} />
               <Legend />
-              <Line type="monotone" dataKey="sales" stroke="#3b82f6" strokeWidth={3} name="Sales" />
-              <Line type="monotone" dataKey="hpp" stroke="#ef4444" strokeWidth={3} name="HPP" />
-              <Line type="monotone" dataKey="foodCost" stroke="#f97316" strokeWidth={3} name="Food Cost" />
-              <Line type="monotone" dataKey="profitCK" stroke="#22c55e" strokeWidth={3} name="Profit CK" />
+              <Line type="monotone" dataKey="sales" stroke="#22c55e" strokeWidth={2} name="Sales" />
+              <Line type="monotone" dataKey="hpp" stroke="#ef4444" strokeWidth={2} name="HPP" />
+              <Line type="monotone" dataKey="foodCost" stroke="#f97316" strokeWidth={2} name="Food Cost" />
+              <Line type="monotone" dataKey="profitCK" stroke="#3b82f6" strokeWidth={2} name="Profit CK" />
             </LineChart>
           </ResponsiveContainer>
         ) : (
