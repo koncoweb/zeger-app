@@ -501,13 +501,7 @@ export default function CustomerApp() {
           <Button
             variant="ghost"
             className={cn("flex-col h-auto py-2 gap-1", activeView === 'menu' ? 'text-red-500' : 'text-gray-500')}
-            onClick={() => {
-              if (!selectedOutlet) {
-                setActiveView('outlets');
-              } else {
-                setActiveView('menu');
-              }
-            }}
+            onClick={() => setActiveView('menu')}
           >
             <Gift className="h-6 w-6" />
             <span className="text-xs font-medium">Menu</span>

@@ -140,12 +140,11 @@ Deno.serve(async (req) => {
       })
     );
 
-    // Filter out null entries and apply radius filter
+    // Filter out null entries (no radius filter - show ALL riders)
     const validRiders = ridersWithDistance.filter((r): r is NonNullable<typeof r> => r !== null)
 
-    // Filter by radius and sort: online riders first (by distance), then offline riders
+    // Sort: online riders first (by distance), then offline riders (no distance filter)
     const nearbyRiders = validRiders
-      .filter(rider => rider.distance_km <= radius_km)
       .sort((a, b) => {
         if (a.is_online && !b.is_online) return -1;
         if (!a.is_online && b.is_online) return 1;

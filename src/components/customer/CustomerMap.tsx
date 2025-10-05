@@ -431,6 +431,12 @@ const CustomerMap = () => {
                             Lokasi Cabang
                           </Badge>
                         )}
+                        {rider.distance_km > 50 && (
+                          <Badge variant="outline" className="text-xs text-orange-600 border-orange-600">
+                            <AlertCircle className="h-3 w-3 mr-1" />
+                            Jarak Jauh ({rider.distance_km}km)
+                          </Badge>
+                        )}
                       </div>
                     </div>
                   </div>

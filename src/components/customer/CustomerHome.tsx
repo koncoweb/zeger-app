@@ -76,15 +76,15 @@ export function CustomerHome({ customerUser, onNavigate, recentProducts = [], on
   const membershipInfo = getMembershipBadge();
 
   return (
-    <div className="min-h-screen bg-gray-50 relative">
-      {/* Promo Banner - Background Layer */}
-      <div className="absolute top-0 left-0 right-0 h-48 overflow-hidden z-0">
+    <div className="min-h-screen bg-gray-50">
+      {/* Promo Banner - Stacked at Top */}
+      <div className="w-full overflow-hidden">
         <PromoBannerCarousel />
       </div>
 
-      {/* Member Card - Floating Above Banner */}
-      <div className="relative z-10 px-4 pt-4 mb-4">
-        <Card className="bg-white/95 backdrop-blur-md rounded-3xl shadow-lg p-4">
+      {/* Member Card - Below Banner with Slight Overlap */}
+      <div className="px-4 -mt-8 mb-4">
+        <Card className="bg-white rounded-3xl shadow-xl p-4">
           {/* Greeting & Notification */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
