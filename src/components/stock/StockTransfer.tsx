@@ -111,7 +111,7 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
   
   // New filter states
   const [selectedUserFilter, setSelectedUserFilter] = useState<string>('all');
-  const [dateRangeFilter, setDateRangeFilter] = useState<'today' | 'this_week' | 'this_month' | 'custom'>('today');
+  const [dateRangeFilter, setDateRangeFilter] = useState<'today' | 'yesterday' | 'this_week' | 'this_month' | 'custom'>('today');
   const [customStartDate, setCustomStartDate] = useState<string>('');
   const [customEndDate, setCustomEndDate] = useState<string>('');
 
@@ -270,6 +270,12 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
       case 'today':
         startDate = formatYMD(jakartaNow);
         endDate = formatYMD(jakartaNow);
+        break;
+      case 'yesterday':
+        const yesterday = new Date(jakartaNow);
+        yesterday.setDate(jakartaNow.getDate() - 1);
+        startDate = formatYMD(yesterday);
+        endDate = formatYMD(yesterday);
         break;
       case 'this_week':
         const weekStart = new Date(jakartaNow);
@@ -928,12 +934,13 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
               )}
               
               {/* Date Range Filter */}
-              <Select value={dateRangeFilter} onValueChange={(value: 'today' | 'this_week' | 'this_month' | 'custom') => setDateRangeFilter(value)}>
+              <Select value={dateRangeFilter} onValueChange={(value: 'today' | 'yesterday' | 'this_week' | 'this_month' | 'custom') => setDateRangeFilter(value)}>
                 <SelectTrigger className="w-36 bg-white">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-white">
                   <SelectItem value="today">Hari Ini</SelectItem>
+                  <SelectItem value="yesterday">Kemarin</SelectItem>
                   <SelectItem value="this_week">Minggu Ini</SelectItem>
                   <SelectItem value="this_month">Bulan Ini</SelectItem>
                   <SelectItem value="custom">Custom</SelectItem>

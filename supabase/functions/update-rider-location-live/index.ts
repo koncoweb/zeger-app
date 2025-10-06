@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
 
     console.log('Updating rider location:', { rider_profile_id, lat, lng });
 
-    // Update profiles table
+    // Update profiles table - CRITICAL FOR RIDER APP
     const { error: profileError } = await supabase
       .from('profiles')
       .update({
@@ -50,24 +50,29 @@ Deno.serve(async (req) => {
       throw profileError;
     }
 
-    // Upsert rider_locations table
-    const { error: locationError } = await supabase
-      .from('rider_locations')
-      .upsert({
-        rider_id: rider_profile_id,
-        latitude: lat,
-        longitude: lng,
-        accuracy,
-        heading,
-        speed,
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'rider_id'
-      });
+    // Try to upsert rider_locations - if FK fails, skip it (don't crash rider app)
+    try {
+      const { error: locationError } = await supabase
+        .from('rider_locations')
+        .upsert({
+          rider_id: rider_profile_id,
+          latitude: lat,
+          longitude: lng,
+          accuracy,
+          heading,
+          speed,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'rider_id'
+        });
 
-    if (locationError) {
-      console.error('Error upserting rider_locations:', locationError);
-      throw locationError;
+      if (locationError) {
+        // Log FK errors but don't throw - rider app should still work
+        console.warn('rider_locations upsert failed (non-critical):', locationError);
+      }
+    } catch (err) {
+      // Catch any exception during rider_locations update
+      console.warn('rider_locations update exception (non-critical):', err);
     }
 
     console.log('Location updated successfully');
