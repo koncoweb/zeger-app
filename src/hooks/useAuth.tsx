@@ -61,12 +61,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           .eq('user_id', userId)
           .maybeSingle();
         setUserProfile(created as Profile);
+        setLoading(false); // ✅ SET LOADING FALSE AFTER PROFILE SET
         return;
       }
 
       setUserProfile(existing as Profile);
+      setLoading(false); // ✅ SET LOADING FALSE AFTER PROFILE SET
     } catch (error) {
       console.error('Error fetching user profile:', error);
+      setLoading(false); // ✅ SET LOADING FALSE EVEN ON ERROR
     }
   };
 
@@ -103,9 +106,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           }, 0);
         } else {
           setUserProfile(null);
+          setLoading(false); // ✅ SET LOADING FALSE FOR LOGOUT CASE
         }
-        
-        setLoading(false);
         
         // Handle role-based redirects after login
         if (event === 'SIGNED_IN' && session?.user) {
@@ -125,9 +127,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setTimeout(() => {
           fetchUserProfile(session.user.id);
         }, 0);
+      } else {
+        setLoading(false); // ✅ SET LOADING FALSE IF NO SESSION
       }
-      
-      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
