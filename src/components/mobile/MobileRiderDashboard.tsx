@@ -61,34 +61,36 @@ const MobileRiderDashboard = () => {
   };
 
   useEffect(() => {
-    if (user) {
-      fetchRiderProfile();
-      fetchDashboardData();
-      checkActiveShift();
-      startLocationTracking();
-      fetchPendingOrders();
-      
-      // Subscribe to pending orders
-      const channel = supabase
-        .channel('pending_orders_count')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'customer_orders'
-          },
-          () => {
-            fetchPendingOrders();
-          }
-        )
-        .subscribe();
-
-      return () => {
-        stopLocationTracking();
-        supabase.removeChannel(channel);
-      };
+    if (!user) {
+      return () => {}; // ✅ Always return cleanup, even if empty
     }
+
+    fetchRiderProfile();
+    fetchDashboardData();
+    checkActiveShift();
+    startLocationTracking();
+    fetchPendingOrders();
+    
+    // Subscribe to pending orders
+    const channel = supabase
+      .channel('pending_orders_count')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'customer_orders'
+        },
+        () => {
+          fetchPendingOrders();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      stopLocationTracking();
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
   const startLocationTracking = () => {
@@ -443,7 +445,9 @@ const MobileRiderDashboard = () => {
 
   // Subscribe to pending orders
   useEffect(() => {
-    if (!riderProfile?.id) return;
+    if (!riderProfile?.id) {
+      return () => {}; // ✅ Always return cleanup, even if empty
+    }
     
     const fetchPendingOrdersWithDetails = async () => {
       const { data } = await supabase
