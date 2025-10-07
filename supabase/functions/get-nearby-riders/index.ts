@@ -25,14 +25,14 @@ Deno.serve(async (req) => {
 
     console.log('Finding nearby riders for location:', { customer_lat, customer_lng, radius_km });
 
-    // Fetch ALL active riders with branch location data
+    // Fetch ALL active riders with branch location data (LEFT JOIN to avoid excluding riders without branches)
     const { data: riders, error: ridersError } = await supabase
       .from('profiles')
       .select(`
         id, full_name, phone, photo_url, last_known_lat, last_known_lng, location_updated_at, branch_id,
-        branches!inner(id, name, address, latitude, longitude)
+        branches(id, name, address, latitude, longitude)
       `)
-      .eq('role', 'rider')
+      .in('role', ['rider', 'sb_rider', 'bh_rider'])
       .eq('is_active', true);
 
     if (ridersError) {
@@ -78,10 +78,11 @@ Deno.serve(async (req) => {
           }
         }
 
-        // Skip rider if no valid location (including branch fallback)
-        if (!riderLat || !riderLng) {
-          console.log(`Skipping rider ${rider.full_name} - no location data`);
-          return null;
+        // Don't skip riders without location - show them with high distance
+        if (!riderLat || !riderLat) {
+          console.log(`Rider ${rider.full_name} has no location data - setting distance to 9999`);
+          riderLat = riderLat || 0;
+          riderLng = riderLng || 0;
         }
         
         let distance_km = 9999;
@@ -102,9 +103,21 @@ Deno.serve(async (req) => {
         // Calculate ETA (assuming 20 km/h average speed)
         eta_minutes = Math.round((distance_km / 20) * 60);
 
-        // Check if rider is online (location updated within last 10 minutes)
+        // Check if rider has active shift TODAY
+        const { data: activeShift } = await supabase
+          .from('shift_management')
+          .select('id')
+          .eq('rider_id', rider.id)
+          .eq('shift_date', new Date().toISOString().split('T')[0])
+          .eq('status', 'active')
+          .is('shift_end_time', null)
+          .maybeSingle();
+
+        const is_shift_active = !!activeShift;
+
+        // Check if rider is online (shift active AND location updated within last 10 minutes)
         let is_online = false;
-        if (rider.location_updated_at) {
+        if (is_shift_active && rider.location_updated_at) {
           const lastUpdate = new Date(rider.location_updated_at).getTime();
           const now = new Date().getTime();
           const tenMinutes = 10 * 60 * 1000;
@@ -134,6 +147,7 @@ Deno.serve(async (req) => {
           lng: riderLng,
           last_updated: rider.location_updated_at,
           is_online,
+          is_shift_active,
           has_gps: hasGPS,
           branch_name: branch?.name || '',
           branch_address: branch?.address || ''
@@ -141,14 +155,19 @@ Deno.serve(async (req) => {
       })
     );
 
-    // Filter out null entries (no radius filter - show ALL riders)
+    // Filter out null entries (show ALL riders)
     const validRiders = ridersWithDistance.filter((r): r is NonNullable<typeof r> => r !== null)
 
-    // Sort: online riders first (by distance), then offline riders (no distance filter)
+    // Sort: shift active first, then online by distance, then offline
     const nearbyRiders = validRiders
       .sort((a, b) => {
+        // Shift active riders first
+        if (a.is_shift_active && !b.is_shift_active) return -1;
+        if (!a.is_shift_active && b.is_shift_active) return 1;
+        // Among shift active, online first
         if (a.is_online && !b.is_online) return -1;
         if (!a.is_online && b.is_online) return 1;
+        // Sort by distance
         return a.distance_km - b.distance_km;
       });
 

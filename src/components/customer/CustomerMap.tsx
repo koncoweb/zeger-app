@@ -19,6 +19,7 @@ interface Rider {
   lng: number | null;
   last_updated: string | null;
   is_online: boolean;
+  is_shift_active: boolean;
   has_gps?: boolean;
   branch_name?: string;
   branch_address?: string;
@@ -185,8 +186,8 @@ const CustomerMap = ({ customerUser, onCallRider }: CustomerMapProps = {}) => {
           icon: {
             path: google.maps.SymbolPath.CIRCLE,
             scale: 10,
-            fillColor: rider.has_gps ? (rider.is_online ? '#22c55e' : '#ef4444') : '#9ca3af',
-            fillOpacity: rider.has_gps ? 1 : 0.5,
+            fillColor: rider.is_shift_active ? (rider.is_online ? '#22c55e' : '#f59e0b') : '#9ca3af',
+            fillOpacity: rider.is_shift_active ? 1 : 0.5,
             strokeColor: '#ffffff',
             strokeWeight: 3,
           },
@@ -296,7 +297,12 @@ const CustomerMap = ({ customerUser, onCallRider }: CustomerMapProps = {}) => {
 
       if (error) {
         console.error('❌ Edge function error:', error);
-        throw error;
+        const errorMsg = error.message || 'Gagal memuat data rider';
+        setMapError(`${errorMsg}. Silakan coba lagi.`);
+        setNearbyRiders([]);
+        toast.error(`Error: ${errorMsg}`);
+        setLoading(false);
+        return;
       }
       
       console.log('✅ Fetched riders:', data.riders?.length || 0, 'riders found');
@@ -405,7 +411,7 @@ const CustomerMap = ({ customerUser, onCallRider }: CustomerMapProps = {}) => {
             <Card 
               key={rider.id} 
               className={`overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 shadow-lg ${
-                !rider.is_online ? 'opacity-60' : ''
+                !rider.is_shift_active ? 'opacity-60 border-muted' : ''
               }`}
             >
               <CardHeader className="pb-3 bg-gradient-to-br from-gray-50 to-white">
@@ -413,7 +419,7 @@ const CustomerMap = ({ customerUser, onCallRider }: CustomerMapProps = {}) => {
                   <div className="flex items-center space-x-3">
                     <div className="relative">
                       <Avatar className="h-14 w-14 ring-2 ring-primary/10">
-                        <AvatarImage src={rider.photo_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${rider.id}`} />
+                        <AvatarImage src={rider.photo_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(rider.full_name)}`} />
                         <AvatarFallback className="bg-primary/10 text-primary font-bold">
                           {rider.full_name.charAt(0)}
                         </AvatarFallback>
@@ -429,8 +435,15 @@ const CustomerMap = ({ customerUser, onCallRider }: CustomerMapProps = {}) => {
                           <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
                           <span className="text-xs font-semibold">{rider.rating}</span>
                         </div>
-                        <Badge variant={rider.is_online ? "default" : "secondary"} className="text-xs">
-                          {rider.is_online ? '🟢 Online' : '⚪ Offline'}
+                        <Badge 
+                          variant={rider.is_shift_active ? (rider.is_online ? "default" : "secondary") : "outline"} 
+                          className="text-xs"
+                        >
+                          {rider.is_shift_active ? (
+                            rider.is_online ? '🟢 Online' : '🟡 Shift Aktif'
+                          ) : (
+                            '⚪ Offline'
+                          )}
                         </Badge>
                         {!rider.has_gps && (
                           <Badge variant="outline" className="text-xs">
