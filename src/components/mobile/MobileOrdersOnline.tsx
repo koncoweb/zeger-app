@@ -351,153 +351,79 @@ export function MobileOrdersOnline() {
                 </CardContent>
               </Card>
             ) : (
-              filterOrders(status).map(order => (
-                <Card key={order.id}>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="text-base">
-                          Order #{order.id.slice(0, 8)}
-                        </CardTitle>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {formatDate(order.created_at)}
-                        </p>
-                      </div>
-                      {getStatusBadge(order.status)}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {/* Customer Info */}
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium">{order.customer_users.name}</p>
-                        <p className="text-xs text-muted-foreground">{order.customer_users.phone}</p>
-                      </div>
-                    </div>
-
-                    {/* Delivery Address */}
-                    {order.delivery_address && (
-                      <div className="flex items-start gap-2">
-                        <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-                        <p className="text-sm flex-1">{order.delivery_address}</p>
-                      </div>
-                    )}
-
-                    {/* Items */}
-                    <div className="space-y-2">
-                      {order.customer_order_items.map(item => (
-                        <div key={item.id} className="flex justify-between text-sm">
-                          <span>{item.quantity}x {item.products.name}</span>
-                          <span className="font-medium">{formatCurrency(item.price * item.quantity)}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Total */}
-                    <div className="flex items-center justify-between pt-2 border-t">
-                      <div className="flex items-center gap-2">
-                        <DollarSign className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">Total</span>
-                      </div>
-                      <span className="text-lg font-bold text-primary">
-                        {formatCurrency(order.total_price)}
-                      </span>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex gap-2 pt-2">
-                      {/* View Detail Button - Available for all statuses */}
-                      <Button
-                        variant="outline"
-                        onClick={() => navigate(`/customer-app?tab=order-detail&id=${order.id}`)}
-                        className="flex-1"
-                      >
-                        <Eye className="h-4 w-4 mr-2" />
-                        Detail
-                      </Button>
-                      
-                      {order.status === 'pending' && (
-                        <>
-                          <Button
-                            onClick={() => handleAcceptOrder(order.id)}
-                            disabled={processingOrder === order.id}
-                            className="flex-1"
-                          >
-                            {processingOrder === order.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            ) : (
-                              <CheckCircle2 className="h-4 w-4 mr-2" />
-                            )}
-                            Terima
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            onClick={() => handleRejectOrder(order.id, 'Stok tidak tersedia')}
-                            disabled={processingOrder === order.id}
-                            className="flex-1"
-                          >
-                            <XCircle className="h-4 w-4 mr-2" />
-                            Tolak
-                          </Button>
-                        </>
-                      )}
-                      
-                       {order.status === 'accepted' && (
-                        <>
-                          <Button
-                            onClick={() => handleUpdateStatus(order.id, 'in_progress')}
-                            disabled={processingOrder === order.id}
-                            className="flex-1"
-                          >
-                            Mulai Pengiriman
-                          </Button>
-                          {order.latitude && order.longitude && (
-                            <Button
-                              variant="outline"
-                              onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${order.latitude},${order.longitude}`, '_blank')}
-                            >
-                              <Navigation className="h-4 w-4 mr-2" />
-                              Rute
-                            </Button>
-                          )}
-                        </>
-                      )}
-                      
-                      {order.status === 'in_progress' && (
-                        <>
-                          <Button
-                            onClick={() => handleUpdateStatus(order.id, 'completed')}
-                            disabled={processingOrder === order.id}
-                            className="flex-1"
-                          >
-                            Tiba di Lokasi
-                          </Button>
-                          {order.latitude && order.longitude && (
-                            <Button
-                              variant="outline"
-                              onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${order.latitude},${order.longitude}`, '_blank')}
-                            >
-                              <Navigation className="h-4 w-4 mr-2" />
-                              Rute
-                            </Button>
-                          )}
-                        </>
-                      )}
-
-                      {order.customer_users.phone && (
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => window.open(`tel:${order.customer_users.phone}`)}
-                        >
-                          <Phone className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
+              <Card>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-muted">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium">No</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium">No Trx</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium">Tanggal</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium">Nama</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium">Lokasi</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {filterOrders(status).map((order, index) => (
+                          <tr key={order.id} className="hover:bg-muted/50">
+                            <td className="px-4 py-3 text-sm">{index + 1}</td>
+                            <td className="px-4 py-3 text-sm font-mono">{order.id.slice(0, 8)}</td>
+                            <td className="px-4 py-3 text-sm whitespace-nowrap">
+                              {new Date(order.created_at).toLocaleDateString('id-ID', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric'
+                              })}
+                            </td>
+                            <td className="px-4 py-3 text-sm">
+                              <div className="font-medium">{order.customer_users.name}</div>
+                              <div className="text-xs text-muted-foreground">{order.customer_users.phone}</div>
+                            </td>
+                            <td className="px-4 py-3 text-sm">
+                              {order.latitude && order.longitude ? (
+                                <a
+                                  href={`https://www.google.com/maps?q=${order.latitude},${order.longitude}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800"
+                                >
+                                  <MapPin className="h-4 w-4" />
+                                  <span className="text-xs">Lihat</span>
+                                </a>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              {order.status === 'completed' ? (
+                                <div className="flex justify-center">
+                                  <CheckCircle2 className="h-5 w-5 text-green-600" />
+                                </div>
+                              ) : (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleUpdateStatus(order.id, 'completed')}
+                                  disabled={processingOrder === order.id}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  {processingOrder === order.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <div className="h-5 w-5 rounded-full border-2 border-muted-foreground" />
+                                  )}
+                                </Button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
             )}
           </TabsContent>
         ))}

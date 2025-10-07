@@ -441,7 +441,7 @@ export const MobileStockConfirmationEnhanced = ({ riderId, branchId }: MobileSto
                               checked={selectedGroups[group.reference_id] || false}
                               onCheckedChange={(checked) => handleSelectGroup(group.reference_id, checked as boolean)}
                               onClick={(e) => e.stopPropagation()}
-                              className="h-6 w-6 data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500"
+                              className="h-8 w-8 rounded-full border-2 data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500"
                             />
                           </div>
                         </div>
@@ -476,7 +476,7 @@ export const MobileStockConfirmationEnhanced = ({ riderId, branchId }: MobileSto
                                   checked={!!selectedItems[item.id]}
                                   onCheckedChange={(checked) => handleSelectItem(item.id, checked as boolean)}
                                   onClick={(e) => e.stopPropagation()}
-                                  className="h-6 w-6 data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500 shrink-0"
+                                  className="h-8 w-8 rounded-full border-2 data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500 shrink-0"
                                 />
                               </div>
                             </div>

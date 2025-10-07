@@ -218,7 +218,7 @@ const MobileRiderDashboard = () => {
 
       if (profileError) {
         console.error('Error fetching profile:', profileError);
-        toast.error('Failed to load profile data.');
+        toast.error('Gagal memuat data profil.');
         return;
       }
 
@@ -232,7 +232,7 @@ const MobileRiderDashboard = () => {
 
       if (inventoryError) {
         console.error('Error fetching inventory:', inventoryError);
-        toast.error('Failed to load inventory data.');
+        toast.error('Gagal memuat data inventori.');
         return;
       }
 
@@ -242,19 +242,61 @@ const MobileRiderDashboard = () => {
       const today = new Date().toISOString().split('T')[0];
       const { data: salesData, error: salesError } = await supabase
         .from('transactions')
-        .select('final_amount')
+        .select('final_amount, transaction_date')
         .eq('rider_id', riderId)
         .gte('transaction_date', `${today}T00:00:00`)
         .lte('transaction_date', `${today}T23:59:59`);
 
       if (salesError) {
         console.error('Error fetching sales:', salesError);
-        toast.error('Failed to load sales data.');
+        toast.error('Gagal memuat data penjualan.');
         return;
       }
 
       const todaySales = salesData?.reduce((sum, order) => sum + (Number(order.final_amount) || 0), 0) || 0;
       const todayTransactions = salesData?.length || 0;
+
+      // Fetch 7 days transaction data for chart
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const { data: weekData } = await supabase
+        .from('transactions')
+        .select('id, final_amount, transaction_date')
+        .eq('rider_id', riderId)
+        .gte('transaction_date', sevenDaysAgo.toISOString())
+        .order('transaction_date', { ascending: true });
+
+      // Group by date for chart
+      const chartDataMap: Record<string, number> = {};
+      weekData?.forEach(tx => {
+        const date = new Date(tx.transaction_date).toLocaleDateString('id-ID', { month: 'short', day: 'numeric' });
+        chartDataMap[date] = (chartDataMap[date] || 0) + Number(tx.final_amount);
+      });
+      setChartData(Object.entries(chartDataMap).map(([date, sales]) => ({ date, sales })));
+
+      // Fetch top products from transaction items
+      const transactionIds = weekData?.map(tx => tx.id) || [];
+      if (transactionIds.length > 0) {
+        const { data: topProductsData } = await supabase
+          .from('transaction_items')
+          .select(`
+            quantity,
+            products(name)
+          `)
+          .in('transaction_id', transactionIds);
+
+        // Aggregate top products
+        const productMap: Record<string, number> = {};
+        topProductsData?.forEach((item: any) => {
+          const name = item.products?.name || 'Unknown';
+          productMap[name] = (productMap[name] || 0) + item.quantity;
+        });
+        const sortedProducts = Object.entries(productMap)
+          .map(([name, quantity]) => ({ name, quantity }))
+          .sort((a, b) => b.quantity - a.quantity)
+          .slice(0, 5);
+        setTopProducts(sortedProducts);
+      }
 
       // TODO: Implement active customers logic
       const activeCustomers = 5;
@@ -267,7 +309,7 @@ const MobileRiderDashboard = () => {
       });
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
-      toast.error('Failed to load dashboard data.');
+      toast.error('Gagal memuat data dashboard.');
     } finally {
       setLoading(false);
     }
@@ -554,7 +596,7 @@ const MobileRiderDashboard = () => {
         <CardHeader className="space-y-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-2xl font-bold">
-              Rider Dashboard
+              Dashboard Rider
             </CardTitle>
             {pendingOrdersCount > 0 && (
               <div className="flex items-center gap-2 px-3 py-1 bg-red-500 text-white rounded-full animate-pulse">
@@ -595,7 +637,7 @@ const MobileRiderDashboard = () => {
           <div className="grid grid-cols-2 gap-4">
             <Card>
               <CardHeader>
-                <CardTitle>Total Stock</CardTitle>
+                <CardTitle>Stok Total</CardTitle>
               </CardHeader>
               <CardContent className="flex items-center space-x-4">
                 <Package className="h-6 w-6 text-muted-foreground" />
@@ -604,18 +646,18 @@ const MobileRiderDashboard = () => {
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle>Today's Sales</CardTitle>
+                <CardTitle>Penjualan Hari Ini</CardTitle>
               </CardHeader>
               <CardContent className="flex items-center space-x-4">
                 <DollarSign className="h-6 w-6 text-muted-foreground" />
-                <div className="text-2xl font-bold">${stats.todaySales.toFixed(2)}</div>
+                <div className="text-2xl font-bold">Rp {stats.todaySales.toLocaleString('id-ID')}</div>
               </CardContent>
             </Card>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <Card>
               <CardHeader>
-                <CardTitle>Today's Transactions</CardTitle>
+                <CardTitle>Transaksi Hari Ini</CardTitle>
               </CardHeader>
               <CardContent className="flex items-center space-x-4">
                 <Clock className="h-6 w-6 text-muted-foreground" />
@@ -624,7 +666,7 @@ const MobileRiderDashboard = () => {
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle>Active Customers</CardTitle>
+                <CardTitle>Customer Aktif</CardTitle>
               </CardHeader>
               <CardContent className="flex items-center space-x-4">
               <Users className="h-6 w-6 text-muted-foreground" />
@@ -680,15 +722,15 @@ const MobileRiderDashboard = () => {
         
         <Card>
           <CardHeader>
-            <CardTitle>Shift Management</CardTitle>
+            <CardTitle>Manajemen Shift</CardTitle>
           </CardHeader>
           <CardContent className="flex justify-between items-center">
             {hasActiveShift ? (
               <Button variant="destructive" onClick={handleShiftEnd}>
-                End Shift
+                Akhiri Shift
               </Button>
             ) : (
-              <Button onClick={handleShiftStart}>Start Shift</Button>
+              <Button onClick={handleShiftStart}>Mulai Shift</Button>
             )}
           </CardContent>
         </Card>
