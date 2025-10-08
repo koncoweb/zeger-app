@@ -197,8 +197,8 @@ export function CustomerHome({ customerUser, onNavigate, recentProducts = [], on
                 <Store className="h-10 w-10 relative z-10 drop-shadow-lg" strokeWidth={1.5} />
               </div>
               <div className="relative z-10">
-                <p className="text-lg font-bold">TAKE AWAY</p>
-                <p className="text-xs opacity-90">Zeger Outlet</p>
+                <p className="text-lg font-bold">Zeger Outlet</p>
+                <p className="text-xs opacity-90">Ambil di Outlet</p>
               </div>
             </Button>
 
@@ -212,8 +212,8 @@ export function CustomerHome({ customerUser, onNavigate, recentProducts = [], on
                 <Bike className="h-10 w-10 relative z-10 drop-shadow-lg" strokeWidth={1.5} />
               </div>
               <div className="relative z-10">
-                <p className="text-lg font-bold">DELIVERY</p>
-                <p className="text-xs opacity-90">Zeger on the Wheels</p>
+                <p className="text-lg font-bold">Zeger On The Wheels</p>
+                <p className="text-xs opacity-90">Antar ke Lokasi</p>
               </div>
             </Button>
           </div>

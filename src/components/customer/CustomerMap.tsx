@@ -399,7 +399,7 @@ const CustomerMap = ({ customerUser, onCallRider }: CustomerMapProps = {}) => {
 
   // Phase 4: Handle "Panggil Rider" - Create order request
   const handlePanggilRider = async (rider: Rider) => {
-    if (!customerUser || !userLocation) {
+    if (!customerUser?.user_id || !userLocation) {
       toast.error('Silakan login terlebih dahulu');
       return;
     }
@@ -407,32 +407,40 @@ const CustomerMap = ({ customerUser, onCallRider }: CustomerMapProps = {}) => {
     setRequestingRider(rider.id);
 
     try {
-      console.log('📞 Calling rider:', rider.full_name);
+      console.log('📞 Calling rider:', {
+        rider: rider.full_name,
+        customer_user_id: customerUser.user_id,
+        location: userLocation
+      });
 
       const { data, error } = await supabase.functions.invoke('send-order-request', {
         body: {
-          customer_user_id: customerUser.id,
+          customer_user_id: customerUser.user_id,
           rider_profile_id: rider.id,
           customer_lat: userLocation.lat,
           customer_lng: userLocation.lng,
           delivery_address: customerUser.address || 'Alamat pelanggan',
-          order_items: [], // Empty for now, can be filled later
-          total_price: 0
+          notes: 'Panggil rider via Zeger On The Wheels'
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Edge function error:', error);
+        throw new Error(error.message || 'Gagal mengirim permintaan');
+      }
 
-      toast.success('Permintaan berhasil dikirim!', {
-        description: `Menunggu ${rider.full_name} menerima pesanan`
+      console.log('✅ Order created:', data);
+
+      toast.success(`Permintaan berhasil dikirim ke ${rider.full_name}!`, {
+        description: `ETA: ${data.eta_minutes || 15} menit`
       });
 
       // Navigate to tracking page if order created
-      if (onCallRider && data?.order) {
-        onCallRider(data.order.id, rider);
+      if (onCallRider && data?.order_id) {
+        onCallRider(data.order_id, rider);
       }
     } catch (error: any) {
-      console.error('Error calling rider:', error);
+      console.error('❌ Error calling rider:', error);
       toast.error('Gagal mengirim permintaan', {
         description: error.message || 'Silakan coba lagi'
       });
@@ -545,7 +553,7 @@ const CustomerMap = ({ customerUser, onCallRider }: CustomerMapProps = {}) => {
                   <div className="flex items-center space-x-3">
                     <div className="relative">
                       <Avatar className="h-14 w-14 ring-2 ring-primary/10">
-                        <AvatarImage src={rider.photo_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(rider.full_name)}`} />
+                        <AvatarImage src="/avatars/default-rider.jpg" alt={rider.full_name} />
                         <AvatarFallback className="bg-primary/10 text-primary font-bold">
                           {rider.full_name.charAt(0)}
                         </AvatarFallback>
@@ -647,7 +655,7 @@ const CustomerMap = ({ customerUser, onCallRider }: CustomerMapProps = {}) => {
                         setRequestingRider(rider.id);
                         const { data, error } = await supabase.functions.invoke('send-order-request', {
                           body: {
-                            customer_user_id: customerUser.id,
+                            customer_user_id: customerUser.user_id,
                             rider_profile_id: rider.id,
                             customer_lat: userLocation.lat,
                             customer_lng: userLocation.lng,
