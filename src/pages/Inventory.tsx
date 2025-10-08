@@ -154,30 +154,36 @@ export default function Inventory() {
         .order('created_at', { ascending: false });
       setReturns((ret || []).map(r => ({ ...r, product: (r as any).products })) as any);
 
-      // Riders map - include ALL riders with activity, not just from current branch
+      // Riders map - filter to only riders from current branch
       const { data: riderProfiles } = await supabase
         .from('profiles')
         .select('id, full_name, branch_id')
         .in('role', ['rider', 'sb_rider', 'bh_rider'])
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .eq('branch_id', userProfile!.branch_id);
       const map: Record<string, Rider> = {};
       (riderProfiles || []).forEach(r => { map[r.id] = r as Rider; });
       
-      // Include riders from inventory and returns who might not be in profiles
-      const allRiderIds = new Set([
+      // Only include riders from current branch's inventory/returns
+      const currentBranchRiderIds = new Set([
         ...Object.keys(map),
-        ...(riderInv || []).map((i: any) => i.rider_id),
-        ...(ret || []).map((r: any) => r.rider_id)
+        ...(riderInv || [])
+          .filter((i: any) => map[i.rider_id]) // Only riders from current branch
+          .map((i: any) => i.rider_id),
+        ...(ret || [])
+          .filter((r: any) => map[r.rider_id]) // Only riders from current branch
+          .map((r: any) => r.rider_id)
       ]);
       
-      // For missing riders, create placeholder entries
-      allRiderIds.forEach(riderId => {
-        if (!map[riderId]) {
-          map[riderId] = { id: riderId, full_name: `Rider ${riderId.slice(-4)}` };
+      // Build final map with only current branch riders
+      const finalMap: Record<string, Rider> = {};
+      currentBranchRiderIds.forEach(riderId => {
+        if (map[riderId]) {
+          finalMap[riderId] = map[riderId];
         }
       });
       
-      setRiders(map);
+      setRiders(finalMap);
 
       // Shifts waiting verification
       const today = new Date().toISOString().split('T')[0];

@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
         id, full_name, phone, photo_url, last_known_lat, last_known_lng, location_updated_at, branch_id,
         branches(id, name, address, latitude, longitude)
       `)
-      .in('role', ['rider', 'sb_rider', 'bh_rider'])
+      .or('role.eq.rider,role.eq.sb_rider,role.eq.bh_rider')
       .eq('is_active', true);
 
     if (ridersError) {
