@@ -677,7 +677,7 @@ const CustomerMap = ({ customerUser, onCallRider }: CustomerMapProps = {}) => {
                         setRequestingRider(null);
                       }
                     }}
-                    disabled={!rider.is_online || requestingRider === rider.id || !userLocation || !customerUser}
+                    disabled={requestingRider === rider.id || !userLocation || !customerUser}
                   >
                     {requestingRider === rider.id ? (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
