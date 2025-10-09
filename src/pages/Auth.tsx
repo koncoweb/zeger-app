@@ -60,6 +60,16 @@ const Auth = () => {
     }
   }, [user, userProfile, loading]);
 
+  // Fallback redirect for authenticated users without profile (likely customers)
+  useEffect(() => {
+    if (!loading && user && !userProfile) {
+      const timer = setTimeout(() => {
+        toast.info('Mengarahkan ke aplikasi customer...');
+        window.location.replace('/customer-app');
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [user, userProfile, loading]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -337,10 +347,20 @@ const Auth = () => {
               </div>
             </div>
 
-            <div className="text-center">
-              <p className="text-gray-600 text-sm">
-                Don't have an account? <span className="text-red-600 cursor-pointer font-medium">Sign Up</span>
-              </p>
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <div className="text-center space-y-3">
+                <p className="text-sm text-gray-600 font-medium">
+                  Pelanggan? Gunakan aplikasi customer
+                </p>
+                <Button
+                  type="button"
+                  onClick={() => navigate('/customer-app')}
+                  variant="outline"
+                  className="w-full border-2 border-red-600 text-red-600 hover:bg-red-50 rounded-full py-6 text-base font-semibold"
+                >
+                  Masuk ke Customer App →
+                </Button>
+              </div>
             </div>
           </div>
         </div>
