@@ -29,6 +29,8 @@ import { CustomerProfile } from '@/components/customer/CustomerProfile';
 import CustomerMap from '@/components/customer/CustomerMap';
 import { CustomerMenu } from '@/components/customer/CustomerMenu';
 import { CustomerCart } from '@/components/customer/CustomerCart';
+import { CustomerCartNew } from '@/components/customer/CustomerCartNew';
+import { BottomNavigation } from '@/components/customer/BottomNavigation';
 import { CustomerOutletList } from '@/components/customer/CustomerOutletList';
 import { OrderDetail } from '@/components/customer/OrderDetail';
 import CustomerCheckout from '@/components/customer/CustomerCheckout';
@@ -286,6 +288,8 @@ export default function CustomerApp() {
     totalPrice: number;
     deliveryFee: number;
     discount: number;
+    pointsUsed?: number;
+    pointsEarned?: number;
   }) => {
     try {
       // 1. Insert customer_order
@@ -325,14 +329,17 @@ export default function CustomerApp() {
 
       if (itemsError) throw itemsError;
 
-      // 3. Update customer points
-      const earnedPoints = Math.floor(orderData.totalPrice / 1000);
+      // 3. Update customer points (deduct used points, earned points added by trigger)
+      const newPointsBalance = (customerUser!.points || 0) - (orderData.pointsUsed || 0);
       const { error: pointsError } = await supabase
         .from('customer_users')
-        .update({ points: (customerUser!.points || 0) + earnedPoints })
+        .update({ points: newPointsBalance })
         .eq('id', customerUser!.id);
 
       if (pointsError) throw pointsError;
+      
+      // Update local state
+      setCustomerUser(prev => prev ? {...prev, points: newPointsBalance} : null);
 
       // 4. Clear cart
       setCart([]);
@@ -441,32 +448,25 @@ export default function CustomerApp() {
               />
             )}
             {activeView === 'cart' && (
-              <CustomerCart 
+              <CustomerCartNew
                 cart={cart}
+                outletName={selectedOutlet?.name}
+                outletAddress={selectedOutlet?.address}
+                outletDistance="0.01 km"
                 onUpdateQuantity={updateCartQuantity}
                 onNavigate={(view: string) => {
                   if (view === 'checkout' && !selectedOutlet) {
-                    // If trying to checkout without outlet, redirect to outlet selection
                     setActiveView('outlets');
                     toast({
                       title: "Pilih Outlet",
                       description: "Silakan pilih outlet terlebih dahulu",
                     });
-                  } else if (view === 'map') {
-                    // "Pesan Sekarang" now goes to checkout, not map
-                    if (!selectedOutlet) {
-                      setActiveView('outlets');
-                      toast({
-                        title: "Pilih Outlet",
-                        description: "Silakan pilih outlet terlebih dahulu",
-                      });
-                    } else {
-                      setActiveView('checkout');
-                    }
                   } else {
                     setActiveView(view as View);
                   }
                 }}
+                onChangeOutlet={() => setActiveView('outlets')}
+                onAddMenu={() => setActiveView('menu')}
               />
             )}
             {activeView === 'checkout' && selectedOutlet && customerUser && (
@@ -542,47 +542,13 @@ export default function CustomerApp() {
       </div>
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-50">
-        <div className="flex items-center justify-around py-3">
-          <Button
-            variant="ghost"
-            className={cn("flex-col h-auto py-2 gap-1", activeView === 'home' ? 'text-red-500' : 'text-gray-500')}
-            onClick={() => setActiveView('home')}
-          >
-            <Home className="h-6 w-6" />
-            <span className="text-xs font-medium">Home</span>
-          </Button>
-          <Button
-            variant="ghost"
-            className={cn("flex-col h-auto py-2 gap-1", activeView === 'menu' ? 'text-red-500' : 'text-gray-500')}
-            onClick={() => setActiveView('menu')}
-          >
-            <Gift className="h-6 w-6" />
-            <span className="text-xs font-medium">Menu</span>
-          </Button>
-          <Button
-            variant="ghost"
-            className={cn("flex-col h-auto py-2 gap-1 relative", activeView === 'orders' ? 'text-red-500' : 'text-gray-500')}
-            onClick={() => setActiveView('orders')}
-          >
-            <Package className="h-6 w-6" />
-            <span className="text-xs font-medium">Pesanan</span>
-            {activeOrdersCount > 0 && (
-              <Badge className="absolute top-0 right-6 h-5 w-5 flex items-center justify-center p-0 bg-red-500 border-2 border-white">
-                {activeOrdersCount}
-              </Badge>
-            )}
-          </Button>
-          <Button
-            variant="ghost"
-            className={cn("flex-col h-auto py-2 gap-1", activeView === 'profile' ? 'text-red-500' : 'text-gray-500')}
-            onClick={() => setActiveView('profile')}
-          >
-            <User className="h-6 w-6" />
-            <span className="text-xs font-medium">Akun</span>
-          </Button>
-        </div>
-      </nav>
+      {!['waiting', 'order-success'].includes(activeView) && tab !== 'order-detail' && (
+        <BottomNavigation
+          activeView={activeView}
+          activeOrdersCount={activeOrdersCount}
+          onNavigate={(view) => setActiveView(view as View)}
+        />
+      )}
     </div>
   );
 }

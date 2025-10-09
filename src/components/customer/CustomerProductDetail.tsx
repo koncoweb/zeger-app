@@ -28,20 +28,30 @@ export function CustomerProductDetail({
   onAddToCart 
 }: CustomerProductDetailProps) {
   const [quantity, setQuantity] = useState(1);
-  const [temperature, setTemperature] = useState<'hot' | 'ice'>('hot');
-  const [size, setSize] = useState<'ultimate' | 'large' | 'regular'>('regular');
-  const [blend, setBlend] = useState('senja');
+  const [temperature, setTemperature] = useState<'hot' | 'ice'>('ice');
+  const [size, setSize] = useState<'regular' | 'large' | 'ultimate'>('regular');
+  const [blend, setBlend] = useState<'senja' | 'pagi'>('senja');
+  const [milk, setMilk] = useState<'regular' | 'oat'>('regular');
+  const [iceLevel, setIceLevel] = useState<'normal' | 'less'>('normal');
+  const [sugarLevel, setSugarLevel] = useState<'normal' | 'less'>('normal');
+  const [extraShot, setExtraShot] = useState(false);
+  const [notes, setNotes] = useState('');
 
-  const handleAddToCart = () => {
-    const customizations = {
-      temperature,
-      size,
-      blend
-    };
-    onAddToCart(product, quantity, customizations);
+  const getCustomPrice = () => {
+    let price = product.price;
+    if (size === 'large') price += 5000;
+    if (size === 'ultimate') price += 10000;
+    if (extraShot) price += 6000;
+    return price;
   };
 
-  const totalPrice = product.price * quantity;
+  const handleAddToCart = () => {
+    onAddToCart(product, quantity, {
+      temperature, size, blend, milk, iceLevel, sugarLevel, extraShot, notes
+    });
+  };
+
+  const totalPrice = getCustomPrice() * quantity;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -165,34 +175,13 @@ export function CustomerProductDetail({
           </div>
         </Card>
 
-        {/* Blend Selection */}
-        <Card className="p-4">
-          <h3 className="text-sm font-semibold text-gray-900 mb-3">Blend</h3>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => setBlend('senja')}
-              className={cn(
-                "py-3 px-4 rounded-2xl font-medium transition-all",
-                blend === 'senja'
-                  ? "bg-red-500 text-white shadow-lg scale-105"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              )}
-            >
-              Senja
-            </button>
-            <button
-              onClick={() => setBlend('pagi')}
-              className={cn(
-                "py-3 px-4 rounded-2xl font-medium transition-all",
-                blend === 'pagi'
-                  ? "bg-red-500 text-white shadow-lg scale-105"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              )}
-            >
-              Pagi
-            </button>
-          </div>
-        </Card>
+        {/* Blend, Milk, Ice, Sugar, Toppings, Notes */}
+        <Card className="p-4"><h3 className="text-sm font-semibold mb-3">Blend</h3><div className="grid grid-cols-2 gap-3">{['senja','pagi'].map(b=><button key={b} onClick={()=>setBlend(b as any)} className={cn("py-3 rounded-2xl font-medium",blend===b?"bg-purple-600 text-white":"bg-gray-100")}>{b.charAt(0).toUpperCase()+b.slice(1)}</button>)}</div></Card>
+        <Card className="p-4"><h3 className="text-sm font-semibold mb-3">Milk</h3><div className="grid grid-cols-2 gap-3">{['regular','oat'].map(m=><button key={m} onClick={()=>setMilk(m as any)} className={cn("py-3 rounded-2xl font-medium",milk===m?"bg-purple-600 text-white":"bg-gray-100")}>{m.charAt(0).toUpperCase()+m.slice(1)}</button>)}</div></Card>
+        <Card className="p-4"><h3 className="text-sm font-semibold mb-3">Ice Level</h3><div className="grid grid-cols-2 gap-3">{['normal','less'].map(i=><button key={i} onClick={()=>setIceLevel(i as any)} className={cn("py-3 rounded-2xl font-medium",iceLevel===i?"bg-purple-600 text-white":"bg-gray-100")}>{i.charAt(0).toUpperCase()+i.slice(1)}</button>)}</div></Card>
+        <Card className="p-4"><h3 className="text-sm font-semibold mb-3">Sugar</h3><div className="grid grid-cols-2 gap-3">{['normal','less'].map(s=><button key={s} onClick={()=>setSugarLevel(s as any)} className={cn("py-3 rounded-2xl font-medium",sugarLevel===s?"bg-purple-600 text-white":"bg-gray-100")}>{s.charAt(0).toUpperCase()+s.slice(1)}</button>)}</div></Card>
+        <Card className="p-4"><h3 className="text-sm font-semibold mb-3">Toppings</h3><label className="flex items-center justify-between p-3 border rounded-2xl"><div className="flex gap-2"><input type="checkbox" checked={extraShot} onChange={e=>setExtraShot(e.target.checked)} className="w-5 h-5"/><span>Extra Shot</span></div><span className="text-red-600 font-semibold">+Rp 6.000</span></label></Card>
+        <Card className="p-4"><h3 className="text-sm font-semibold mb-3">Catatan</h3><textarea value={notes} onChange={e=>setNotes(e.target.value.slice(0,100))} placeholder="Masukan catatan pesanan kamu" className="w-full h-20 p-3 border rounded-2xl resize-none" maxLength={100}/><p className="text-xs text-gray-500 text-right mt-1">{notes.length}/100</p></Card>
 
         {/* Quantity Selector */}
         <Card className="p-4">

@@ -18,10 +18,10 @@ interface CustomerPaymentMethodProps {
 }
 
 const eWalletOptions = [
-  { id: 'OVO', name: 'OVO', icon: '🟠', color: 'bg-purple-50 border-purple-200' },
-  { id: 'DANA', name: 'DANA', icon: '💙', color: 'bg-blue-50 border-blue-200' },
-  { id: 'LINKAJA', name: 'LinkAja', icon: '❤️', color: 'bg-red-50 border-red-200' },
-  { id: 'SHOPEEPAY', name: 'ShopeePay', icon: '🧡', color: 'bg-orange-50 border-orange-200' },
+  { id: 'GOPAY', name: 'GOPAY', icon: '🔵' },
+  { id: 'SHOPEEPAY', name: 'SHOPEEPAY / SPAYLATER', icon: '🟠' },
+  { id: 'OVO', name: 'OVO', icon: '🟣' },
+  { id: 'JENIUSPAY', name: 'JENIUS PAY', icon: '🔵' },
 ];
 
 export default function CustomerPaymentMethod({
@@ -101,12 +101,9 @@ export default function CustomerPaymentMethod({
       </div>
 
       <div className="p-4 space-y-4">
-        {/* Warning Banner */}
         <Alert className="bg-yellow-50 border-yellow-200">
           <AlertCircle className="h-4 w-4 text-yellow-600" />
-          <AlertDescription className="text-yellow-800">
-            Pastikan saldo e-wallet Anda mencukupi sebelum melanjutkan
-          </AlertDescription>
+          <AlertDescription className="text-sm"><strong>Pastikan Saldo Cukup!</strong> Pastikan saldo kamu cukup sebelum melakukan pembayaran</AlertDescription>
         </Alert>
 
         {/* E-Wallet Options */}

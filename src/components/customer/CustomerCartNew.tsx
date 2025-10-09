@@ -1,0 +1,345 @@
+import React, { useState } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { 
+  ArrowLeft, 
+  MapPin, 
+  Clock, 
+  Plus, 
+  Minus,
+  User,
+  ShoppingBag,
+  Bike
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+interface CartItem {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+  image_url: string;
+  customizations: {
+    temperature?: 'hot' | 'ice';
+    size?: 'regular' | 'large' | 'ultimate';
+    blend?: 'senja' | 'pagi';
+    milk?: 'regular' | 'oat';
+    iceLevel?: 'normal' | 'less';
+    sugarLevel?: 'normal' | 'less';
+    extraShot?: boolean;
+    notes?: string;
+  };
+}
+
+interface CustomerCartNewProps {
+  cart: CartItem[];
+  outletName?: string;
+  outletAddress?: string;
+  outletDistance?: string;
+  onUpdateQuantity: (productId: string, customizations: any, newQuantity: number) => void;
+  onNavigate: (view: string) => void;
+  onChangeOutlet: () => void;
+  onAddMenu: () => void;
+}
+
+export function CustomerCartNew({ 
+  cart, 
+  outletName,
+  outletAddress,
+  outletDistance = "0.01 km",
+  onUpdateQuantity, 
+  onNavigate,
+  onChangeOutlet,
+  onAddMenu
+}: CustomerCartNewProps) {
+  const [orderType, setOrderType] = useState<'dine_in' | 'take_away' | 'delivery'>('take_away');
+  const [pickupTime, setPickupTime] = useState('now');
+
+  const getTotalPrice = () => {
+    return cart.reduce((total, item) => {
+      let itemPrice = item.price;
+      
+      // Add size upcharge
+      if (item.customizations.size === 'large') itemPrice += 5000;
+      if (item.customizations.size === 'ultimate') itemPrice += 10000;
+      
+      // Add extra shot
+      if (item.customizations.extraShot) itemPrice += 6000;
+      
+      return total + (itemPrice * item.quantity);
+    }, 0);
+  };
+
+  const getItemPrice = (item: CartItem) => {
+    let price = item.price;
+    if (item.customizations.size === 'large') price += 5000;
+    if (item.customizations.size === 'ultimate') price += 10000;
+    if (item.customizations.extraShot) price += 6000;
+    return price;
+  };
+
+  const formatCustomization = (item: CartItem) => {
+    const customs = [];
+    if (item.customizations.temperature) {
+      customs.push(`${item.customizations.temperature === 'hot' ? 'Hot' : 'Ice'} Temp`);
+    }
+    if (item.customizations.size) {
+      customs.push(`${item.customizations.size.charAt(0).toUpperCase() + item.customizations.size.slice(1)} Size`);
+    }
+    if (item.customizations.blend) {
+      customs.push(`${item.customizations.blend.charAt(0).toUpperCase() + item.customizations.blend.slice(1)} Blend`);
+    }
+    if (item.customizations.milk) {
+      customs.push(`${item.customizations.milk.charAt(0).toUpperCase() + item.customizations.milk.slice(1)} Milk`);
+    }
+    if (item.customizations.iceLevel) {
+      customs.push(`${item.customizations.iceLevel.charAt(0).toUpperCase() + item.customizations.iceLevel.slice(1)} Ice`);
+    }
+    if (item.customizations.sugarLevel) {
+      customs.push(`${item.customizations.sugarLevel.charAt(0).toUpperCase() + item.customizations.sugarLevel.slice(1)} Sugar`);
+    }
+    if (item.customizations.extraShot) {
+      customs.push('Extra Shot');
+    }
+    return customs.join(', ');
+  };
+
+  if (cart.length === 0) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-4">
+        <ShoppingBag className="h-24 w-24 text-gray-300 mb-4" />
+        <h2 className="text-xl font-bold mb-2">Keranjang Kosong</h2>
+        <p className="text-gray-500 mb-6 text-center">Belum ada item di keranjang</p>
+        <Button 
+          className="bg-red-500 hover:bg-red-600 text-white rounded-full px-8"
+          onClick={() => onNavigate('menu')}
+        >
+          Mulai Belanja
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-white pb-32">
+      {/* Header */}
+      <div className="sticky top-0 bg-white border-b z-10 p-4">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onNavigate('menu')}
+            className="rounded-full"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-xl font-bold">Detail Pesanan</h1>
+        </div>
+      </div>
+
+      <div className="p-4 space-y-4">
+        {/* Order Type Pills */}
+        <div className="flex gap-2">
+          <Button
+            variant={orderType === 'dine_in' ? 'default' : 'outline'}
+            className={cn(
+              "flex-1 rounded-full font-medium",
+              orderType === 'dine_in' 
+                ? "bg-red-500 hover:bg-red-600 text-white" 
+                : "border-gray-300 text-gray-700 hover:bg-gray-50"
+            )}
+            onClick={() => setOrderType('dine_in')}
+          >
+            <User className="h-4 w-4 mr-2" />
+            Dine In
+          </Button>
+          <Button
+            variant={orderType === 'take_away' ? 'default' : 'outline'}
+            className={cn(
+              "flex-1 rounded-full font-medium",
+              orderType === 'take_away' 
+                ? "bg-red-500 hover:bg-red-600 text-white" 
+                : "border-gray-300 text-gray-700 hover:bg-gray-50"
+            )}
+            onClick={() => setOrderType('take_away')}
+          >
+            <ShoppingBag className="h-4 w-4 mr-2" />
+            Take Away
+          </Button>
+          <Button
+            variant={orderType === 'delivery' ? 'default' : 'outline'}
+            className={cn(
+              "flex-1 rounded-full font-medium",
+              orderType === 'delivery' 
+                ? "bg-red-500 hover:bg-red-600 text-white" 
+                : "border-gray-300 text-gray-700 hover:bg-gray-50"
+            )}
+            onClick={() => setOrderType('delivery')}
+          >
+            <Bike className="h-4 w-4 mr-2" />
+            Delivery
+          </Button>
+        </div>
+
+        {/* Outlet Info Card */}
+        {outletName && (
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <h3 className="font-bold text-base mb-1">{outletName}</h3>
+                  <div className="flex items-center gap-1 text-sm text-gray-600">
+                    <MapPin className="h-4 w-4" />
+                    <span>{outletDistance}</span>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-red-500 text-red-500 hover:bg-red-50 rounded-full"
+                  onClick={onChangeOutlet}
+                >
+                  Ubah
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Pickup Time */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Clock className="h-5 w-5 text-gray-600" />
+                <select 
+                  value={pickupTime}
+                  onChange={(e) => setPickupTime(e.target.value)}
+                  className="font-medium text-base border-none outline-none bg-transparent"
+                >
+                  <option value="now">Ambil Sekarang</option>
+                  <option value="15">15 Menit</option>
+                  <option value="30">30 Menit</option>
+                  <option value="60">1 Jam</option>
+                </select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Order List */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="font-bold text-lg">Daftar Pesanan</h2>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-red-500 text-red-500 hover:bg-red-50 rounded-full"
+              onClick={onAddMenu}
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Tambah Menu
+            </Button>
+          </div>
+
+          {/* Cart Items */}
+          <div className="space-y-3">
+            {cart.map((item) => {
+              const itemPrice = getItemPrice(item);
+              const itemTotal = itemPrice * item.quantity;
+              
+              return (
+                <Card key={`${item.id}-${JSON.stringify(item.customizations)}`}>
+                  <CardContent className="p-4">
+                    <div className="flex gap-3">
+                      {/* Product Image */}
+                      <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 bg-gray-100">
+                        {item.image_url ? (
+                          <img 
+                            src={item.image_url} 
+                            alt={item.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <ShoppingBag className="h-8 w-8 text-gray-400" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Product Info */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-base mb-1">{item.name}</h3>
+                        <p className="text-xs text-gray-600 mb-2 line-clamp-2">
+                          {formatCustomization(item)}
+                        </p>
+                        {item.customizations.notes && (
+                          <p className="text-xs text-gray-500 italic mb-2">
+                            Note: {item.customizations.notes}
+                          </p>
+                        )}
+                        
+                        <div className="flex items-center justify-between">
+                          <span className="text-red-600 font-bold text-base">
+                            Rp {itemPrice.toLocaleString('id-ID')}
+                          </span>
+                          
+                          {/* Quantity Controls */}
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              className="h-8 w-8 rounded-full border-gray-300"
+                              onClick={() => onUpdateQuantity(item.id, item.customizations, item.quantity - 1)}
+                            >
+                              <Minus className="h-3 w-3" />
+                            </Button>
+                            <span className="w-8 text-center font-semibold">{item.quantity}</span>
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              className="h-8 w-8 rounded-full border-gray-300"
+                              onClick={() => onUpdateQuantity(item.id, item.customizations, item.quantity + 1)}
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                        
+                        <div className="mt-2 text-right">
+                          <span className="text-sm font-semibold">
+                            Total: Rp {itemTotal.toLocaleString('id-ID')}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Sticky Bottom Section */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-50">
+        {/* Terms Banner */}
+        <div className="bg-purple-600 text-white text-xs px-4 py-2 text-center">
+          Dengan membayar pesanan, anda telah menyetujui{' '}
+          <span className="font-bold">Syarat Dan Ketentuan</span> Kami
+        </div>
+        
+        {/* CTA Button */}
+        <div className="p-4">
+          <Button
+            className="w-full h-14 bg-red-500 hover:bg-red-600 text-white rounded-full text-base font-bold"
+            onClick={() => onNavigate('checkout')}
+          >
+            Pilih Pembayaran • Rp {getTotalPrice().toLocaleString('id-ID')}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
