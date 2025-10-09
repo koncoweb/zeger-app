@@ -60,17 +60,6 @@ const Auth = () => {
     }
   }, [user, userProfile, loading]);
 
-  // Fallback redirect for authenticated users without profile (likely customers)
-  useEffect(() => {
-    if (!loading && user && !userProfile) {
-      const timer = setTimeout(() => {
-        toast.info('Mengarahkan ke aplikasi customer...');
-        window.location.replace('/customer-app');
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [user, userProfile, loading]);
-
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
       ...prev,

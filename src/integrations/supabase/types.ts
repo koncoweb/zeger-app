@@ -2256,6 +2256,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_customer_user_owner: {
+        Args: { customer_user_id: string }
+        Returns: boolean
+      }
       is_rider_role: {
         Args: Record<PropertyKey, never>
         Returns: boolean
