@@ -777,7 +777,7 @@ const MobileRiderDashboard = () => {
             }
           }
           
-          // Then fetch full details in background
+          // Then fetch full details in background (toast removed to fix build)
           fetchPendingOrdersWithDetails().catch(err => {
             console.error('❌ Failed to fetch full order details:', err);
             console.warn('⚠️ Order popup shown with minimal data due to RLS permissions');
