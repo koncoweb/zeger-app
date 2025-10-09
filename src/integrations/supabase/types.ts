@@ -1217,7 +1217,7 @@ export type Database = {
             foreignKeyName: "rider_locations_rider_id_fkey"
             columns: ["rider_id"]
             isOneToOne: true
-            referencedRelation: "customer_users"
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1443,66 +1443,84 @@ export type Database = {
           created_at: string | null
           customer_id: string | null
           discount_amount: number | null
+          external_id: string | null
           final_amount: number
           id: string
           location_name: string | null
+          metadata: Json | null
           notes: string | null
           payment_method: string | null
           payment_proof_url: string | null
+          payment_status: string | null
           payment_verified: boolean | null
           payment_verified_at: string | null
           payment_verified_by: string | null
           rider_id: string | null
+          source_id: string | null
+          source_type: string | null
           status: Database["public"]["Enums"]["transaction_status"] | null
           total_amount: number
           transaction_date: string | null
           transaction_latitude: number | null
           transaction_longitude: number | null
           transaction_number: string
+          xendit_invoice_id: string | null
         }
         Insert: {
           branch_id?: string | null
           created_at?: string | null
           customer_id?: string | null
           discount_amount?: number | null
+          external_id?: string | null
           final_amount?: number
           id?: string
           location_name?: string | null
+          metadata?: Json | null
           notes?: string | null
           payment_method?: string | null
           payment_proof_url?: string | null
+          payment_status?: string | null
           payment_verified?: boolean | null
           payment_verified_at?: string | null
           payment_verified_by?: string | null
           rider_id?: string | null
+          source_id?: string | null
+          source_type?: string | null
           status?: Database["public"]["Enums"]["transaction_status"] | null
           total_amount?: number
           transaction_date?: string | null
           transaction_latitude?: number | null
           transaction_longitude?: number | null
           transaction_number: string
+          xendit_invoice_id?: string | null
         }
         Update: {
           branch_id?: string | null
           created_at?: string | null
           customer_id?: string | null
           discount_amount?: number | null
+          external_id?: string | null
           final_amount?: number
           id?: string
           location_name?: string | null
+          metadata?: Json | null
           notes?: string | null
           payment_method?: string | null
           payment_proof_url?: string | null
+          payment_status?: string | null
           payment_verified?: boolean | null
           payment_verified_at?: string | null
           payment_verified_by?: string | null
           rider_id?: string | null
+          source_id?: string | null
+          source_type?: string | null
           status?: Database["public"]["Enums"]["transaction_status"] | null
           total_amount?: number
           transaction_date?: string | null
           transaction_latitude?: number | null
           transaction_longitude?: number | null
           transaction_number?: string
+          xendit_invoice_id?: string | null
         }
         Relationships: [
           {
