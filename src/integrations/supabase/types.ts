@@ -1915,6 +1915,10 @@ export type Database = {
         Args: { rider_uuid: string }
         Returns: boolean
       }
+      can_rider_view_customer: {
+        Args: { customer_user_uuid: string }
+        Returns: boolean
+      }
       check_user_role: {
         Args: {
           check_user_id: string
