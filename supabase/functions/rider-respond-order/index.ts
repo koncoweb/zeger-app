@@ -29,19 +29,23 @@ Deno.serve(async (req) => {
     // Validate order exists and is pending
     const { data: order, error: orderError } = await supabase
       .from('customer_orders')
-      .select('id, status, rider_id, latitude, longitude')
+      .select('id, status, rider_profile_id, latitude, longitude')
       .eq('id', order_id)
       .single();
 
     if (orderError || !order) {
+      console.error('❌ Order not found:', orderError);
       throw new Error('Order not found');
     }
 
     if (order.status !== 'pending') {
+      console.error('❌ Order not in pending status:', order.status);
       throw new Error('Order is not in pending status');
     }
 
-    if (order.rider_id !== rider_profile_id) {
+    // Validate rider assignment using rider_profile_id
+    if (order.rider_profile_id !== rider_profile_id) {
+      console.error('❌ Rider not assigned to this order');
       throw new Error('Order not assigned to this rider');
     }
 

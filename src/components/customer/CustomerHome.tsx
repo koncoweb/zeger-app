@@ -202,7 +202,7 @@ export function CustomerHome({ customerUser, onNavigate, recentProducts = [], on
               </div>
             </Button>
 
-            {/* DELIVERY Button - Darker Red Theme */}
+            {/* DELIVERY Button - "Zeger On The Wheels" */}
             <Button
               onClick={() => onNavigate('map')}
               className="h-32 flex-col gap-3 bg-gradient-to-br from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white shadow-2xl relative overflow-hidden group rounded-3xl"

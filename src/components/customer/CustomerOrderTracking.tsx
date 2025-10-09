@@ -6,7 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Phone, MapPin, Clock, Navigation, Star, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
-const GOOGLE_MAPS_API_KEY = 'AIzaSyALr8P3I3bAO8UBYXVA0BI1biG5sUuiIpg';
+// Import Google Maps API key from config
+import { GOOGLE_MAPS_API_KEY } from '@/config/maps';
 
 interface Rider {
   id: string;

@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
       notes 
     }: OrderRequest = await req.json();
 
-    console.log('Creating order request:', { customer_user_id, rider_profile_id });
+    console.log('📥 Payload received:', JSON.stringify({ customer_user_id, rider_profile_id, customer_lat, customer_lng }, null, 2));
 
     // Get customer_users id from user_id
     const { data: customerUser, error: customerError } = await supabase
@@ -70,12 +70,12 @@ Deno.serve(async (req) => {
 
     const estimated_arrival = new Date(Date.now() + eta_minutes * 60 * 1000).toISOString();
 
-    // Create order
+    // Create order with rider_profile_id
     const { data: order, error: orderError } = await supabase
       .from('customer_orders')
       .insert({
         user_id: customerUser.id,
-        rider_id: rider_profile_id,
+        rider_profile_id: rider_profile_id, // Use rider_profile_id instead of rider_id
         order_type: 'on_the_wheels',
         status: 'pending',
         delivery_address,
@@ -89,11 +89,11 @@ Deno.serve(async (req) => {
       .single();
 
     if (orderError) {
-      console.error('Error creating order:', orderError);
+      console.error('❌ Error creating order:', orderError);
       throw orderError;
     }
 
-    console.log('Order created:', order.id);
+    console.log('✅ Order created successfully:', order.id);
 
     // Create order status history
     const { error: historyError } = await supabase

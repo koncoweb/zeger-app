@@ -316,6 +316,7 @@ export type Database = {
           qris_payment_proof_url: string | null
           rejection_reason: string | null
           rider_id: string | null
+          rider_profile_id: string | null
           status: string
           total_price: number
           updated_at: string
@@ -337,6 +338,7 @@ export type Database = {
           qris_payment_proof_url?: string | null
           rejection_reason?: string | null
           rider_id?: string | null
+          rider_profile_id?: string | null
           status?: string
           total_price?: number
           updated_at?: string
@@ -358,6 +360,7 @@ export type Database = {
           qris_payment_proof_url?: string | null
           rejection_reason?: string | null
           rider_id?: string | null
+          rider_profile_id?: string | null
           status?: string
           total_price?: number
           updated_at?: string
@@ -377,6 +380,13 @@ export type Database = {
             columns: ["rider_id"]
             isOneToOne: false
             referencedRelation: "customer_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_orders_rider_profile_id_fkey"
+            columns: ["rider_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
