@@ -780,11 +780,7 @@ const MobileRiderDashboard = () => {
           // Then fetch full details in background
           fetchPendingOrdersWithDetails().catch(err => {
             console.error('❌ Failed to fetch full order details:', err);
-            toast({
-              title: "Perhatian",
-              description: "Order diterima tapi detail lengkap gagal dimuat. Silakan refresh.",
-              variant: "destructive"
-            });
+            console.warn('⚠️ Order popup shown with minimal data due to RLS permissions');
           });
         }
       )
