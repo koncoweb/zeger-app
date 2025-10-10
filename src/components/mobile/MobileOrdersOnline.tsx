@@ -298,6 +298,11 @@ export function MobileOrdersOnline() {
     }).format(amount);
   };
 
+  const openInGoogleMaps = (lat: number, lng: number, address: string) => {
+    const url = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+    window.open(url, '_blank');
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString('id-ID', {
       day: 'numeric',
@@ -382,18 +387,33 @@ export function MobileOrdersOnline() {
                               <div className="text-xs text-muted-foreground">{order.customer_users.phone}</div>
                             </td>
                             <td className="px-4 py-3 text-sm">
-                              {order.latitude && order.longitude ? (
-                                <a
-                                  href={`https://www.google.com/maps?q=${order.latitude},${order.longitude}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800"
-                                >
-                                  <MapPin className="h-4 w-4" />
-                                  <span className="text-xs">Lihat</span>
-                                </a>
+                              {order.delivery_address ? (
+                                <div className="space-y-1.5">
+                                  <div className="flex items-start gap-1.5 max-w-xs">
+                                    <MapPin className="h-4 w-4 mt-0.5 text-blue-600 flex-shrink-0" />
+                                    <span className="text-xs leading-relaxed">{order.delivery_address}</span>
+                                  </div>
+                                  {order.latitude && order.longitude && (
+                                    <div className="space-y-1 pl-5">
+                                      <p className="text-[10px] text-muted-foreground font-mono">
+                                        📍 {order.latitude.toFixed(6)}, {order.longitude.toFixed(6)}
+                                      </p>
+                                      <Button
+                                        size="sm"
+                                        variant="link"
+                                        className="h-6 p-0 text-xs text-blue-600 hover:text-blue-800"
+                                        onClick={() => openInGoogleMaps(order.latitude!, order.longitude!, order.delivery_address!)}
+                                      >
+                                        <Navigation className="h-3 w-3 mr-1" />
+                                        Lihat di Maps
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
                               ) : (
-                                <span className="text-muted-foreground">-</span>
+                                <Badge variant="outline" className="text-xs">
+                                  Pickup di Outlet
+                                </Badge>
                               )}
                             </td>
                             <td className="px-4 py-3 text-center">

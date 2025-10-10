@@ -90,10 +90,30 @@ export function MobileIncomingOrder({
 
   const playNotificationSound = () => {
     try {
-      // Create audio context
+      // Play custom Zeger ringtone
+      const audio = new Audio('/sounds/zeger-notification.mp3');
+      audio.volume = 0.8;
+      audio.loop = false;
+      
+      audio.play().catch(err => {
+        console.log('Audio playback failed, using fallback beep:', err);
+        playBeepFallback();
+      });
+      
+      // Enhanced vibration pattern
+      if (navigator.vibrate) {
+        navigator.vibrate([500, 200, 500, 200, 500]);
+      }
+    } catch (error) {
+      console.log('Error playing sound:', error);
+      playBeepFallback();
+    }
+  };
+
+  const playBeepFallback = () => {
+    try {
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       
-      // Play 3 beeps
       for (let i = 0; i < 3; i++) {
         setTimeout(() => {
           const oscillator = audioContext.createOscillator();
@@ -110,13 +130,8 @@ export function MobileIncomingOrder({
           oscillator.stop(audioContext.currentTime + 0.5);
         }, i * 700);
       }
-      
-      // Enhanced vibration pattern
-      if (navigator.vibrate) {
-        navigator.vibrate([500, 200, 500, 200, 500, 200, 500]);
-      }
     } catch (error) {
-      console.log('Error playing sound:', error);
+      console.log('Error playing beep fallback:', error);
     }
   };
 

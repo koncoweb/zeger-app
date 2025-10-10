@@ -58,6 +58,16 @@ export default function CustomerOrderTracking({
       script.async = true;
       script.defer = true;
       script.onload = initializeMap;
+      
+      script.onerror = () => {
+        console.error('❌ Failed to load Google Maps script');
+        console.error('Possible issues:');
+        console.error('1. API key restrictions - Check HTTP referrer settings');
+        console.error('2. Maps JavaScript API not enabled in Google Cloud Console');
+        console.error('3. Billing not active on Google Cloud Project');
+        console.error('4. Network connection issue');
+      };
+      
       document.head.appendChild(script);
     };
 

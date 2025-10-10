@@ -54,10 +54,15 @@ export const MobileProfile = () => {
 
       if (error) throw error;
 
-      setProfile({
-        ...profileData,
-        email: user.email || ''
-      });
+      if (profileData) {
+        // Cast to include photo_url since it exists in DB but not in types
+        const profileWithPhoto = profileData as any;
+        setProfile({
+          ...profileData,
+          email: user.email || '',
+          avatar_url: profileWithPhoto.photo_url || '',
+        });
+      }
     } catch (error: any) {
       toast.error("Gagal memuat profil");
     } finally {
@@ -83,8 +88,16 @@ export const MobileProfile = () => {
         .from('avatars')
         .getPublicUrl(fileName);
 
+      // Update database with photo URL
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ photo_url: publicUrl } as any)
+        .eq('user_id', user.id);
+
+      if (updateError) throw updateError;
+
       setProfile(prev => prev ? { ...prev, avatar_url: publicUrl } : null);
-      toast.success("Foto profil berhasil diperbarui!");
+      toast.success("Foto profil berhasil diperbarui dan disimpan!");
     } catch (error: any) {
       toast.error("Gagal mengupload foto: " + error.message);
     }
@@ -111,13 +124,19 @@ export const MobileProfile = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      const updateData: any = {
+        full_name: profile.full_name,
+        phone: profile.phone,
+        address: profile.address,
+      };
+
+      if (profile.avatar_url) {
+        (updateData as any).photo_url = profile.avatar_url;
+      }
+
       const { error } = await supabase
         .from('profiles')
-        .update({
-          full_name: profile.full_name,
-          phone: profile.phone,
-          address: profile.address
-        })
+        .update(updateData)
         .eq('user_id', user.id);
 
       if (error) throw error;
