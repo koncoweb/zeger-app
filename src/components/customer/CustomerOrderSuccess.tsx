@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, MapPin, Truck, Clock, Home, FileText } from "lucide-react";
+import { CheckCircle, MapPin, Truck, Clock, Home, Navigation } from "lucide-react";
 
 interface CustomerOrderSuccessProps {
   orderId: string;
@@ -131,14 +131,14 @@ export default function CustomerOrderSuccess({
 
         {/* Action Buttons */}
         <div className="space-y-3">
-          <Button
-            size="lg"
-            className="w-full h-14 bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white font-semibold text-lg shadow-lg"
-            onClick={() => onNavigate("order-detail", orderId)}
-          >
-            <Truck className="h-5 w-5 mr-2" />
-            Track Order
-          </Button>
+            <Button
+              size="lg"
+              className="w-full h-14 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white font-semibold text-lg shadow-lg hover:shadow-xl transition-all"
+              onClick={() => onNavigate("order-tracking", orderId)}
+            >
+              <Navigation className="h-5 w-5 mr-2" />
+              Track Order
+            </Button>
           
           <Button
             size="lg"

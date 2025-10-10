@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Phone, MapPin, Clock, Navigation, Star, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 // Import Google Maps API key from config
 import { GOOGLE_MAPS_API_KEY } from '@/config/maps';
@@ -34,10 +35,12 @@ export default function CustomerOrderTracking({
   deliveryAddress,
   onCompleted
 }: CustomerOrderTrackingProps) {
+  const { toast } = useToast();
   const [riderLocation, setRiderLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [distance, setDistance] = useState<number | null>(null);
   const [eta, setEta] = useState<number | null>(null);
   const [orderStatus, setOrderStatus] = useState<string>('in_progress');
+  const [mapLoadError, setMapLoadError] = useState(false);
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<google.maps.Map | null>(null);
   const riderMarker = useRef<google.maps.Marker | null>(null);
@@ -61,11 +64,20 @@ export default function CustomerOrderTracking({
       
       script.onerror = () => {
         console.error('❌ Failed to load Google Maps script');
-        console.error('Possible issues:');
-        console.error('1. API key restrictions - Check HTTP referrer settings');
-        console.error('2. Maps JavaScript API not enabled in Google Cloud Console');
-        console.error('3. Billing not active on Google Cloud Project');
-        console.error('4. Network connection issue');
+        console.error('API Key:', GOOGLE_MAPS_API_KEY);
+        console.error('Current URL:', window.location.href);
+        console.error('Check:');
+        console.error('1. Maps JavaScript API enabled in Google Cloud');
+        console.error('2. Billing account active');
+        console.error('3. HTTP Referrer restrictions: *.lovableproject.com/*');
+        
+        setMapLoadError(true);
+        
+        toast({
+          title: "Maps Gagal Dimuat",
+          description: "Periksa koneksi internet atau coba buka di Google Maps",
+          variant: "destructive"
+        });
       };
       
       document.head.appendChild(script);
@@ -97,14 +109,14 @@ export default function CustomerOrderTracking({
         title: 'Lokasi Anda',
       });
 
-      // Initial rider marker (green)
+      // Initial rider marker (Zeger red)
       riderMarker.current = new google.maps.Marker({
         position: { lat: customerLat, lng: customerLng },
         map: map.current,
         icon: {
           path: google.maps.SymbolPath.CIRCLE,
           scale: 10,
-          fillColor: '#22c55e',
+          fillColor: '#EF4444', // Zeger red
           fillOpacity: 1,
           strokeColor: '#ffffff',
           strokeWeight: 3,
@@ -112,11 +124,11 @@ export default function CustomerOrderTracking({
         title: rider.full_name,
       });
 
-      // Polyline for route
+      // Polyline for route (Zeger red)
       polyline.current = new google.maps.Polyline({
         path: [],
         geodesic: true,
-        strokeColor: '#22c55e',
+        strokeColor: '#EF4444', // Zeger red
         strokeOpacity: 1.0,
         strokeWeight: 3,
         map: map.current,
@@ -288,16 +300,40 @@ export default function CustomerOrderTracking({
     <div className="min-h-screen bg-background flex flex-col">
       {/* Map Container */}
       <div className="flex-1 relative">
-        <div ref={mapContainer} className="w-full h-full min-h-[400px]" />
+        {mapLoadError ? (
+          <div className="flex items-center justify-center h-full min-h-[400px] bg-muted rounded-lg">
+            <div className="text-center space-y-4 p-6">
+              <MapPin className="h-16 w-16 mx-auto text-muted-foreground" />
+              <div>
+                <h3 className="font-semibold text-lg">Peta Tidak Dapat Dimuat</h3>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Gunakan Google Maps sebagai alternatif
+                </p>
+              </div>
+              <Button
+                onClick={() => window.open(
+                  `https://www.google.com/maps/dir/?api=1&destination=${customerLat},${customerLng}`,
+                  '_blank'
+                )}
+                className="bg-red-500 hover:bg-red-600"
+              >
+                <Navigation className="h-4 w-4 mr-2" />
+                Buka di Google Maps
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div ref={mapContainer} className="w-full h-full min-h-[400px]" />
 
-        {/* Status Overlay */}
-        <div className="absolute top-4 left-4 right-4">
-          <Card className="shadow-2xl">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2">
-                <div className="bg-green-100 p-2 rounded-full">
-                  <Navigation className="h-5 w-5 text-green-600 animate-pulse" />
-                </div>
+            {/* Status Overlay */}
+            <div className="absolute top-4 left-4 right-4">
+              <Card className="shadow-2xl">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2">
+                    <div className="bg-red-100 p-2 rounded-full">
+                      <Navigation className="h-5 w-5 text-red-600 animate-pulse" />
+                    </div>
                 <div>
                   <h3 className="font-semibold">🏍️ Zeger On The Wheels</h3>
                   <p className="text-sm text-muted-foreground">{getStatusText()}</p>
@@ -306,6 +342,8 @@ export default function CustomerOrderTracking({
             </CardContent>
           </Card>
         </div>
+          </>
+        )}
       </div>
 
       {/* Bottom Info Card */}

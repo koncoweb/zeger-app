@@ -36,6 +36,7 @@ import { OrderDetail } from '@/components/customer/OrderDetail';
 import CustomerCheckout from '@/components/customer/CustomerCheckout';
 import CustomerOrderSuccess from '@/components/customer/CustomerOrderSuccess';
 import CustomerOrderWaiting from '@/components/customer/CustomerOrderWaiting';
+import CustomerOrderTracking from '@/components/customer/CustomerOrderTracking';
 import { useToast } from '@/hooks/use-toast';
 
 interface CustomerUser {
@@ -65,7 +66,7 @@ interface CartItem extends Product {
   customizations: any;
 }
 
-type View = 'home' | 'vouchers' | 'orders' | 'profile' | 'map' | 'menu' | 'cart' | 'outlets' | 'checkout' | 'order-success' | 'waiting';
+type View = 'home' | 'vouchers' | 'orders' | 'profile' | 'map' | 'menu' | 'cart' | 'outlets' | 'checkout' | 'order-success' | 'waiting' | 'order-tracking';
 
 export default function CustomerApp() {
   const { user } = useAuth();
@@ -99,6 +100,15 @@ export default function CustomerApp() {
   // Waiting state for rider requests
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
   const [pendingRider, setPendingRider] = useState<any>(null);
+  
+  // Track order state
+  const [trackingOrderId, setTrackingOrderId] = useState<string | null>(null);
+  const [trackingRider, setTrackingRider] = useState<any>(null);
+  const [trackingCoordinates, setTrackingCoordinates] = useState<{
+    lat: number;
+    lng: number;
+    address: string;
+  } | null>(null);
   
   // Handle query params for order detail
   const tab = searchParams.get('tab');
@@ -187,6 +197,57 @@ export default function CustomerApp() {
       supabase.removeChannel(channel);
     };
   }, [customerUser, toast]);
+
+  // Subscribe to order status changes for auto-redirect to tracking
+  useEffect(() => {
+    if (!pendingOrderId) return;
+
+    const channel = supabase
+      .channel('order_status_subscription')
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'customer_orders',
+        filter: `id=eq.${pendingOrderId}`
+      }, async (payload) => {
+        const newStatus = payload.new.status;
+        
+        if (newStatus === 'accepted') {
+          console.log('✅ Order accepted! Redirecting to tracking...');
+          
+          // Fetch rider info and order details
+          const { data: orderData } = await supabase
+            .from('customer_orders')
+            .select(`
+              *,
+              rider:rider_profile_id (
+                id,
+                full_name,
+                phone,
+                photo_url
+              )
+            `)
+            .eq('id', pendingOrderId)
+            .single();
+
+          if (orderData) {
+            setTrackingOrderId(pendingOrderId);
+            setTrackingRider(orderData.rider);
+            setTrackingCoordinates({
+              lat: orderData.latitude || 0,
+              lng: orderData.longitude || 0,
+              address: orderData.delivery_address || ''
+            });
+            setActiveView('order-tracking');
+          }
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [pendingOrderId]);
 
   const fetchCustomerProfile = async () => {
     try {
@@ -537,12 +598,31 @@ export default function CustomerApp() {
                 }}
               />
             )}
+
+            {activeView === 'order-tracking' && trackingOrderId && trackingRider && trackingCoordinates && (
+              <CustomerOrderTracking
+                orderId={trackingOrderId}
+                rider={trackingRider}
+                customerLat={trackingCoordinates.lat}
+                customerLng={trackingCoordinates.lng}
+                deliveryAddress={trackingCoordinates.address}
+                onCompleted={() => {
+                  toast({
+                    title: "Pesanan Selesai!",
+                    description: "Terima kasih telah menggunakan Zeger",
+                  });
+                  setActiveView('orders');
+                  setPendingOrderId(null);
+                  setTrackingOrderId(null);
+                }}
+              />
+            )}
           </>
         )}
       </div>
 
       {/* Bottom Navigation */}
-      {!['waiting', 'order-success'].includes(activeView) && tab !== 'order-detail' && (
+      {!['waiting', 'order-success', 'order-tracking'].includes(activeView) && tab !== 'order-detail' && (
         <BottomNavigation
           activeView={activeView}
           activeOrdersCount={activeOrdersCount}
