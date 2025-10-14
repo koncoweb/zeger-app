@@ -1071,6 +1071,7 @@ export type Database = {
           last_known_lng: number | null
           location_updated_at: string | null
           phone: string | null
+          photo_url: string | null
           role: Database["public"]["Enums"]["user_role"]
           updated_at: string | null
           user_id: string | null
@@ -1088,6 +1089,7 @@ export type Database = {
           last_known_lng?: number | null
           location_updated_at?: string | null
           phone?: string | null
+          photo_url?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string | null
           user_id?: string | null
@@ -1105,6 +1107,7 @@ export type Database = {
           last_known_lng?: number | null
           location_updated_at?: string | null
           phone?: string | null
+          photo_url?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string | null
           user_id?: string | null
@@ -1447,6 +1450,77 @@ export type Database = {
           },
         ]
       }
+      transaction_void_requests: {
+        Row: {
+          branch_id: string
+          created_at: string | null
+          id: string
+          reason: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          reviewer_notes: string | null
+          rider_id: string
+          status: string
+          transaction_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string | null
+          id?: string
+          reason: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewer_notes?: string | null
+          rider_id: string
+          status?: string
+          transaction_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string | null
+          id?: string
+          reason?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewer_notes?: string | null
+          rider_id?: string
+          status?: string
+          transaction_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_void_requests_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_void_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_void_requests_rider_id_fkey"
+            columns: ["rider_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_void_requests_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transactions: {
         Row: {
           branch_id: string | null
@@ -1456,6 +1530,7 @@ export type Database = {
           external_id: string | null
           final_amount: number
           id: string
+          is_voided: boolean | null
           location_name: string | null
           metadata: Json | null
           notes: string | null
@@ -1474,6 +1549,9 @@ export type Database = {
           transaction_latitude: number | null
           transaction_longitude: number | null
           transaction_number: string
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
           xendit_invoice_id: string | null
         }
         Insert: {
@@ -1484,6 +1562,7 @@ export type Database = {
           external_id?: string | null
           final_amount?: number
           id?: string
+          is_voided?: boolean | null
           location_name?: string | null
           metadata?: Json | null
           notes?: string | null
@@ -1502,6 +1581,9 @@ export type Database = {
           transaction_latitude?: number | null
           transaction_longitude?: number | null
           transaction_number: string
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
           xendit_invoice_id?: string | null
         }
         Update: {
@@ -1512,6 +1594,7 @@ export type Database = {
           external_id?: string | null
           final_amount?: number
           id?: string
+          is_voided?: boolean | null
           location_name?: string | null
           metadata?: Json | null
           notes?: string | null
@@ -1530,6 +1613,9 @@ export type Database = {
           transaction_latitude?: number | null
           transaction_longitude?: number | null
           transaction_number?: string
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
           xendit_invoice_id?: string | null
         }
         Relationships: [
@@ -1550,6 +1636,13 @@ export type Database = {
           {
             foreignKeyName: "transactions_rider_id_fkey"
             columns: ["rider_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_voided_by_fkey"
+            columns: ["voided_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -2227,6 +2320,7 @@ export type Database = {
           last_known_lng: number | null
           location_updated_at: string | null
           phone: string | null
+          photo_url: string | null
           role: Database["public"]["Enums"]["user_role"]
           updated_at: string | null
           user_id: string | null
@@ -2259,6 +2353,10 @@ export type Database = {
           permission_type: string
         }
         Returns: boolean
+      }
+      increment_inventory_stock: {
+        Args: { p_product_id: string; p_quantity: number; p_rider_id: string }
+        Returns: undefined
       }
       is_customer_user_owner: {
         Args: { customer_user_id: string }

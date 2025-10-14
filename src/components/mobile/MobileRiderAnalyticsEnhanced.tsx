@@ -9,8 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { 
   TrendingUp, Package, DollarSign, ShoppingCart, Calendar, 
-  BarChart3, Receipt, Filter, ChevronRight, Eye, MapPin, X, FileText
+  BarChart3, Receipt, Filter, ChevronRight, Eye, MapPin, X, FileText, Ban
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -30,6 +32,7 @@ interface TransactionDetail {
   transaction_latitude?: number;
   transaction_longitude?: number;
   customer_name?: string;
+  is_voided?: boolean;
   items: {
     product_name: string;
     quantity: number;
@@ -108,6 +111,9 @@ const MobileRiderAnalyticsEnhanced = () => {
   const [showLocationDetail, setShowLocationDetail] = useState<string | null>(null);
   const [selectedReceipt, setSelectedReceipt] = useState<TransactionDetail | null>(null);
   const [riderName, setRiderName] = useState<string>('');
+  const [voidingTransaction, setVoidingTransaction] = useState<TransactionDetail | null>(null);
+  const [voidReason, setVoidReason] = useState('');
+  const [submittingVoid, setSubmittingVoid] = useState(false);
 
   useEffect(() => {
     fetchAnalytics();
@@ -708,15 +714,27 @@ const MobileRiderAnalyticsEnhanced = () => {
                               <p>Total:</p>
                               <p className="text-red-600">{formatCurrency(transaction.final_amount)}</p>
                             </div>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="w-full mt-3"
-                              onClick={() => setSelectedReceipt(transaction)}
-                            >
-                              <FileText className="h-4 w-4 mr-2" />
-                              E-Receipt
-                            </Button>
+                            <div className="flex gap-2 mt-3">
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="flex-1"
+                                onClick={() => setSelectedReceipt(transaction)}
+                              >
+                                <FileText className="h-4 w-4 mr-2" />
+                                E-Receipt
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => setVoidingTransaction(transaction)}
+                                className="flex-1 text-orange-600 hover:text-orange-700 border-orange-200"
+                                disabled={transaction.is_voided}
+                              >
+                                <Ban className="h-4 w-4 mr-2" />
+                                {transaction.is_voided ? 'Dibatalkan' : 'Void'}
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -846,6 +864,91 @@ const MobileRiderAnalyticsEnhanced = () => {
           onClose={() => setSelectedReceipt(null)}
         />
       )}
+
+      <Dialog open={!!voidingTransaction} onOpenChange={(open) => !open && setVoidingTransaction(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Permohonan Pembatalan Transaksi</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                Nomor Transaksi: <span className="font-medium text-foreground">{voidingTransaction?.transaction_number}</span>
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Total: <span className="font-medium text-foreground">Rp {voidingTransaction?.final_amount.toLocaleString('id-ID')}</span>
+              </p>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Alasan Pembatalan</label>
+              <Textarea
+                placeholder="Contoh: ada kesalahan input"
+                value={voidReason}
+                onChange={(e) => setVoidReason(e.target.value)}
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setVoidingTransaction(null);
+                setVoidReason('');
+              }}
+              disabled={submittingVoid}
+            >
+              Batal
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!voidingTransaction || !voidReason.trim()) {
+                  toast.error('Harap isi alasan pembatalan');
+                  return;
+                }
+
+                setSubmittingVoid(true);
+                try {
+                  const { data: { user } } = await supabase.auth.getUser();
+                  if (!user) throw new Error('User not authenticated');
+
+                  const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('id, branch_id')
+                    .eq('user_id', user.id)
+                    .single();
+
+                  if (!profile) throw new Error('Profile not found');
+
+                  const { error } = await supabase
+                    .from('transaction_void_requests')
+                    .insert({
+                      transaction_id: voidingTransaction.id,
+                      rider_id: profile.id,
+                      branch_id: profile.branch_id,
+                      reason: voidReason.trim()
+                    });
+
+                  if (error) throw error;
+
+                  toast.success('Permohonan pembatalan berhasil diajukan!');
+                  setVoidingTransaction(null);
+                  setVoidReason('');
+                  fetchAnalytics(); // Refresh data
+                } catch (error: any) {
+                  console.error('Error submitting void request:', error);
+                  toast.error('Gagal mengajukan permohonan: ' + error.message);
+                } finally {
+                  setSubmittingVoid(false);
+                }
+              }}
+              disabled={!voidReason.trim() || submittingVoid}
+            >
+              {submittingVoid ? 'Mengirim...' : 'Ajukan Permohonan'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </ScrollArea>
   );
 };

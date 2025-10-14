@@ -19,6 +19,8 @@ import {
   Check,
   X
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -45,6 +47,7 @@ interface Transaction {
   final_amount: number;
   status: string;
   payment_method: string;
+  is_voided?: boolean;
   customers?: { name: string };
   profiles?: { full_name: string };
   transaction_items?: TransactionItem[];
@@ -122,6 +125,9 @@ export const TransactionsEnhanced = () => {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [editingPayment, setEditingPayment] = useState<string | null>(null);
   const [newPaymentMethod, setNewPaymentMethod] = useState<string>('');
+  const [voidRequests, setVoidRequests] = useState<Map<string, any>>(new Map());
+  const [reviewingVoid, setReviewingVoid] = useState<any | null>(null);
+  const [reviewerNotes, setReviewerNotes] = useState('');
 
   useEffect(() => {
     if (userProfile?.role !== 'bh_report') {
@@ -445,6 +451,30 @@ export const TransactionsEnhanced = () => {
     setNewPaymentMethod('');
   };
 
+  const handleVoidRequest = async (action: 'approve' | 'reject') => {
+    if (!reviewingVoid) return;
+
+    try {
+      const { error } = await supabase.functions.invoke('process-void-transaction', {
+        body: {
+          void_request_id: reviewingVoid.id,
+          action,
+          reviewer_notes: reviewerNotes.trim() || null
+        }
+      });
+
+      if (error) throw error;
+
+      toast.success(action === 'approve' ? 'Transaksi berhasil dibatalkan!' : 'Permohonan void ditolak');
+      setReviewingVoid(null);
+      setReviewerNotes('');
+      fetchTransactions();
+    } catch (error: any) {
+      console.error('Error processing void request:', error);
+      toast.error('Gagal memproses void request: ' + error.message);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -680,6 +710,7 @@ export const TransactionsEnhanced = () => {
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Jumlah</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Metode Bayar</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Void Request</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -754,10 +785,47 @@ export const TransactionsEnhanced = () => {
                             </div>
                           )}
                         </td>
+                        <td className="py-3 px-4">
+                          {voidRequests.has(transaction.id) ? (
+                            <div className="space-y-2 min-w-[200px]">
+                              <Badge variant="secondary" className="bg-orange-100 text-orange-700">Permohonan Void</Badge>
+                              <p className="text-xs text-muted-foreground line-clamp-2">
+                                {voidRequests.get(transaction.id).reason}
+                              </p>
+                              <div className="flex gap-2">
+                                <Button 
+                                  size="sm" 
+                                  variant="default"
+                                  onClick={() => setReviewingVoid(voidRequests.get(transaction.id))}
+                                  className="h-7 text-xs"
+                                >
+                                  <Check className="h-3 w-3 mr-1" />
+                                  Setuju
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="destructive"
+                                  onClick={() => {
+                                    setReviewingVoid(voidRequests.get(transaction.id));
+                                    setReviewerNotes('');
+                                  }}
+                                  className="h-7 text-xs"
+                                >
+                                  <X className="h-3 w-3 mr-1" />
+                                  Tidak
+                                </Button>
+                              </div>
+                            </div>
+                          ) : transaction.is_voided ? (
+                            <Badge variant="secondary" className="bg-gray-100 text-gray-700">Dibatalkan</Badge>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">-</span>
+                          )}
+                        </td>
                       </tr>
                       {expandedRows.has(transaction.id) && transaction.transaction_items && (
                         <tr>
-                          <td colSpan={8} className="py-0">
+                          <td colSpan={9} className="py-0">
                             <div className="bg-gray-50 p-4 border-l-4 border-primary">
                               <h4 className="font-medium text-gray-900 mb-3">Detail Menu:</h4>
                               <div className="grid gap-2">
@@ -793,6 +861,30 @@ export const TransactionsEnhanced = () => {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!reviewingVoid} onOpenChange={(open) => !open && setReviewingVoid(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Review Permohonan Void</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <p className="text-sm"><span className="font-medium">Nomor Transaksi:</span> {transactions.find(t => t.id === reviewingVoid?.transaction_id)?.transaction_number}</p>
+              <p className="text-sm"><span className="font-medium">Alasan Rider:</span></p>
+              <p className="text-sm text-muted-foreground p-3 bg-muted rounded-md">{reviewingVoid?.reason}</p>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Catatan Manager (opsional)</label>
+              <Textarea placeholder="Tambahkan catatan jika diperlukan..." value={reviewerNotes} onChange={(e) => setReviewerNotes(e.target.value)} rows={3} />
+            </div>
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => { setReviewingVoid(null); setReviewerNotes(''); }}>Tutup</Button>
+            <Button variant="destructive" onClick={() => handleVoidRequest('reject')}>Tolak</Button>
+            <Button variant="default" onClick={() => handleVoidRequest('approve')}>Setujui & Batalkan Transaksi</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
