@@ -108,6 +108,8 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
   const [historyType, setHistoryType] = useState<'transfer' | 'return'>('transfer');
   const [filterType, setFilterType] = useState<'sent' | 'received' | 'all'>('all');
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [hasPendingShifts, setHasPendingShifts] = useState(false);
+  const [pendingShiftsCount, setPendingShiftsCount] = useState(0);
   
   // New filter states
   const [selectedUserFilter, setSelectedUserFilter] = useState<string>('all');
@@ -206,6 +208,9 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
 
       // Fetch rider shift statuses
       await fetchRiderShifts();
+      
+      // Check for pending shift reports
+      await checkPendingShifts();
 
       // Fetch active shift for current rider if role is rider
       if (['rider', 'sb_rider', 'bh_rider'].includes(role)) {
@@ -216,6 +221,31 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
       fetchTransfers();
     } catch (error: any) {
       toast.error("Gagal memuat data");
+    }
+  };
+
+  const checkPendingShifts = async () => {
+    if (!branchId) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('shift_management')
+        .select('id, rider_id, shift_date, profiles!inner(full_name)')
+        .eq('branch_id', branchId)
+        .eq('report_submitted', true)
+        .eq('report_verified', false);
+      
+      if (error) throw error;
+      
+      const hasPending = (data?.length || 0) > 0;
+      setHasPendingShifts(hasPending);
+      setPendingShiftsCount(data?.length || 0);
+      
+      if (hasPending) {
+        console.log('⚠️ Found', data?.length, 'pending shift reports');
+      }
+    } catch (error: any) {
+      console.error("Error checking pending shifts:", error);
     }
   };
 
@@ -762,6 +792,24 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
                 </SelectContent>
               </Select>
 
+              {/* Pending Shifts Warning */}
+              {hasPendingShifts && (
+                <div className="mb-4 p-4 bg-amber-50 border-2 border-amber-400 rounded-lg shadow-sm">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-6 h-6 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="font-bold text-amber-900">Perhatian - Laporan Shift Belum Diterima</p>
+                      <p className="text-sm text-amber-800 mt-1">
+                        Ada {pendingShiftsCount} laporan shift yang belum diterima. 
+                        Silahkan selesaikan penerimaan laporan shift di halaman 
+                        <span className="font-semibold"> Stock Management → Laporan Shift</span> 
+                        sebelum mengirim stok.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Total Stock Summary - Highlighted */}
               {getTotalStockToSend() > 0 && (
                 <Card className="bg-red-50 border-red-200">
@@ -789,11 +837,11 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
               <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
                 <AlertDialogTrigger asChild>
                   <Button 
-                    disabled={loading || !selectedRider || getTotalStockToSend() === 0}
+                    disabled={loading || !selectedRider || getTotalStockToSend() === 0 || hasPendingShifts}
                     className="w-full rounded-full hover:bg-primary/90"
                   >
                     <Send className="h-4 w-4 mr-2" />
-                    {loading ? "Mengirim..." : "Berikan Stok ke Rider"}
+                    {hasPendingShifts ? 'Selesaikan Laporan Shift Dulu' : (loading ? "Mengirim..." : "Berikan Stok ke Rider")}
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent className="bg-white">

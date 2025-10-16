@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 
 interface Product { id: string; name: string; category: string; }
@@ -17,6 +18,8 @@ export default function InventoryBranchTransfer() {
   const [selectedBranch, setSelectedBranch] = useState<string>("");
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
+  const [hasPendingShifts, setHasPendingShifts] = useState(false);
+  const [pendingShiftsCount, setPendingShiftsCount] = useState(0);
 
   useEffect(() => {
     document.title = "Kirim Stok ke Small Branch | Zeger ERP";
@@ -24,7 +27,33 @@ export default function InventoryBranchTransfer() {
 
   useEffect(() => {
     fetchData();
+    checkPendingShifts();
   }, []);
+
+  const checkPendingShifts = async () => {
+    if (!userProfile?.branch_id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('shift_management')
+        .select('id, rider_id, shift_date, profiles!inner(full_name)')
+        .eq('branch_id', userProfile.branch_id)
+        .eq('report_submitted', true)
+        .eq('report_verified', false);
+      
+      if (error) throw error;
+      
+      const hasPending = (data?.length || 0) > 0;
+      setHasPendingShifts(hasPending);
+      setPendingShiftsCount(data?.length || 0);
+      
+      if (hasPending) {
+        console.log('⚠️ Found', data?.length, 'pending shift reports');
+      }
+    } catch (error: any) {
+      console.error("Error checking pending shifts:", error);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -134,6 +163,24 @@ export default function InventoryBranchTransfer() {
             ))}
           </div>
 
+          {/* Pending Shifts Warning */}
+          {hasPendingShifts && (
+            <div className="mb-4 p-4 bg-amber-50 border-2 border-amber-400 rounded-lg shadow-sm">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-6 h-6 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-bold text-amber-900">Perhatian - Laporan Shift Belum Diterima</p>
+                  <p className="text-sm text-amber-800 mt-1">
+                    Ada {pendingShiftsCount} laporan shift yang belum diterima. 
+                    Silahkan selesaikan penerimaan laporan shift di halaman 
+                    <span className="font-semibold"> Stock Management → Laporan Shift</span> 
+                    sebelum mengirim stok.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Transfer Summary */}
           <div className="mt-4 p-3 bg-blue-50 rounded-lg">
             <div className="text-sm font-medium text-blue-800">
@@ -148,10 +195,10 @@ export default function InventoryBranchTransfer() {
 
           <Button 
             onClick={sendToBranch} 
-            disabled={loading} 
+            disabled={loading || hasPendingShifts} 
             className="w-full bg-red-600 hover:bg-red-700 text-white font-medium px-6 py-3 rounded-lg transition-all duration-200 hover:shadow-lg"
           >
-            {loading ? 'Mengirim...' : 'Kirim Stok'}
+            {hasPendingShifts ? 'Selesaikan Laporan Shift Dulu' : (loading ? 'Mengirim...' : 'Kirim Stok')}
           </Button>
         </CardContent>
       </Card>

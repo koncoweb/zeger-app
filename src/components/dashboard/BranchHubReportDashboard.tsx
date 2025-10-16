@@ -10,6 +10,8 @@ import { PieChart3D } from '@/components/charts/PieChart3D';
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useRiderFilter } from "@/hooks/useRiderFilter";
+import { BranchFilter } from "@/components/common/BranchFilter";
+import { useAuth } from "@/hooks/useAuth";
 
 interface DashboardStats {
   totalSales: number;
@@ -44,8 +46,10 @@ const COLORS = ['#3B82F6', '#DC2626', '#10B981', '#F87171', '#FCA5A5'];
 const SHIFT_COLORS = ['#10B981', '#3B82F6', '#DC2626'];
 
 export const BranchHubReportDashboard = () => {
+  const { userProfile } = useAuth();
   const { assignedRiderId, assignedRiderName, shouldAutoFilter, loading: riderLoading, error: riderError, refreshAssignment } = useRiderFilter();
   const [salesFilter, setSalesFilter] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
+  const [selectedBranchId, setSelectedBranchId] = useState(userProfile?.branch_id || '');
 
   // Set default dates using Asia/Jakarta timezone
   const getJakartaNow = () => new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
@@ -110,7 +114,7 @@ export const BranchHubReportDashboard = () => {
     if (shouldAutoFilter) {
       fetchDashboardData();
     }
-  }, [assignedRiderId, salesFilter, startDate, endDate, shouldAutoFilter]);
+  }, [assignedRiderId, salesFilter, startDate, endDate, shouldAutoFilter, selectedBranchId]);
 
   const fetchDashboardData = async () => {
     if (!shouldAutoFilter) {
@@ -138,14 +142,35 @@ export const BranchHubReportDashboard = () => {
       const startStr = formatYMD(new Date(startDate));
       const endStr = formatYMD(new Date(endDate));
 
-      // Fetch completed transactions for the assigned rider only
-      const { data: transactions } = await supabase
+      // Build branch filter for transactions
+      let branchIds: string[] = [];
+      if (selectedBranchId && selectedBranchId !== 'all') {
+        branchIds = [selectedBranchId];
+      } else if (selectedBranchId === 'all' && userProfile?.branch_id) {
+        // Get hub + all child branches
+        const { data: children } = await supabase
+          .from('branches')
+          .select('id')
+          .eq('parent_branch_id', userProfile.branch_id);
+        branchIds = [userProfile.branch_id, ...(children?.map(b => b.id) || [])];
+      } else if (userProfile?.branch_id) {
+        branchIds = [userProfile.branch_id];
+      }
+
+      // Fetch completed transactions for the assigned rider with branch filter
+      let query = supabase
         .from('transactions')
-        .select('final_amount, id, rider_id, payment_method')
+        .select('final_amount, id, rider_id, payment_method, branch_id')
         .eq('status', 'completed')
         .eq('rider_id', assignedRiderId)
         .gte('transaction_date', `${startStr}T00:00:00`)
         .lte('transaction_date', `${endStr}T23:59:59`);
+
+      if (branchIds.length > 0) {
+        query = query.in('branch_id', branchIds);
+      }
+
+      const { data: transactions } = await query;
 
       // Fetch active customers for this rider
       const { data: customers } = await supabase
@@ -572,6 +597,14 @@ export const BranchHubReportDashboard = () => {
               className="w-auto"
             />
           </div>
+          
+          {/* Branch Filter - Only show for branch hub managers */}
+          <BranchFilter
+            userBranchId={userProfile?.branch_id || ''}
+            userRole={userProfile?.role || ''}
+            selectedBranchId={selectedBranchId}
+            onBranchChange={setSelectedBranchId}
+          />
         </div>
       </div>
 
