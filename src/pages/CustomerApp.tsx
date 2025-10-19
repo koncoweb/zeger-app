@@ -265,7 +265,7 @@ export default function CustomerApp() {
     };
   }, [customerUser, toast]);
 
-  // Subscribe to order status changes for auto-redirect to tracking
+  // Subscribe to order status changes for auto-redirect to success screen
   useEffect(() => {
     if (!pendingOrderId) return;
 
@@ -280,32 +280,26 @@ export default function CustomerApp() {
         const newStatus = payload.new.status;
         
         if (newStatus === 'accepted') {
-          console.log('✅ Order accepted! Redirecting to tracking...');
+          console.log('✅ Order accepted! Redirecting to success screen...');
           
-          // Fetch rider info and order details
+          // Fetch order details
           const { data: orderData } = await supabase
             .from('customer_orders')
-            .select(`
-              *,
-              rider:rider_profile_id (
-                id,
-                full_name,
-                phone,
-                photo_url
-              )
-            `)
+            .select('*')
             .eq('id', pendingOrderId)
             .single();
 
           if (orderData) {
-            setTrackingOrderId(pendingOrderId);
-            setTrackingRider(orderData.rider);
-            setTrackingCoordinates({
-              lat: orderData.latitude || 0,
-              lng: orderData.longitude || 0,
-              address: orderData.delivery_address || ''
-            });
-            setActiveView('order-tracking');
+            // Set success screen data
+            setLastOrderId(pendingOrderId);
+            setLastOrderNumber(pendingOrderId.slice(0, 8).toUpperCase());
+            setLastOrderType('outlet_delivery');
+            setEstimatedTime('15-30 menit');
+            
+            // Navigate to success screen
+            setActiveView('order-success');
+            setPendingOrderId(null);
+            setPendingRider(null);
           }
         }
       })
@@ -317,29 +311,39 @@ export default function CustomerApp() {
   }, [pendingOrderId]);
 
   const fetchOrderForTracking = async (orderId: string) => {
-    const { data: orderData } = await supabase
-      .from('customer_orders')
-      .select(`
-        *,
-        rider:rider_profile_id (
-          id,
-          full_name,
-          phone,
-          photo_url
-        )
-      `)
-      .eq('id', orderId)
-      .single();
+    try {
+      const { data: orderData, error } = await supabase
+        .from('customer_orders')
+        .select('*')
+        .eq('id', orderId)
+        .single();
 
-    if (orderData) {
-      setTrackingOrderId(orderId);
-      setTrackingRider(orderData.rider);
-      setTrackingCoordinates({
-        lat: orderData.latitude || 0,
-        lng: orderData.longitude || 0,
-        address: orderData.delivery_address || ''
-      });
-      setActiveView('order-tracking');
+      if (error) {
+        console.error('Error fetching order:', error);
+        return;
+      }
+
+      if (orderData) {
+        // Create rider object from order data
+        const riderInfo = {
+          id: orderData.rider_profile_id || '',
+          full_name: 'Rider Zeger',
+          phone: '-',
+          photo_url: null,
+          rating: 4.5
+        };
+
+        setTrackingOrderId(orderId);
+        setTrackingRider(riderInfo);
+        setTrackingCoordinates({
+          lat: orderData.latitude || 0,
+          lng: orderData.longitude || 0,
+          address: orderData.delivery_address || ''
+        });
+        setActiveView('order-tracking');
+      }
+    } catch (error) {
+      console.error('Error in fetchOrderForTracking:', error);
     }
   };
 
@@ -669,7 +673,9 @@ export default function CustomerApp() {
                 outletAddress={selectedOutlet?.address}
                 estimatedTime={estimatedTime}
                 onNavigate={(view: string, id?: string) => {
-                  if (id) {
+                  if (view === 'order-tracking' && id) {
+                    fetchOrderForTracking(id);
+                  } else if (id) {
                     setSearchParams({ tab: 'order-detail', id });
                   } else {
                     setActiveView(view as View);
@@ -717,10 +723,10 @@ export default function CustomerApp() {
                 }}
               />
             )}
-            {activeView === 'order-tracking' && trackingOrderId && trackingRider && trackingCoordinates && (
+            {activeView === 'order-tracking' && trackingOrderId && trackingCoordinates && (
               <CustomerOrderTracking
                 orderId={trackingOrderId}
-                rider={trackingRider}
+                rider={trackingRider || { id: '', full_name: 'Rider', phone: '-' }}
                 customerLat={trackingCoordinates.lat}
                 customerLng={trackingCoordinates.lng}
                 deliveryAddress={trackingCoordinates.address}
@@ -730,8 +736,10 @@ export default function CustomerApp() {
                     description: "Terima kasih telah menggunakan Zeger",
                   });
                   setActiveView('orders');
-                  setPendingOrderId(null);
                   setTrackingOrderId(null);
+                  setTrackingRider(null);
+                  setTrackingCoordinates(null);
+                  localStorage.removeItem('zeger-last-pending-order');
                 }}
               />
             )}
