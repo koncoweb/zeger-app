@@ -32,19 +32,50 @@ export function CustomerProductDetail({
 }: CustomerProductDetailProps) {
   const [quantity, setQuantity] = useState(1);
   const [temperature, setTemperature] = useState<'hot' | 'ice'>('ice');
-  const [size, setSize] = useState<'regular' | 'large' | 'ultimate'>('regular');
+  const [size, setSize] = useState<'small' | 'large' | '200ml' | '1lt'>('small');
   const [blend, setBlend] = useState<'senja' | 'pagi'>('senja');
+  const [iceLevel, setIceLevel] = useState<'less' | 'normal'>('normal');
+  const [sugarLevel, setSugarLevel] = useState<'less' | 'normal'>('normal');
+  const [milk, setMilk] = useState<'regular' | 'oat'>('regular');
+  const [toppings, setToppings] = useState<string[]>([]);
+  const [notes, setNotes] = useState('');
+
+  const toppingOptions = [
+    { id: 'espresso', name: 'Espresso / Shot', price: 5000, icon: '☕' },
+    { id: 'oreo', name: 'Oreo Crumb', price: 4000, icon: '🍪' },
+    { id: 'cheese', name: 'Cheese', price: 5000, icon: '🧀' },
+    { id: 'jelly', name: 'Jelly Pearl', price: 5000, icon: '🔮' },
+    { id: 'icecream', name: 'Ice Cream/Scoop', price: 5000, icon: '🍦' },
+  ];
 
   const getCustomPrice = () => {
     let price = product.price;
+    
+    // Size pricing
     if (size === 'large') price += 5000;
-    if (size === 'ultimate') price += 10000;
+    if (size === '200ml') price += 3000;
+    if (size === '1lt') price += 15000;
+    
+    // Add toppings
+    toppings.forEach(toppingId => {
+      const topping = toppingOptions.find(t => t.id === toppingId);
+      if (topping) price += topping.price;
+    });
+    
     return price;
+  };
+
+  const toggleTopping = (toppingId: string) => {
+    setToppings(prev => 
+      prev.includes(toppingId) 
+        ? prev.filter(id => id !== toppingId)
+        : [...prev, toppingId]
+    );
   };
 
   const handleAddToCart = () => {
     onAddToCart(product, quantity, {
-      temperature, size, blend
+      temperature, size, blend, iceLevel, sugarLevel, milk, toppings, notes
     });
   };
 
@@ -123,19 +154,24 @@ export function CustomerProductDetail({
           {/* Size */}
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-3">Size</h3>
-            <div className="grid grid-cols-3 gap-3">
-              {['ultimate', 'large', 'regular'].map((s) => (
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { value: 'small', label: 'Small' },
+                { value: 'large', label: 'Large' },
+                { value: '200ml', label: '200ml' },
+                { value: '1lt', label: '1 Lt' }
+              ].map((sizeOption) => (
                 <button
-                  key={s}
-                  onClick={() => setSize(s as any)}
+                  key={sizeOption.value}
+                  onClick={() => setSize(sizeOption.value as any)}
                   className={cn(
                     "py-3 px-4 rounded-lg font-medium transition-all",
-                    size === s 
+                    size === sizeOption.value 
                       ? "bg-indigo-600 text-white shadow-md" 
                       : "bg-[#f8f6f6] text-gray-700"
                   )}
                 >
-                  {s.charAt(0).toUpperCase() + s.slice(1)}
+                  {sizeOption.label}
                 </button>
               ))}
             </div>
@@ -144,8 +180,7 @@ export function CustomerProductDetail({
           {/* Blend */}
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-3">Blend</h3>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="col-span-2"></div>
+            <div className="grid grid-cols-2 gap-3">
               <button 
                 onClick={() => setBlend('senja')}
                 className={cn(
@@ -157,7 +192,149 @@ export function CustomerProductDetail({
               >
                 Senja
               </button>
+              <button 
+                onClick={() => setBlend('pagi')}
+                className={cn(
+                  "py-3 px-4 rounded-lg font-medium transition-all",
+                  blend === 'pagi' 
+                    ? "bg-indigo-600 text-white shadow-md" 
+                    : "bg-[#f8f6f6] text-gray-700"
+                )}
+              >
+                Pagi
+              </button>
             </div>
+          </div>
+
+          {/* Ice Level */}
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">Ice Level</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <button 
+                onClick={() => setIceLevel('less')}
+                className={cn(
+                  "py-3 px-4 rounded-lg font-medium transition-all",
+                  iceLevel === 'less' 
+                    ? "bg-indigo-600 text-white shadow-md" 
+                    : "bg-[#f8f6f6] text-gray-700"
+                )}
+              >
+                Less
+              </button>
+              <button 
+                onClick={() => setIceLevel('normal')}
+                className={cn(
+                  "py-3 px-4 rounded-lg font-medium transition-all",
+                  iceLevel === 'normal' 
+                    ? "bg-indigo-600 text-white shadow-md" 
+                    : "bg-[#f8f6f6] text-gray-700"
+                )}
+              >
+                Normal
+              </button>
+            </div>
+          </div>
+
+          {/* Sugar Level */}
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">Sugar Level</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <button 
+                onClick={() => setSugarLevel('less')}
+                className={cn(
+                  "py-3 px-4 rounded-lg font-medium transition-all",
+                  sugarLevel === 'less' 
+                    ? "bg-indigo-600 text-white shadow-md" 
+                    : "bg-[#f8f6f6] text-gray-700"
+                )}
+              >
+                Less
+              </button>
+              <button 
+                onClick={() => setSugarLevel('normal')}
+                className={cn(
+                  "py-3 px-4 rounded-lg font-medium transition-all",
+                  sugarLevel === 'normal' 
+                    ? "bg-indigo-600 text-white shadow-md" 
+                    : "bg-[#f8f6f6] text-gray-700"
+                )}
+              >
+                Normal
+              </button>
+            </div>
+          </div>
+
+          {/* Milk */}
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">Milk</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <button 
+                onClick={() => setMilk('regular')}
+                className={cn(
+                  "py-3 px-4 rounded-lg font-medium transition-all",
+                  milk === 'regular' 
+                    ? "bg-indigo-600 text-white shadow-md" 
+                    : "bg-[#f8f6f6] text-gray-700"
+                )}
+              >
+                Regular
+              </button>
+              <button 
+                onClick={() => setMilk('oat')}
+                className={cn(
+                  "py-3 px-4 rounded-lg font-medium transition-all",
+                  milk === 'oat' 
+                    ? "bg-indigo-600 text-white shadow-md" 
+                    : "bg-[#f8f6f6] text-gray-700"
+                )}
+              >
+                Oat
+              </button>
+            </div>
+          </div>
+
+          {/* Toppings */}
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">Topping</h3>
+            <div className="space-y-2">
+              {toppingOptions.map((topping) => (
+                <label
+                  key={topping.id}
+                  className={cn(
+                    "flex items-center justify-between p-3 rounded-lg border-2 cursor-pointer transition-all",
+                    toppings.includes(topping.id)
+                      ? "border-indigo-600 bg-indigo-50"
+                      : "border-gray-200 bg-white"
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={toppings.includes(topping.id)}
+                      onChange={() => toggleTopping(topping.id)}
+                      className="w-5 h-5 text-indigo-600 rounded"
+                    />
+                    <span className="text-2xl">{topping.icon}</span>
+                    <span className="font-medium text-gray-900">{topping.name}</span>
+                  </div>
+                  <span className="text-sm font-semibold text-indigo-600">
+                    +Rp {topping.price.toLocaleString('id-ID')}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">Catatan (Optional)</h3>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Tambahkan catatan khusus..."
+              className="w-full p-3 border-2 border-gray-200 rounded-lg focus:border-indigo-600 focus:outline-none resize-none"
+              rows={3}
+            />
           </div>
         </div>
       </main>

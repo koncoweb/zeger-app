@@ -10,7 +10,9 @@ import {
   Minus,
   User,
   ShoppingBag,
-  Bike
+  Bike,
+  Pencil,
+  Trash2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -41,6 +43,8 @@ interface CustomerCartNewProps {
   onNavigate: (view: string) => void;
   onChangeOutlet: () => void;
   onAddMenu: () => void;
+  onEditItem?: (item: CartItem) => void;
+  onDeleteItem?: (item: CartItem) => void;
 }
 
 export function CustomerCartNew({ 
@@ -51,7 +55,9 @@ export function CustomerCartNew({
   onUpdateQuantity, 
   onNavigate,
   onChangeOutlet,
-  onAddMenu
+  onAddMenu,
+  onEditItem,
+  onDeleteItem
 }: CustomerCartNewProps) {
   const [orderType, setOrderType] = useState<'dine_in' | 'take_away' | 'delivery'>('take_away');
   const [pickupTime, setPickupTime] = useState('now');
@@ -280,30 +286,54 @@ export function CustomerCartNew({
                           </p>
                         )}
                         
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between mb-2">
                           <span className="text-red-600 font-bold text-base">
                             Rp {itemPrice.toLocaleString('id-ID')}
                           </span>
                           
-                          {/* Quantity Controls */}
-                          <div className="flex items-center gap-2">
-                            <Button
-                              size="icon"
-                              variant="outline"
-                              className="h-8 w-8 rounded-full border-gray-300"
-                              onClick={() => onUpdateQuantity(item.id, item.customizations, item.quantity - 1)}
-                            >
-                              <Minus className="h-3 w-3" />
-                            </Button>
-                            <span className="w-8 text-center font-semibold">{item.quantity}</span>
-                            <Button
-                              size="icon"
-                              variant="outline"
-                              className="h-8 w-8 rounded-full border-gray-300"
-                              onClick={() => onUpdateQuantity(item.id, item.customizations, item.quantity + 1)}
-                            >
-                              <Plus className="h-3 w-3" />
-                            </Button>
+                          {/* Edit & Delete Icons */}
+                          <div className="flex items-center gap-1">
+                            {onEditItem && (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 hover:bg-gray-100"
+                                onClick={() => onEditItem(item)}
+                              >
+                                <Pencil className="h-4 w-4 text-gray-600" />
+                              </Button>
+                            )}
+                            {onDeleteItem && (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 hover:bg-red-50"
+                                onClick={() => onDeleteItem(item)}
+                              >
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                              </Button>
+                            )}
+                            
+                            {/* Quantity Controls */}
+                            <div className="flex items-center gap-2 ml-2">
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                className="h-8 w-8 rounded-full border-gray-300"
+                                onClick={() => onUpdateQuantity(item.id, item.customizations, item.quantity - 1)}
+                              >
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                              <span className="w-8 text-center font-semibold">{item.quantity}</span>
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                className="h-8 w-8 rounded-full border-gray-300"
+                                onClick={() => onUpdateQuantity(item.id, item.customizations, item.quantity + 1)}
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
                           </div>
                         </div>
                         

@@ -317,17 +317,29 @@ export function CustomerMenu({
         </div>
       </div>
 
-      {/* Floating Cart Button */}
+      {/* Cart Summary Bottom Bar */}
       {cartItemCount > 0 && (
-        <button
-          onClick={onViewCart}
-          className="fixed bottom-24 right-6 z-50 w-16 h-16 bg-gradient-to-r from-red-500 to-red-600 rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-all"
-        >
-          <ShoppingCart className="h-7 w-7 text-white" />
-          <span className="absolute -top-2 -right-2 bg-white text-red-600 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 border-red-600">
-            {cartItemCount}
-          </span>
-        </button>
+        <div className="fixed bottom-20 left-0 right-0 z-50 bg-white p-4 shadow-2xl rounded-t-3xl border-t-2 border-[#EA2831]">
+          <div className="max-w-sm mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="bg-[#EA2831] text-white w-10 h-10 rounded-full flex items-center justify-center font-bold shadow-lg">
+                {cartItemCount}
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 font-medium">Total Harga</p>
+                <p className="text-lg font-bold text-gray-900">
+                  Rp{products.reduce((sum, p) => sum + p.price, 0).toLocaleString('id-ID')}
+                </p>
+              </div>
+            </div>
+            <Button
+              onClick={onViewCart}
+              className="bg-[#EA2831] hover:bg-red-600 text-white px-6 py-3 rounded-full font-semibold shadow-lg"
+            >
+              Lihat Pesanan
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   );

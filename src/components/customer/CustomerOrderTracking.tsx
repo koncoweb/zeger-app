@@ -297,9 +297,9 @@ export default function CustomerOrderTracking({
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Map Container */}
-      <div className="flex-1 relative">
+    <div className="min-h-screen bg-[#f8f6f6] flex flex-col">
+      {/* Map Container with Rounded Bottom */}
+      <div className="relative h-48 overflow-hidden rounded-b-3xl">
         {mapLoadError ? (
           <div className="flex items-center justify-center h-full min-h-[400px] bg-muted rounded-lg">
             <div className="text-center space-y-4 p-6">
@@ -324,33 +324,48 @@ export default function CustomerOrderTracking({
           </div>
         ) : (
           <>
-            <div ref={mapContainer} className="w-full h-full min-h-[400px]" />
+            <div ref={mapContainer} className="w-full h-full" />
 
-            {/* Status Overlay */}
-            <div className="absolute top-4 left-4 right-4">
-              <Card className="shadow-2xl">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-2">
-                    <div className="bg-red-100 p-2 rounded-full">
-                      <Navigation className="h-5 w-5 text-red-600 animate-pulse" />
-                    </div>
-                <div>
-                  <h3 className="font-semibold">🏍️ Zeger On The Wheels</h3>
-                  <p className="text-sm text-muted-foreground">{getStatusText()}</p>
-                </div>
+            {/* Overlay Header with Gradient */}
+            <div className="absolute top-0 left-0 right-0 z-10 p-4 bg-gradient-to-b from-black/50 to-transparent">
+              <div className="flex items-center">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-white hover:bg-white/20"
+                  onClick={() => window.history.back()}
+                >
+                  <span className="text-white">←</span>
+                </Button>
+                <h1 className="flex-1 text-xl font-semibold text-center text-white">Track Order</h1>
+                <div className="w-10"></div>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
           </>
         )}
       </div>
 
-      {/* Bottom Info Card */}
-      <Card className="rounded-t-3xl shadow-2xl border-t-4 border-primary">
-        <CardContent className="p-6 space-y-4">
-          {/* Progress Steps */}
-          <div className="flex items-center justify-between mb-4">
+      {/* Bottom Info Card - Rounded Top */}
+      <div className="bg-[#f8f6f6] -mt-8 relative rounded-t-3xl flex-1">
+        {/* Home Indicator */}
+        <div className="flex justify-center pt-4 mb-4">
+          <div className="w-16 h-1.5 bg-gray-300 rounded-full"></div>
+        </div>
+
+        {/* Content */}
+        <div className="px-4 pb-4 space-y-6">
+          {/* Estimated Time */}
+          <div className="flex items-center">
+            <Clock className="h-5 w-5 text-gray-500 mr-4" />
+            <div>
+              <p className="text-sm text-gray-500">Estimated Delivery Time</p>
+              <p className="text-lg font-bold text-gray-900">{eta ? `${eta} minutes` : '15 minutes'}</p>
+            </div>
+          </div>
+
+          <div className="border-t border-gray-200 pt-4"></div>
+          {/* Status Timeline */}
+          <div className="flex items-center justify-between mb-6">
             <div className="flex flex-col items-center flex-1">
               <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white">
                 <CheckCircle2 className="h-5 w-5" />
@@ -373,9 +388,10 @@ export default function CustomerOrderTracking({
             </div>
           </div>
 
-          {/* Rider Info */}
-          <div className="bg-muted p-4 rounded-lg">
-            <div className="flex items-center gap-3 mb-3">
+          {/* Rider Profile Card */}
+          <Card className="shadow-lg">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3 mb-3">
               <Avatar className="h-14 w-14 ring-2 ring-primary/10">
                 <AvatarImage src={rider.photo_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${rider.id}`} />
                 <AvatarFallback>{rider.full_name.charAt(0)}</AvatarFallback>
@@ -418,18 +434,19 @@ export default function CustomerOrderTracking({
               <span className="flex-1">{deliveryAddress}</span>
             </div>
 
-            {/* Call Button */}
-            <Button
-              size="lg"
-              className="w-full"
-              onClick={handleCallRider}
-            >
-              <Phone className="h-4 w-4 mr-2" />
-              Hubungi Rider
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+              {/* Contact Rider Button */}
+              <Button
+                size="lg"
+                className="w-full bg-[#EA2831] hover:bg-red-600"
+                onClick={handleCallRider}
+              >
+                <Phone className="h-4 w-4 mr-2" />
+                Contact Rider
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }
