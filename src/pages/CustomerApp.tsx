@@ -684,8 +684,6 @@ export default function CustomerApp() {
                 onDeleteItem={handleDeleteCartItem}
               />
             )}
-              />
-            )}
             {activeView === 'checkout' && selectedOutlet && customerUser && (
               <CustomerCheckout
                 cart={cart}
