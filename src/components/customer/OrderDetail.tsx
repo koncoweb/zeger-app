@@ -55,10 +55,12 @@ interface OrderData {
 
 const statusConfig = {
   pending: { label: 'Menunggu', color: 'bg-yellow-500', icon: Clock },
+  accepted: { label: 'Diterima Rider', color: 'bg-blue-500', icon: CheckCircle },
   confirmed: { label: 'Dikonfirmasi', color: 'bg-blue-500', icon: CheckCircle },
+  in_progress: { label: 'Dalam Perjalanan', color: 'bg-indigo-500', icon: Navigation },
   preparing: { label: 'Diproses', color: 'bg-purple-500', icon: Package },
   on_delivery: { label: 'Dalam Pengiriman', color: 'bg-indigo-500', icon: Navigation },
-  delivered: { label: 'Terkirim', color: 'bg-green-500', icon: CheckCircle },
+  delivered: { label: 'Pesanan Selesai', color: 'bg-green-500', icon: CheckCircle },
   completed: { label: 'Selesai', color: 'bg-green-600', icon: CheckCircle },
   cancelled: { label: 'Dibatalkan', color: 'bg-red-500', icon: XCircle },
   rejected: { label: 'Ditolak', color: 'bg-gray-500', icon: AlertCircle }

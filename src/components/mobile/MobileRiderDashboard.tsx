@@ -1056,24 +1056,41 @@ const MobileRiderDashboard = () => {
             onClick={async () => {
               if (!currentOrder) return;
               
-              const { error } = await supabase
-                .from('customer_orders')
-                .update({ 
-                  status: 'delivered',
-                  delivered_at: new Date().toISOString() 
-                })
-                .eq('id', currentOrder.id);
-              
-              if (error) {
+              try {
+                // Update order status to delivered
+                const { error: updateError } = await supabase
+                  .from('customer_orders')
+                  .update({ 
+                    status: 'delivered',
+                    updated_at: new Date().toISOString() 
+                  })
+                  .eq('id', currentOrder.id);
+                
+                if (updateError) {
+                  throw updateError;
+                }
+
+                // Add status history
+                const { error: historyError } = await supabase
+                  .from('order_status_history')
+                  .insert({
+                    order_id: currentOrder.id,
+                    status: 'delivered',
+                    notes: 'Rider telah sampai'
+                  });
+
+                if (historyError) {
+                  console.error('Error adding status history:', historyError);
+                }
+                
+                toast.success('Pesanan telah sampai! Customer akan dinotifikasi.');
+                setCurrentOrder(null);
+                fetchDashboardData();
+                fetchPendingOrders();
+              } catch (error: any) {
                 toast.error('Gagal update status pesanan');
                 console.error('Error updating order status:', error);
-                return;
               }
-              
-              toast.success('Pesanan telah sampai!');
-              setCurrentOrder(null);
-              fetchDashboardData();
-              fetchPendingOrders();
             }}
           >
             <Package className="h-5 w-5 mr-2" />

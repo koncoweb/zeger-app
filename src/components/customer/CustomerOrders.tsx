@@ -31,6 +31,7 @@ interface Order {
   delivery_address: string;
   created_at: string;
   updated_at: string;
+  order_type: string;
   order_items: OrderItem[];
 }
 
@@ -140,13 +141,13 @@ export function CustomerOrders({ customerUser }: CustomerOrdersProps) {
 
   const getActiveOrders = () => {
     return orders.filter(order => 
-      ['pending', 'accepted', 'on_the_way'].includes(order.status)
+      ['pending', 'accepted', 'on_the_way', 'in_progress'].includes(order.status)
     );
   };
 
   const getCompletedOrders = () => {
     return orders.filter(order => 
-      ['delivered', 'cancelled'].includes(order.status)
+      ['delivered', 'cancelled', 'completed'].includes(order.status)
     );
   };
 
@@ -157,8 +158,18 @@ export function CustomerOrders({ customerUser }: CustomerOrdersProps) {
     return (
       <Card className="mb-4">
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1">
+              {/* Order Type Badge */}
+              {order.order_type === 'on_the_wheels' ? (
+                <Badge className="mb-2 bg-[#EA2831] hover:bg-red-700 text-white border-0">
+                  🏍️ Zeger On The Wheels
+                </Badge>
+              ) : (
+                <Badge className="mb-2 bg-green-600 hover:bg-green-700 text-white border-0">
+                  🏪 Zeger Branch
+                </Badge>
+              )}
               <CardTitle className="text-lg">Order #{order.id.slice(0, 8)}</CardTitle>
               <p className="text-sm text-muted-foreground">
                 {new Date(order.created_at).toLocaleString('id-ID')}

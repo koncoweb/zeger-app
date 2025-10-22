@@ -199,10 +199,10 @@ export default function CustomerOrderTracking({
         console.log('📦 Order status changed:', newStatus);
         setOrderStatus(newStatus);
 
-        if (newStatus === 'completed' || newStatus === 'delivered') {
+        if (newStatus === 'delivered') {
           toast({
             title: "Pesanan Selesai!",
-            description: "Pesanan Anda telah sampai. Terima kasih!",
+            description: "Rider telah sampai. Terima kasih!",
           });
           setTimeout(() => {
             onCompleted();
@@ -298,9 +298,8 @@ export default function CustomerOrderTracking({
       case 'accepted':
       case 'in_progress':
         return 'Rider sedang menuju lokasi Anda';
-      case 'arrived':
       case 'delivered':
-        return 'Pesanan telah sampai!';
+        return 'Rider telah sampai! Pesanan selesai.';
       case 'completed':
         return 'Pesanan selesai';
       default:
