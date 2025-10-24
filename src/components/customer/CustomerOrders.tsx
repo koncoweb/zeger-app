@@ -141,13 +141,13 @@ export function CustomerOrders({ customerUser }: CustomerOrdersProps) {
 
   const getActiveOrders = () => {
     return orders.filter(order => 
-      ['pending', 'accepted', 'on_the_way', 'in_progress'].includes(order.status)
+      ['pending', 'accepted', 'in_progress'].includes(order.status)
     );
   };
 
   const getCompletedOrders = () => {
     return orders.filter(order => 
-      ['delivered', 'cancelled', 'completed'].includes(order.status)
+      ['delivered', 'completed', 'cancelled', 'rejected'].includes(order.status)
     );
   };
 

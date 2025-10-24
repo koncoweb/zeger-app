@@ -54,10 +54,10 @@ interface OrderData {
 }
 
 const statusConfig = {
-  pending: { label: 'Menunggu', color: 'bg-yellow-500', icon: Clock },
-  accepted: { label: 'Diterima Rider', color: 'bg-blue-500', icon: CheckCircle },
+  pending: { label: 'Menunggu Konfirmasi', color: 'bg-yellow-500', icon: Clock },
+  accepted: { label: 'Dikonfirmasi', color: 'bg-blue-500', icon: CheckCircle },
   confirmed: { label: 'Dikonfirmasi', color: 'bg-blue-500', icon: CheckCircle },
-  in_progress: { label: 'Dalam Perjalanan', color: 'bg-indigo-500', icon: Navigation },
+  in_progress: { label: 'Dalam Pengiriman', color: 'bg-indigo-500', icon: Navigation },
   preparing: { label: 'Diproses', color: 'bg-purple-500', icon: Package },
   on_delivery: { label: 'Dalam Pengiriman', color: 'bg-indigo-500', icon: Navigation },
   delivered: { label: 'Pesanan Selesai', color: 'bg-green-500', icon: CheckCircle },
@@ -232,8 +232,21 @@ export const OrderDetail = ({ orderId, userRole, onBack }: OrderDetailProps) => 
         >
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold">Detail Order</h1>
+        <div className="flex-1 space-y-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-2xl font-bold">Detail Order</h1>
+            {order.order_type && (
+              <Badge 
+                className={
+                  order.order_type === 'on_the_wheels' 
+                    ? 'bg-[#EA2831] hover:bg-red-700 text-white border-0' 
+                    : 'bg-green-600 hover:bg-green-700 text-white border-0'
+                }
+              >
+                {order.order_type === 'on_the_wheels' ? '🏍️ Zeger On The Wheels' : '🏪 Zeger Branch'}
+              </Badge>
+            )}
+          </div>
           <p className="text-sm text-muted-foreground">Order #{order.id.slice(0, 8)}</p>
         </div>
         <Badge className={statusConfig[order.status as keyof typeof statusConfig]?.color}>

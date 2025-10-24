@@ -1056,6 +1056,8 @@ const MobileRiderDashboard = () => {
             onClick={async () => {
               if (!currentOrder) return;
               
+              console.log('🚀 Marking order as delivered:', currentOrder.id);
+              
               try {
                 // Update order status to delivered
                 const { error: updateError } = await supabase
@@ -1067,34 +1069,44 @@ const MobileRiderDashboard = () => {
                   .eq('id', currentOrder.id);
                 
                 if (updateError) {
-                  throw updateError;
+                  console.error('❌ Error updating order:', updateError);
+                  toast.error('Gagal update status pesanan');
+                  return;
                 }
 
-                // Add status history
+                // Add status history with location
+                const currentLocation = riderLocation;
                 const { error: historyError } = await supabase
                   .from('order_status_history')
                   .insert({
                     order_id: currentOrder.id,
                     status: 'delivered',
-                    notes: 'Rider telah sampai'
+                    notes: 'Rider telah sampai',
+                    latitude: currentLocation?.lat,
+                    longitude: currentLocation?.lng
                   });
 
                 if (historyError) {
-                  console.error('Error adding status history:', historyError);
+                  console.error('❌ Error adding history:', historyError);
                 }
+
+                console.log('✅ Order marked as delivered successfully');
                 
-                toast.success('Pesanan telah sampai! Customer akan dinotifikasi.');
+                toast.success('Pesanan Selesai!', {
+                  description: 'Customer telah menerima pesanan'
+                });
+                
                 setCurrentOrder(null);
                 fetchDashboardData();
                 fetchPendingOrders();
               } catch (error: any) {
+                console.error('❌ Error in order completion:', error);
                 toast.error('Gagal update status pesanan');
-                console.error('Error updating order status:', error);
               }
             }}
           >
             <Package className="h-5 w-5 mr-2" />
-            Sudah Sampai Lokasi
+            ✅ Sudah Sampai Lokasi
           </Button>
         </div>
       )}

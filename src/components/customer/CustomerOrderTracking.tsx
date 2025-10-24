@@ -200,13 +200,16 @@ export default function CustomerOrderTracking({
         setOrderStatus(newStatus);
 
         if (newStatus === 'delivered') {
+          console.log('✅ Order delivered!');
+          
           toast({
-            title: "Pesanan Selesai!",
-            description: "Rider telah sampai. Terima kasih!",
+            title: "Pesanan Telah Sampai! 🎉",
+            description: "Rider telah menyelesaikan pengiriman. Selamat menikmati!",
           });
+          
           setTimeout(() => {
             onCompleted();
-          }, 2000);
+          }, 3000);
         }
       })
       .subscribe();
@@ -295,15 +298,18 @@ export default function CustomerOrderTracking({
 
   const getStatusText = () => {
     switch (orderStatus) {
+      case 'pending':
+        return 'Mencari rider terdekat...';
       case 'accepted':
-      case 'in_progress':
         return 'Rider sedang menuju lokasi Anda';
+      case 'in_progress':
+        return 'Rider dalam perjalanan ke lokasi Anda';
       case 'delivered':
-        return 'Rider telah sampai! Pesanan selesai.';
+        return 'Rider telah sampai! Pesanan selesai. 🎉';
       case 'completed':
         return 'Pesanan selesai';
       default:
-        return 'Memproses pesanan';
+        return 'Memproses pesanan...';
     }
   };
 
