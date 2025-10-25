@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { EmptyState } from '@/components/ui/empty-state';
+import { useToast } from '@/hooks/use-toast';
+import CustomerOrderTracking from './CustomerOrderTracking';
 
 interface CustomerOrdersProps {
   customerUser: any;
@@ -32,7 +34,16 @@ interface Order {
   created_at: string;
   updated_at: string;
   order_type: string;
+  rider_profile_id: string | null;
+  latitude: number | null;
+  longitude: number | null;
   order_items: OrderItem[];
+  rider?: {
+    id: string;
+    full_name: string;
+    phone: string;
+    photo_url?: string;
+  };
 }
 
 interface OrderItem {
@@ -109,22 +120,41 @@ export function CustomerOrders({ customerUser }: CustomerOrdersProps) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchParams, setSearchParams] = useSearchParams();
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchOrders();
     
-    // Set up real-time subscription for order updates
+    // Set up real-time subscription for order updates with notifications
     const channel = supabase
       .channel('customer_orders_changes')
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'UPDATE',
           schema: 'public',
           table: 'customer_orders',
           filter: `user_id=eq.${customerUser?.id}`
         },
-        () => {
+        (payload) => {
+          const updatedOrder = payload.new;
+          console.log('📦 Order updated:', updatedOrder);
+          
+          // Show notification when rider arrives
+          if (updatedOrder.status === 'delivered') {
+            // Play notification sound
+            const audio = new Audio('/sounds/zeger-notification.mp3');
+            audio.play().catch(e => console.log('Could not play sound:', e));
+            
+            // Show toast notification
+            toast({
+              title: "🎉 Pesanan Telah Sampai!",
+              description: `Rider telah menyelesaikan pengiriman. Selamat menikmati!`,
+              duration: 5000,
+            });
+          }
+          
+          // Refresh orders list
           fetchOrders();
         }
       )
@@ -144,6 +174,12 @@ export function CustomerOrders({ customerUser }: CustomerOrdersProps) {
           order_items:customer_order_items(
             *,
             product:products(name, image_url)
+          ),
+          rider:profiles!rider_profile_id(
+            id,
+            full_name,
+            phone,
+            photo_url
           )
         `)
         .eq('user_id', customerUser?.id)
@@ -164,9 +200,15 @@ export function CustomerOrders({ customerUser }: CustomerOrdersProps) {
     // Navigate to cart with items pre-filled
   };
 
-  const contactRider = () => {
-    // Implementation for contacting rider
-    console.log('Contacting rider');
+  const contactRider = (rider: any) => {
+    if (rider?.phone) {
+      // Format phone number: remove leading 0, add 62, remove non-digits
+      let phoneNumber = rider.phone.replace(/^0/, '62');
+      phoneNumber = phoneNumber.replace(/\D/g, '');
+      
+      // Open WhatsApp
+      window.open(`https://wa.me/${phoneNumber}`, '_blank');
+    }
   };
 
   const getActiveOrders = () => {
@@ -269,45 +311,96 @@ export function CustomerOrders({ customerUser }: CustomerOrdersProps) {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex space-x-2 pt-2">
+          <div className="flex flex-col space-y-2 pt-2">
+            {/* Row 1: Lihat Detail */}
             <Button 
               variant="default" 
               size="sm" 
               onClick={() => setSearchParams({ tab: 'order-detail', id: order.id })}
-              className="flex-1"
+              className="w-full"
             >
               <Eye className="h-4 w-4 mr-1" />
               Lihat Detail
             </Button>
             
-            {['delivered'].includes(order.status) && (
+            {/* Row 2: Track Order (for active on_the_wheels orders) */}
+            {['accepted', 'in_progress', 'on_the_way'].includes(order.status) && 
+             order.order_type === 'on_the_wheels' && 
+             order.rider_profile_id && (
               <Button 
-                variant="outline" 
+                variant="default" 
                 size="sm" 
-                onClick={() => reorder(order)}
-                className="flex-1"
+                onClick={() => setSearchParams({ 
+                  tab: 'tracking', 
+                  orderId: order.id 
+                })}
+                className="w-full bg-blue-600 hover:bg-blue-700"
               >
-                <RefreshCw className="h-4 w-4 mr-1" />
-                Pesan Lagi
+                <MapPin className="h-4 w-4 mr-1" />
+                Track Order
               </Button>
             )}
             
-            {['accepted', 'on_the_way'].includes(order.status) && (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={contactRider}
-                className="flex-1"
-              >
-                <Phone className="h-4 w-4 mr-1" />
-                Hubungi Rider
-              </Button>
-            )}
+            {/* Row 3: Hubungi Rider & Pesan Lagi */}
+            <div className="flex space-x-2">
+              {['accepted', 'in_progress', 'on_the_way'].includes(order.status) && order.rider && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => contactRider(order.rider)}
+                  className="flex-1"
+                >
+                  <Phone className="h-4 w-4 mr-1" />
+                  Hubungi Rider
+                </Button>
+              )}
+              
+              {['delivered', 'completed'].includes(order.status) && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => reorder(order)}
+                  className="flex-1"
+                >
+                  <RefreshCw className="h-4 w-4 mr-1" />
+                  Pesan Lagi
+                </Button>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
     );
   };
+
+  // Handle tracking tab
+  const currentTab = searchParams.get('tab');
+  const trackingOrderId = searchParams.get('orderId');
+  
+  if (currentTab === 'tracking' && trackingOrderId) {
+    const trackingOrder = orders.find(o => o.id === trackingOrderId);
+    
+    if (trackingOrder && trackingOrder.rider && trackingOrder.latitude && trackingOrder.longitude) {
+      return (
+        <CustomerOrderTracking
+          orderId={trackingOrder.id}
+          rider={{
+            id: trackingOrder.rider.id,
+            full_name: trackingOrder.rider.full_name,
+            phone: trackingOrder.rider.phone,
+            photo_url: trackingOrder.rider.photo_url
+          }}
+          customerLat={trackingOrder.latitude}
+          customerLng={trackingOrder.longitude}
+          deliveryAddress={trackingOrder.delivery_address}
+          onCompleted={() => {
+            setSearchParams({ tab: 'orders' });
+            fetchOrders();
+          }}
+        />
+      );
+    }
+  }
 
   if (loading) {
     return <LoadingSpinner message="Memuat pesanan..." />;
