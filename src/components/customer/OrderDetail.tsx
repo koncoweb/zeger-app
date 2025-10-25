@@ -219,7 +219,12 @@ export const OrderDetail = ({ orderId, userRole, onBack }: OrderDetailProps) => 
     );
   }
 
-  const StatusIcon = statusConfig[order.status as keyof typeof statusConfig]?.icon || Clock;
+  const statusInfo = statusConfig[order.status as keyof typeof statusConfig] || {
+    label: order.status,
+    color: 'bg-gray-500',
+    icon: Clock
+  };
+  const StatusIcon = statusInfo.icon;
 
   return (
     <div className="container max-w-4xl mx-auto p-4 space-y-4">
@@ -249,9 +254,9 @@ export const OrderDetail = ({ orderId, userRole, onBack }: OrderDetailProps) => 
           </div>
           <p className="text-sm text-muted-foreground">Order #{order.id.slice(0, 8)}</p>
         </div>
-        <Badge className={statusConfig[order.status as keyof typeof statusConfig]?.color}>
+        <Badge className={statusInfo.color}>
           <StatusIcon className="h-3 w-3 mr-1" />
-          {statusConfig[order.status as keyof typeof statusConfig]?.label}
+          {statusInfo.label}
         </Badge>
       </div>
 
@@ -392,27 +397,32 @@ export const OrderDetail = ({ orderId, userRole, onBack }: OrderDetailProps) => 
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {statusHistory.map((history, index) => (
-                <div key={history.id} className="flex gap-3">
-                  <div className="flex flex-col items-center">
-                    <div className={`w-3 h-3 rounded-full ${statusConfig[history.status as keyof typeof statusConfig]?.color || 'bg-gray-400'}`} />
-                    {index < statusHistory.length - 1 && (
-                      <div className="w-0.5 h-full bg-gray-300 my-1" />
-                    )}
+              {statusHistory.map((history, index) => {
+                const historyStatusInfo = statusConfig[history.status as keyof typeof statusConfig] || {
+                  label: history.status,
+                  color: 'bg-gray-400',
+                  icon: Clock
+                };
+                return (
+                  <div key={history.id} className="flex gap-3">
+                    <div className="flex flex-col items-center">
+                      <div className={`w-3 h-3 rounded-full ${historyStatusInfo.color}`} />
+                      {index < statusHistory.length - 1 && (
+                        <div className="w-0.5 h-full bg-gray-300 my-1" />
+                      )}
+                    </div>
+                    <div className="flex-1 pb-4">
+                      <p className="font-medium">{historyStatusInfo.label}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {format(new Date(history.created_at), 'dd MMM yyyy, HH:mm')}
+                      </p>
+                      {history.notes && (
+                        <p className="text-sm text-muted-foreground mt-1">{history.notes}</p>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex-1 pb-4">
-                    <p className="font-medium">
-                      {statusConfig[history.status as keyof typeof statusConfig]?.label || history.status}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {format(new Date(history.created_at), 'dd MMM yyyy, HH:mm')}
-                    </p>
-                    {history.notes && (
-                      <p className="text-sm text-muted-foreground mt-1">{history.notes}</p>
-                    )}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>
