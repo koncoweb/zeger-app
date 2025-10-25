@@ -202,12 +202,33 @@ export function CustomerOrders({ customerUser }: CustomerOrdersProps) {
 
   const contactRider = (rider: any) => {
     if (rider?.phone) {
-      // Format phone number: remove leading 0, add 62, remove non-digits
-      let phoneNumber = rider.phone.replace(/^0/, '62');
-      phoneNumber = phoneNumber.replace(/\D/g, '');
+      console.log('🔍 Original phone:', rider.phone);
       
-      // Open WhatsApp
+      // Step 1: Remove ALL non-digit characters FIRST
+      let phoneNumber = rider.phone.replace(/\D/g, '');
+      console.log('📱 After removing non-digits:', phoneNumber);
+      
+      // Step 2: Handle different formats
+      if (phoneNumber.startsWith('0')) {
+        // If starts with 0, replace with 62
+        phoneNumber = '62' + phoneNumber.slice(1);
+      } else if (!phoneNumber.startsWith('62')) {
+        // If doesn't start with 62, add it
+        phoneNumber = '62' + phoneNumber;
+      }
+      
+      console.log('✅ Final WhatsApp number:', phoneNumber);
+      console.log('🔗 Opening:', `https://wa.me/${phoneNumber}`);
+      
+      // Open WhatsApp with the rider's number
       window.open(`https://wa.me/${phoneNumber}`, '_blank');
+    } else {
+      console.error('❌ No phone number found for rider:', rider);
+      toast({
+        title: "Nomor Tidak Tersedia",
+        description: "Nomor telepon rider tidak ditemukan",
+        variant: "destructive"
+      });
     }
   };
 
@@ -378,6 +399,11 @@ export function CustomerOrders({ customerUser }: CustomerOrdersProps) {
   const trackingOrderId = searchParams.get('orderId');
   
   if (currentTab === 'tracking' && trackingOrderId) {
+    // If still loading, show loading spinner
+    if (loading) {
+      return <LoadingSpinner message="Memuat tracking..." />;
+    }
+    
     const trackingOrder = orders.find(o => o.id === trackingOrderId);
     
     if (trackingOrder && trackingOrder.rider && trackingOrder.latitude && trackingOrder.longitude) {
