@@ -32,6 +32,8 @@ export default function CustomerPaymentMethod({
   const { toast } = useToast();
   const [selectedMethod, setSelectedMethod] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [showQRISModal, setShowQRISModal] = useState(false);
+  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
 
   const handlePayment = async () => {
     if (!selectedMethod) {
@@ -43,10 +45,22 @@ export default function CustomerPaymentMethod({
       return;
     }
 
+    // SPECIAL HANDLING FOR QRIS - Show static QRIS
+    if (selectedMethod === 'QRIS') {
+      setShowQRISModal(true);
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // Call Xendit edge function
+      console.log('💳 Processing payment:', {
+        order_id: orderId,
+        amount: totalAmount,
+        method: selectedMethod
+      });
+
+      // Call Xendit edge function for e-wallets
       const { data, error } = await supabase.functions.invoke('create-xendit-invoice', {
         body: {
           order_id: orderId,
@@ -55,25 +69,29 @@ export default function CustomerPaymentMethod({
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Edge function error:', error);
+        throw error;
+      }
 
+      console.log('✅ Xendit response:', data);
+
+      // Redirect to Xendit payment page
       if (data?.invoice_url) {
+        console.log('🔗 Redirecting to:', data.invoice_url);
         window.location.href = data.invoice_url;
       } else {
-        toast({
-          title: '✅ Pembayaran Berhasil',
-          description: 'Pesanan Anda sedang diproses',
-        });
+        // Payment method doesn't require redirect
         onSuccess(selectedMethod);
       }
+      
     } catch (error: any) {
-      console.error('Payment error:', error);
+      console.error('❌ Payment error:', error);
       toast({
         title: 'Error',
         description: error.message || 'Gagal memproses pembayaran',
         variant: 'destructive',
       });
-    } finally {
       setLoading(false);
     }
   };
@@ -173,6 +191,108 @@ export default function CustomerPaymentMethod({
           </footer>
         </div>
       </div>
+
+      {/* QRIS Payment Modal */}
+      {showQRISModal && (
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center justify-between rounded-t-2xl">
+              <h2 className="text-lg font-bold text-gray-900">Pembayaran QRIS</h2>
+              <button 
+                onClick={() => {
+                  setShowQRISModal(false);
+                  setPaymentConfirmed(false);
+                }}
+                className="text-gray-500 hover:text-gray-700 text-2xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* QRIS Image */}
+            <div className="p-6">
+              <div className="bg-white rounded-xl shadow-lg p-4 mb-6">
+                <img 
+                  src="/qris/zeger-qris.jpg" 
+                  alt="QRIS Code Zeger Coffee"
+                  className="w-full h-auto rounded-lg"
+                />
+              </div>
+
+              {/* Instructions */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <h3 className="font-bold text-blue-900 mb-2">Cara Pembayaran:</h3>
+                <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+                  <li>Buka aplikasi e-wallet Anda (GoPay, OVO, Dana, dll)</li>
+                  <li>Pilih menu "Scan QR" atau "Bayar"</li>
+                  <li>Scan QRIS code di atas</li>
+                  <li>Masukkan nominal: <span className="font-bold">Rp{totalAmount.toLocaleString('id-ID')}</span></li>
+                  <li>Konfirmasi pembayaran</li>
+                  <li>Klik tombol "Sudah Bayar" di bawah</li>
+                </ol>
+              </div>
+
+              {/* Total Amount */}
+              <div className="bg-gray-100 rounded-lg p-4 mb-6 text-center">
+                <p className="text-sm text-gray-600 mb-1">Total Pembayaran</p>
+                <p className="text-3xl font-bold text-[#EA2831]">
+                  Rp{totalAmount.toLocaleString('id-ID')}
+                </p>
+              </div>
+
+              {/* Confirmation Checkbox */}
+              <label className="flex items-start gap-3 mb-6 cursor-pointer">
+                <input 
+                  type="checkbox"
+                  checked={paymentConfirmed}
+                  onChange={(e) => setPaymentConfirmed(e.target.checked)}
+                  className="mt-1 h-5 w-5 text-[#EA2831] rounded"
+                />
+                <span className="text-sm text-gray-700">
+                  Saya sudah melakukan pembayaran melalui QRIS
+                </span>
+              </label>
+
+              {/* Confirm Button */}
+              <button
+                onClick={() => {
+                  if (!paymentConfirmed) {
+                    toast({
+                      title: 'Perhatian',
+                      description: 'Centang konfirmasi pembayaran terlebih dahulu',
+                      variant: 'destructive'
+                    });
+                    return;
+                  }
+                  setShowQRISModal(false);
+                  onSuccess('QRIS');
+                }}
+                disabled={!paymentConfirmed}
+                className={cn(
+                  "w-full py-4 rounded-full font-bold transition-colors",
+                  paymentConfirmed
+                    ? "bg-[#EA2831] text-white hover:bg-red-700"
+                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                )}
+              >
+                Sudah Bayar
+              </button>
+
+              {/* Cancel Button */}
+              <button
+                onClick={() => {
+                  setShowQRISModal(false);
+                  setPaymentConfirmed(false);
+                }}
+                className="w-full mt-3 py-3 text-gray-600 hover:text-gray-900 font-medium"
+              >
+                Batal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

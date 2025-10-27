@@ -84,7 +84,7 @@ export default function CustomerCheckout({
         <div className="w-8"></div>
       </header>
 
-      <main className="p-4 space-y-4">
+      <main className="p-4 space-y-4 pb-48">
         {/* Order Type Toggle */}
         <div className="flex justify-around bg-gray-100 p-1 rounded-full">
           <button 
@@ -264,24 +264,34 @@ export default function CustomerCheckout({
       </main>
 
       {/* Purple Alert + Button */}
-      <div className="fixed bottom-0 left-0 right-0 z-50">
-        <div className="bg-purple-800 text-white p-3 flex items-start gap-3 rounded-t-2xl mx-auto max-w-sm shadow-2xl">
-          <span className="text-xl">📢</span>
-          <p className="text-xs">
-            Dengan membayar pesanan, anda telah menyetujui{' '}
-            <a href="#" className="font-bold underline">Syarat Dan Ketentuan</a> Kami
-          </p>
-        </div>
-        
-        <div className="bg-white p-4 pb-safe shadow-[0_-2px_10px_rgba(0,0,0,0.1)] rounded-t-2xl mx-auto max-w-sm">
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-t from-white via-white to-transparent pt-6">
+        <div className="container mx-auto max-w-md px-4 pb-safe">
+          {/* Purple banner */}
+          <div className="bg-purple-800 text-white p-3 flex items-start gap-3 rounded-t-2xl mx-auto max-w-sm shadow-xl relative z-40">
+            <div className="bg-red-500 rounded-full p-1.5 shrink-0">
+              <span className="text-white text-sm">📢</span>
+            </div>
+            <div className="flex-1">
+              <p className="font-bold text-xs">Pesan sekarang, Habis langsung tutup!</p>
+            </div>
+          </div>
+          
+          {/* Button dengan total harga */}
           <button 
             onClick={handleConfirmOrder}
             disabled={loading || (orderType === 'outlet_delivery' && !deliveryAddress)}
-            className="w-full bg-[#EA2831] hover:bg-[#d11f28] disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-full font-bold text-lg shadow-lg transition-colors"
+            className={cn(
+              "w-full py-4 px-6 rounded-b-2xl font-bold text-white transition-all shadow-2xl mx-auto max-w-sm flex items-center justify-between relative z-50",
+              (loading || (orderType === 'outlet_delivery' && !deliveryAddress))
+                ? "bg-gray-400 cursor-not-allowed" 
+                : "bg-[#EA2831] hover:bg-red-700 active:scale-[0.98]"
+            )}
           >
-            {loading ? 'Memproses...' : `Pilih Pembayaran • Rp${total.toLocaleString('id-ID')}`}
+            <span>{loading ? 'Memproses...' : 'Pilih Pembayaran'}</span>
+            <span className="font-bold text-lg">
+              Rp{total.toLocaleString('id-ID')}
+            </span>
           </button>
-          <div className="w-32 h-1.5 bg-gray-300 rounded-full mx-auto mt-4"></div>
         </div>
       </div>
     </div>

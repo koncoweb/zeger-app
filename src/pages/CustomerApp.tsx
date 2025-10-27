@@ -482,24 +482,11 @@ export default function CustomerApp() {
     return cart.reduce((total, item) => total + item.quantity, 0);
   };
 
-  const handleProceedToPayment = (orderData: any) => {
-    // Save order data and navigate to payment selection
-    setPendingOrderData(orderData);
-    setActiveView('payment');
-  };
-
-  const handleConfirmOrder = async (paymentMethodOrString?: string) => {
-    if (!pendingOrderData) return;
-    
-    const paymentMethod = (paymentMethodOrString || 'e_wallet') as 'cash' | 'e_wallet' | 'qris';
-    
+  const handleProceedToPayment = async (orderData: any) => {
     try {
-      const orderData = {
-        ...pendingOrderData,
-        paymentMethod
-      };
-
-      // 1. Insert customer_order
+      console.log('🛒 Creating order with pending payment status...');
+      
+      // 1. Create order FIRST with status 'pending_payment'
       const { data: order, error: orderError } = await supabase
         .from('customer_orders')
         .insert({
@@ -509,19 +496,23 @@ export default function CustomerApp() {
           delivery_address: orderData.deliveryAddress,
           latitude: orderData.deliveryLat,
           longitude: orderData.deliveryLng,
-          payment_method: paymentMethod,
-          voucher_id: orderData.voucherId,
+          payment_method: 'pending', // Will be updated after payment method selection
           total_price: orderData.totalPrice,
           delivery_fee: orderData.deliveryFee,
           discount_amount: orderData.discount,
-          status: 'pending',
+          status: 'pending_payment',
         })
         .select()
         .single();
 
-      if (orderError) throw orderError;
+      if (orderError) {
+        console.error('❌ Order creation error:', orderError);
+        throw orderError;
+      }
 
-      // 2. Insert customer_order_items
+      console.log('✅ Order created:', order.id);
+
+      // 2. Insert order items
       const orderItems = cart.map(item => ({
         order_id: order.id,
         product_id: item.id,
@@ -534,45 +525,92 @@ export default function CustomerApp() {
         .from('customer_order_items')
         .insert(orderItems);
 
-      if (itemsError) throw itemsError;
+      if (itemsError) {
+        console.error('❌ Order items error:', itemsError);
+        throw itemsError;
+      }
 
-      // 3. Update customer points (deduct used points, earned points added by trigger)
-      const newPointsBalance = (customerUser!.points || 0) - (orderData.pointsUsed || 0);
-      const { error: pointsError } = await supabase
-        .from('customer_users')
-        .update({ points: newPointsBalance })
-        .eq('id', customerUser!.id);
+      console.log('✅ Order items created');
 
-      if (pointsError) throw pointsError;
-      
-      // Update local state
-      setCustomerUser(prev => prev ? {...prev, points: newPointsBalance} : null);
-
-      // 4. Clear cart and pending order data
-      setCart([]);
-      setPendingOrderData(null);
-
-      // 5. Navigate to success page
-      setLastOrderId(order.id);
-      setLastOrderNumber(order.id.slice(0, 8).toUpperCase());
-      setLastOrderType(orderData.orderType);
-      setEstimatedTime(
-        orderData.orderType === 'outlet_pickup' 
-          ? '15-30 menit' 
-          : '~45 menit'
-      );
-      setActiveView('order-success');
-
-      toast({
-        title: "✅ Pesanan Berhasil!",
-        description: "Pesanan Anda sedang diproses",
+      // 3. Save order data with order ID
+      setPendingOrderData({
+        ...orderData,
+        orderId: order.id,
       });
-
+      
+      setActiveView('payment');
+      
     } catch (error) {
       console.error('Error creating order:', error);
       toast({
         title: "Error",
-        description: "Gagal membuat pesanan. Silakan coba lagi.",
+        description: "Gagal membuat pesanan",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleConfirmOrder = async (paymentMethod?: string, invoiceUrl?: string) => {
+    if (!pendingOrderData || !pendingOrderData.orderId) {
+      console.error('❌ No pending order data or order ID');
+      return;
+    }
+    
+    try {
+      console.log('✅ Payment confirmed, processing order:', pendingOrderData.orderId);
+
+      // Update order status from pending_payment to pending (waiting for rider)
+      const { error: updateError } = await supabase
+        .from('customer_orders')
+        .update({
+          payment_method: paymentMethod || 'qris',
+          status: 'pending', // Change to pending (waiting for rider)
+        })
+        .eq('id', pendingOrderData.orderId);
+
+      if (updateError) {
+        console.error('❌ Order update error:', updateError);
+        throw updateError;
+      }
+
+      // Update user points if used
+      if (pendingOrderData.pointsUsed > 0) {
+        const newPointsBalance = (customerUser!.points || 0) - pendingOrderData.pointsUsed;
+        const { error: pointsError } = await supabase
+          .from('customer_users')
+          .update({ points: newPointsBalance })
+          .eq('id', customerUser!.id);
+
+        if (pointsError) throw pointsError;
+        
+        setCustomerUser(prev => prev ? {...prev, points: newPointsBalance} : null);
+        console.log('✅ Points updated:', newPointsBalance);
+      }
+
+      // Clear cart and show success
+      setCart([]);
+      setLastOrderId(pendingOrderData.orderId);
+      setLastOrderNumber(pendingOrderData.orderId.slice(0, 8).toUpperCase());
+      setLastOrderType(pendingOrderData.orderType);
+      setEstimatedTime(
+        pendingOrderData.orderType === 'outlet_pickup' 
+          ? '15-30 menit' 
+          : '~45 menit'
+      );
+      
+      setPendingOrderData(null);
+      setActiveView('order-success');
+
+      toast({
+        title: "✅ Pembayaran Berhasil!",
+        description: "Pesanan Anda sedang diproses",
+      });
+
+    } catch (error) {
+      console.error('Error confirming order:', error);
+      toast({
+        title: "Error",
+        description: "Gagal konfirmasi pembayaran",
         variant: "destructive"
       });
     }
@@ -713,9 +751,9 @@ export default function CustomerApp() {
                 onBack={() => setActiveView('cart')}
               />
             )}
-            {activeView === 'payment' && pendingOrderData && (
+            {activeView === 'payment' && pendingOrderData && pendingOrderData.orderId && (
               <CustomerPaymentMethod
-                orderId=""
+                orderId={pendingOrderData.orderId}
                 totalAmount={pendingOrderData.totalPrice}
                 orderType={pendingOrderData.orderType}
                 onBack={() => setActiveView('checkout')}
