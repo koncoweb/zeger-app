@@ -23,6 +23,7 @@ import {
 import { cn } from '@/lib/utils';
 import { CustomerAuth } from '@/components/customer/CustomerAuth';
 import { CustomerHome } from '@/components/customer/CustomerHome';
+import { CustomerLoyalty } from '@/components/customer/CustomerLoyalty';
 import { CustomerPromoReward } from '@/components/customer/CustomerPromoReward';
 import { CustomerVouchers } from '@/components/customer/CustomerVouchers';
 import { CustomerOrders } from '@/components/customer/CustomerOrders';
@@ -68,7 +69,7 @@ interface CartItem extends Product {
   customizations: any;
 }
 
-type View = 'home' | 'promo-reward' | 'vouchers' | 'orders' | 'profile' | 'map' | 'menu' | 'product-detail' | 'cart' | 'outlets' | 'checkout' | 'payment' | 'order-success' | 'waiting' | 'order-tracking';
+type View = 'home' | 'loyalty' | 'promo-reward' | 'vouchers' | 'orders' | 'profile' | 'map' | 'menu' | 'product-detail' | 'cart' | 'outlets' | 'checkout' | 'payment' | 'order-success' | 'waiting' | 'order-tracking';
 
 export default function CustomerApp() {
   const { user } = useAuth();
@@ -656,6 +657,13 @@ export default function CustomerApp() {
                 onNavigate={setActiveView}
                 recentProducts={products.slice(0, 6)}
                 onAddToCart={addToCart}
+              />
+            )}
+            {activeView === 'loyalty' && (
+              <CustomerLoyalty
+                customerUser={customerUser}
+                onNavigate={(view) => setActiveView(view as View)}
+                onBack={() => setActiveView('home')}
               />
             )}
             {activeView === 'promo-reward' && (

@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
     const { data: riders, error: ridersError } = await supabase
       .from('profiles')
       .select(`
-        id, full_name, phone, last_known_lat, last_known_lng, location_updated_at, branch_id,
+        id, full_name, phone, photo_url, last_known_lat, last_known_lng, location_updated_at, branch_id,
         branches(id, name, address, latitude, longitude)
       `)
       .or('role.eq.rider,role.eq.sb_rider,role.eq.bh_rider')
@@ -138,7 +138,7 @@ Deno.serve(async (req) => {
           id: rider.id,
           full_name: rider.full_name,
           phone: rider.phone || '',
-          photo_url: null, // Field removed from profiles table
+          photo_url: rider.photo_url || null,
           distance_km,
           eta_minutes,
           total_stock,

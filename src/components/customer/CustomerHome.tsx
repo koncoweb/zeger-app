@@ -102,15 +102,18 @@ export function CustomerHome({ customerUser, onNavigate, recentProducts = [], on
         {/* Membership Info - Material Style */}
         <div className="grid grid-cols-3 gap-4 text-center mb-8">
           {/* Level / Jiwa */}
-          <div className="p-2">
-            <div className="bg-[#EA2831] rounded-full w-14 h-14 mx-auto flex items-center justify-center mb-2 shadow-[0_8px_24px_rgba(234,40,49,0.4)]">
-              <span className="text-3xl">{membershipInfo.icon}</span>
-            </div>
-            <p className="font-semibold text-gray-900 text-sm">Zeger</p>
-            <p className="text-xs text-gray-500 font-light">
-              {customerUser?.points || 0} /100 Exp
-            </p>
-          </div>
+            <button 
+              onClick={() => onNavigate('loyalty')}
+              className="p-2 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer active:scale-95"
+            >
+              <div className="bg-[#EA2831] rounded-full w-14 h-14 mx-auto flex items-center justify-center mb-2 shadow-[0_8px_24px_rgba(234,40,49,0.4)]">
+                <span className="text-3xl">{membershipInfo.icon}</span>
+              </div>
+              <p className="font-semibold text-gray-900 text-sm">Zeger Loyalty</p>
+              <p className="text-xs text-gray-500 font-light">
+                {customerUser?.points || 0} /100 Exp
+              </p>
+            </button>
 
           {/* Points */}
           <div className="p-2">
