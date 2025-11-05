@@ -121,9 +121,10 @@ export function CustomerAuth({ onAuthSuccess }: CustomerAuthProps) {
       
       if (!user) throw new Error('User not authenticated');
 
+      // Only upsert to customer_users - profiles will be auto-created by trigger
       const { error } = await supabase
         .from('customer_users')
-        .insert({
+        .upsert({
           user_id: user.id,
           email: formData.email || user.email,
           name: formData.name,
@@ -131,19 +132,9 @@ export function CustomerAuth({ onAuthSuccess }: CustomerAuthProps) {
           address: formData.address,
           role: 'customer',
           points: 0
-        });
+        }, { onConflict: 'user_id' });
 
       if (error) throw error;
-
-      // Also upsert to profiles table for consistency
-      await supabase
-        .from('profiles')
-        .upsert({
-          user_id: user.id,
-          full_name: formData.name,
-          phone: formData.phone,
-          role: 'customer'
-        }, { onConflict: 'user_id' });
 
       toast({
         title: "Berhasil!",

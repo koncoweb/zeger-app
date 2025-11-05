@@ -42,6 +42,10 @@ import SettingsRiderManagement from "./pages/settings/RiderManagement";
 import BranchManagement from "./pages/settings/BranchManagement";
 import RiderReassignment from "./pages/settings/RiderReassignment";
 import FixZeroTransactions from "./pages/settings/FixZeroTransactions";
+import AppManagement from "./pages/settings/AppManagement";
+import PromoBannerManagement from "./pages/settings/PromoBannerManagement";
+import LoyaltyManagement from "./pages/settings/LoyaltyManagement";
+import CRMManagement from "./pages/settings/CRMManagement";
 import { BranchHubReportLayout } from "./components/layout/BranchHubReportLayout";
 import { BranchHubReportDashboard } from "./components/dashboard/BranchHubReportDashboard";
 import CreateMalangBranch from "./pages/CreateMalangBranch";
@@ -260,6 +264,41 @@ const App = () => (
               <RoleBasedRoute allowedRoles={['ho_admin']}>
                 <ModernLayout>
                   <RiderReassignment />
+                </ModernLayout>
+              </RoleBasedRoute>
+            } />
+            <Route path="/settings/app-management" element={
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', '1_HO_Admin', '1_HO_Owner', '2_Hub_Branch_Manager']}>
+                <ModernLayout>
+                  <AppManagement />
+                </ModernLayout>
+              </RoleBasedRoute>
+            } />
+            <Route path="/settings/app-management/promo-banners" element={
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', '1_HO_Admin', '1_HO_Owner', '2_Hub_Branch_Manager']}>
+                <ModernLayout>
+                  <PromoBannerManagement />
+                </ModernLayout>
+              </RoleBasedRoute>
+            } />
+            <Route path="/settings/app-management/loyalty" element={
+              <RoleBasedRoute allowedRoles={['ho_admin', '1_HO_Admin', '1_HO_Owner']}>
+                <ModernLayout>
+                  <LoyaltyManagement />
+                </ModernLayout>
+              </RoleBasedRoute>
+            } />
+            <Route path="/settings/app-management/crm" element={
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', '1_HO_Admin', '1_HO_Owner', '2_Hub_Branch_Manager']}>
+                <ModernLayout>
+                  <CRMManagement />
+                </ModernLayout>
+              </RoleBasedRoute>
+            } />
+            <Route path="/settings/app-management/vouchers" element={
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', '1_HO_Admin', '1_HO_Owner', '2_Hub_Branch_Manager']}>
+                <ModernLayout>
+                  <AppManagement />
                 </ModernLayout>
               </RoleBasedRoute>
             } />

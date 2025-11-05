@@ -27,7 +27,11 @@ import {
   MapPin,
   Banknote,
   UserCog,
-  Trash2
+  Trash2,
+  Smartphone,
+  LayoutDashboard,
+  Award,
+  Image
 } from "lucide-react";
 import { MapPin as LocationPin } from "lucide-react";
 import { ZegerLogo } from "@/components/ui/zeger-logo";
@@ -137,6 +141,38 @@ const getMenuItems = (userRole: string): MenuItem[] => [
     icon: Settings, 
     roles: ["1_HO_Admin", "1_HO_Owner", "2_Hub_Branch_Manager", "3_SB_Branch_Manager", "ho_admin", "branch_manager", "sb_branch_manager"],
     children: [
+      { 
+        id: "app-management", 
+        label: "App Management", 
+        icon: Smartphone, 
+        roles: ["1_HO_Admin", "1_HO_Owner", "2_Hub_Branch_Manager", "ho_admin", "branch_manager"],
+        children: [
+          {
+            id: "app-overview",
+            label: "Overview",
+            icon: LayoutDashboard,
+            path: "/settings/app-management"
+          },
+          {
+            id: "promo-banners",
+            label: "Promo & Banners",
+            icon: Image,
+            path: "/settings/app-management/promo-banners"
+          },
+          {
+            id: "loyalty-settings",
+            label: "Loyalty Settings",
+            icon: Award,
+            path: "/settings/app-management/loyalty"
+          },
+          {
+            id: "crm",
+            label: "CRM",
+            icon: Users,
+            path: "/settings/app-management/crm"
+          }
+        ]
+      },
       { 
         id: "user-management", 
         label: "User Management", 

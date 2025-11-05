@@ -854,6 +854,87 @@ export type Database = {
           },
         ]
       }
+      loyalty_rewards: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean | null
+          points_required: number
+          reward_name: string
+          reward_type: string
+          reward_value: Json | null
+          stock_quantity: number | null
+          updated_at: string | null
+          valid_from: string | null
+          valid_until: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          points_required: number
+          reward_name: string
+          reward_type: string
+          reward_value?: Json | null
+          stock_quantity?: number | null
+          updated_at?: string | null
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          points_required?: number
+          reward_name?: string
+          reward_type?: string
+          reward_value?: Json | null
+          stock_quantity?: number | null
+          updated_at?: string | null
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Relationships: []
+      }
+      loyalty_tiers: {
+        Row: {
+          benefits: Json | null
+          created_at: string | null
+          discount_percentage: number | null
+          id: string
+          min_points: number
+          tier_color: string | null
+          tier_name: string
+          updated_at: string | null
+        }
+        Insert: {
+          benefits?: Json | null
+          created_at?: string | null
+          discount_percentage?: number | null
+          id?: string
+          min_points: number
+          tier_color?: string | null
+          tier_name: string
+          updated_at?: string | null
+        }
+        Update: {
+          benefits?: Json | null
+          created_at?: string | null
+          discount_percentage?: number | null
+          id?: string
+          min_points?: number
+          tier_color?: string | null
+          tier_name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       operational_expenses: {
         Row: {
           amount: number
@@ -1189,6 +1270,59 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      promo_banners: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          display_order: number | null
+          id: string
+          image_url: string
+          is_active: boolean | null
+          link_url: string | null
+          title: string
+          updated_at: string | null
+          valid_from: string | null
+          valid_until: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          image_url: string
+          is_active?: boolean | null
+          link_url?: string | null
+          title: string
+          updated_at?: string | null
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          image_url?: string
+          is_active?: boolean | null
+          link_url?: string | null
+          title?: string
+          updated_at?: string | null
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promo_banners_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
