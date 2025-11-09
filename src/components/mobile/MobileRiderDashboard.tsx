@@ -8,8 +8,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { 
   Package, Clock, DollarSign, TrendingUp,
-  MapPin, Users, Activity, Navigation, RefreshCw, Phone, BarChart3, Volume2
+  MapPin, Users, Activity, Navigation, RefreshCw, Phone, BarChart3, Volume2, CalendarIcon
 } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { MobileIncomingOrder } from './MobileIncomingOrder';
@@ -51,6 +58,20 @@ const MobileRiderDashboard = () => {
   const [currentOrder, setCurrentOrder] = useState<any>(null);
   const [riderLocation, setRiderLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [showSoundBanner, setShowSoundBanner] = useState(false);
+  
+  // Stock Card State
+  const [stockCardFilter, setStockCardFilter] = useState<'today' | 'yesterday' | 'week' | 'month' | 'custom'>('today');
+  const [customStockDateFrom, setCustomStockDateFrom] = useState<Date | undefined>(undefined);
+  const [customStockDateTo, setCustomStockDateTo] = useState<Date | undefined>(undefined);
+  const [stockCardData, setStockCardData] = useState<any[]>([]);
+  const [stockCardStats, setStockCardStats] = useState({
+    stockIn: 0,
+    totalSales: 0,
+    totalTransactions: 0,
+    totalProductsSold: 0,
+    avgTransaction: 0,
+    remainingStock: 0
+  });
 
   const fetchRiderProfile = async () => {
     try {
@@ -396,14 +417,14 @@ const MobileRiderDashboard = () => {
       const todaySales = salesData?.reduce((sum, order) => sum + (Number(order.final_amount) || 0), 0) || 0;
       const todayTransactions = salesData?.length || 0;
 
-      // Fetch 7 days transaction data for chart
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      // Fetch 30 days transaction data for chart
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       const { data: weekData } = await supabase
         .from('transactions')
         .select('id, final_amount, transaction_date')
         .eq('rider_id', riderId)
-        .gte('transaction_date', sevenDaysAgo.toISOString())
+        .gte('transaction_date', thirtyDaysAgo.toISOString())
         .order('transaction_date', { ascending: true });
 
       // Group by date for chart
@@ -684,6 +705,197 @@ const MobileRiderDashboard = () => {
     updateLocation();
   };
 
+  // Stock Card Helper Functions
+  const getStockCardDateRange = () => {
+    const today = new Date();
+    const formatDate = (date: Date) => format(date, 'yyyy-MM-dd');
+
+    switch (stockCardFilter) {
+      case 'today':
+        return { start: formatDate(today), end: formatDate(today) };
+      case 'yesterday':
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        return { start: formatDate(yesterday), end: formatDate(yesterday) };
+      case 'week':
+        const weekStart = new Date(today);
+        weekStart.setDate(weekStart.getDate() - 7);
+        return { start: formatDate(weekStart), end: formatDate(today) };
+      case 'month':
+        const monthStart = new Date(today);
+        monthStart.setDate(monthStart.getDate() - 30);
+        return { start: formatDate(monthStart), end: formatDate(today) };
+      case 'custom':
+        if (customStockDateFrom && customStockDateTo) {
+          return { start: formatDate(customStockDateFrom), end: formatDate(customStockDateTo) };
+        }
+        return { start: formatDate(today), end: formatDate(today) };
+      default:
+        return { start: formatDate(today), end: formatDate(today) };
+    }
+  };
+
+  const fetchStockCardData = async () => {
+    if (!riderProfile?.id) return;
+
+    const { start, end } = getStockCardDateRange();
+
+    try {
+      // Fetch stock movements (stock in)
+      const { data: stockIn, error: stockInError } = await supabase
+        .from('stock_movements')
+        .select(`
+          quantity,
+          movement_type,
+          product_id,
+          products(name, cost_price)
+        `)
+        .eq('rider_id', riderProfile.id)
+        .in('movement_type', ['transfer', 'in', 'adjustment'])
+        .gte('created_at', `${start}T00:00:00+07:00`)
+        .lte('created_at', `${end}T23:59:59+07:00`);
+
+      if (stockInError) throw stockInError;
+
+      // Fetch transactions (stock sold)
+      const { data: transactions, error: transError } = await supabase
+        .from('transaction_items')
+        .select(`
+          transactions!inner(created_at, rider_id, final_amount),
+          quantity,
+          product_id,
+          products(name, cost_price)
+        `)
+        .eq('transactions.rider_id', riderProfile.id)
+        .gte('transactions.created_at', `${start}T00:00:00+07:00`)
+        .lte('transactions.created_at', `${end}T23:59:59+07:00`);
+
+      if (transError) throw transError;
+
+      // Fetch current inventory
+      const { data: inventory, error: invError } = await supabase
+        .from('inventory')
+        .select('product_id, stock_quantity, products(name, cost_price)')
+        .eq('rider_id', riderProfile.id);
+
+      if (invError) throw invError;
+
+      // Process data by product
+      const productMap = new Map<string, any>();
+
+      // Process stock in
+      let totalStockIn = 0;
+      stockIn?.forEach((item: any) => {
+        const productId = item.product_id;
+        const productName = item.products?.name || 'Unknown';
+
+        if (!productMap.has(productId)) {
+          productMap.set(productId, {
+            product_name: productName,
+            stock_in: 0,
+            stock_sold: 0,
+            remaining_stock: 0,
+            stock_returned: 0,
+            stock_value: 0
+          });
+        }
+
+        const existing = productMap.get(productId)!;
+        existing.stock_in += item.quantity;
+        totalStockIn += item.quantity;
+        productMap.set(productId, existing);
+      });
+
+      // Process stock sold & calculate sales
+      let totalSales = 0;
+      let totalTransactions = 0;
+      let totalProductsSold = 0;
+      const transactionIds = new Set();
+
+      transactions?.forEach((item: any) => {
+        const productId = item.product_id;
+        const productName = item.products?.name || 'Unknown';
+
+        if (!productMap.has(productId)) {
+          productMap.set(productId, {
+            product_name: productName,
+            stock_in: 0,
+            stock_sold: 0,
+            remaining_stock: 0,
+            stock_returned: 0,
+            stock_value: 0
+          });
+        }
+
+        const existing = productMap.get(productId)!;
+        existing.stock_sold += item.quantity;
+        totalProductsSold += item.quantity;
+        productMap.set(productId, existing);
+
+        // Count unique transactions
+        const txId = item.transactions.created_at; // Use as unique identifier
+        if (!transactionIds.has(txId)) {
+          transactionIds.add(txId);
+          totalTransactions++;
+          totalSales += item.transactions.final_amount || 0;
+        }
+      });
+
+      // Add remaining stock from inventory
+      let totalRemainingStock = 0;
+      inventory?.forEach((item: any) => {
+        const productId = item.product_id;
+        const productName = item.products?.name || 'Unknown';
+        const costPrice = item.products?.cost_price || 0;
+
+        if (!productMap.has(productId)) {
+          productMap.set(productId, {
+            product_name: productName,
+            stock_in: 0,
+            stock_sold: 0,
+            remaining_stock: 0,
+            stock_returned: 0,
+            stock_value: 0
+          });
+        }
+
+        const existing = productMap.get(productId)!;
+        existing.remaining_stock = item.stock_quantity;
+        existing.stock_returned = item.stock_quantity;
+        existing.stock_value = item.stock_quantity * costPrice;
+        totalRemainingStock += item.stock_quantity;
+        productMap.set(productId, existing);
+      });
+
+      const stockCardArray = Array.from(productMap.values())
+        .sort((a, b) => a.product_name.localeCompare(b.product_name));
+
+      setStockCardData(stockCardArray);
+
+      // Calculate stats
+      const avgTransaction = totalTransactions > 0 ? totalSales / totalTransactions : 0;
+      setStockCardStats({
+        stockIn: totalStockIn,
+        totalSales,
+        totalTransactions,
+        totalProductsSold,
+        avgTransaction,
+        remainingStock: totalRemainingStock
+      });
+
+    } catch (error: any) {
+      console.error('Error fetching stock card:', error);
+      toast.error('Gagal memuat stock card');
+    }
+  };
+
+  // Fetch stock card when filter changes
+  useEffect(() => {
+    if (riderProfile?.id) {
+      fetchStockCardData();
+    }
+  }, [riderProfile, stockCardFilter, customStockDateFrom, customStockDateTo]);
+
   // Subscribe to pending orders
   useEffect(() => {
     if (!riderProfile?.id) {
@@ -843,58 +1055,39 @@ const MobileRiderDashboard = () => {
   }
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="container mx-auto p-4 space-y-4">
       {/* Sound Enable Banner */}
       {showSoundBanner && (
-        <div className="fixed top-2 left-2 right-2 z-50">
-          <div className="bg-amber-50 border border-amber-300 rounded-lg p-3 flex items-center justify-between shadow-lg">
-            <div className="flex items-center gap-2">
-              <Volume2 className="h-5 w-5 text-amber-600" />
-              <span className="text-sm font-medium text-amber-900">Aktifkan suara notifikasi?</span>
+        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4" role="alert">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <Volume2 className="h-5 w-5 mr-2" />
+              <p className="font-bold">Aktifkan Suara untuk Notifikasi Order</p>
             </div>
-            <Button 
-              size="sm" 
-              onClick={() => { 
-                unlockAudio(); 
-                playAlertBeep({ times: 1, durationMs: 300, volume: 0.6 }); 
-                setShowSoundBanner(false); 
+            <Button
+              size="sm"
+              onClick={() => {
+                unlockAudio();
+                setShowSoundBanner(false);
+                localStorage.setItem('zeger-sound-enabled', 'true');
               }}
-              className="bg-amber-600 hover:bg-amber-700 text-white"
             >
               Aktifkan
             </Button>
           </div>
         </div>
       )}
-      
-      <Card>
-        <CardHeader className="space-y-3">
+
+      {/* GPS Status Card */}
+      <Card className="bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-950 dark:to-orange-950 border-red-200">
+        <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-2xl font-bold">
-              Dashboard Rider
-            </CardTitle>
-            {pendingOrdersCount > 0 && (
-              <div className="flex items-center gap-2 px-3 py-1 bg-red-500 text-white rounded-full animate-pulse">
-                <span className="text-sm font-medium">
-                  {pendingOrdersCount} Pesanan Baru
-                </span>
-              </div>
-            )}
-          </div>
-          
-          {/* GPS Status Indicator */}
-          <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
             <div className="flex items-center gap-2">
-              <Navigation className={`h-5 w-5 ${getGpsStatusColor()}`} />
+              <Navigation className={cn("h-5 w-5", getGpsStatusColor())} />
               <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">Status GPS</span>
-                  <span className={`text-xs ${getGpsStatusColor()}`}>
-                    {getGpsStatusIcon()} {gpsStatus === 'active' ? 'Aktif' : gpsStatus === 'inactive' ? 'Standby' : 'Error'}
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Update: {formatLastUpdate()}
+                <CardTitle className="text-lg">Status GPS</CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {getGpsStatusIcon()} {gpsStatus === 'active' ? 'Aktif' : gpsStatus === 'inactive' ? 'Tidak Aktif' : 'Error'}
                 </p>
               </div>
             </div>
@@ -908,107 +1101,243 @@ const MobileRiderDashboard = () => {
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="grid gap-4">
-          <div className="grid grid-cols-2 gap-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Stok Total</CardTitle>
-              </CardHeader>
-              <CardContent className="flex items-center space-x-4">
-                <Package className="h-6 w-6 text-muted-foreground" />
-                <div className="text-2xl font-bold">{stats.totalStock}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Penjualan Hari Ini</CardTitle>
-              </CardHeader>
-              <CardContent className="flex items-center space-x-4">
-                <DollarSign className="h-6 w-6 text-muted-foreground" />
-                <div className="text-2xl font-bold">Rp {stats.todaySales.toLocaleString('id-ID')}</div>
-              </CardContent>
-            </Card>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Transaksi Hari Ini</CardTitle>
-              </CardHeader>
-              <CardContent className="flex items-center space-x-4">
-                <Clock className="h-6 w-6 text-muted-foreground" />
-                <div className="text-2xl font-bold">{stats.todayTransactions}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Customer Aktif</CardTitle>
-              </CardHeader>
-              <CardContent className="flex items-center space-x-4">
-              <Users className="h-6 w-6 text-muted-foreground" />
-              <div className="text-2xl font-bold">{stats.activeCustomers}</div>
-            </CardContent>
-          </Card>
-        </div>
-        
-        {/* Sales Trend Chart */}
-        {chartData.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
-                Tren Penjualan (7 Hari)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" style={{ fontSize: '12px' }} />
-                  <YAxis style={{ fontSize: '12px' }} />
-                  <Tooltip formatter={(value) => `Rp ${Number(value).toLocaleString('id-ID')}`} />
-                  <Line type="monotone" dataKey="sales" stroke="#ef4444" strokeWidth={2} />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        )}
-        
-        {/* Top Products */}
-        {topProducts.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5" />
-                Produk Terlaris
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+        <CardContent>
+          <p className="text-xs text-muted-foreground">
+            Update terakhir: {formatLastUpdate()}
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Filter Section */}
+      <Card className="p-4">
+        <div className="space-y-3">
+          <Label>Filter Periode</Label>
+          <Select value={stockCardFilter} onValueChange={(value: any) => setStockCardFilter(value)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="today">Hari Ini</SelectItem>
+              <SelectItem value="yesterday">Kemarin</SelectItem>
+              <SelectItem value="week">Minggu Ini</SelectItem>
+              <SelectItem value="month">Bulan Ini</SelectItem>
+              <SelectItem value="custom">Custom</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {stockCardFilter === 'custom' && (
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                {topProducts.map((product, index) => (
-                  <div key={index} className="flex items-center justify-between p-2 bg-muted rounded-lg">
-                    <span className="text-sm font-medium">{product.name}</span>
-                    <span className="text-sm text-muted-foreground">{product.quantity} pcs</span>
-                  </div>
-                ))}
+                <Label className="text-xs">Dari</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="w-full justify-start text-left font-normal">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {customStockDateFrom ? format(customStockDateFrom, 'dd/MM/yy') : 'Pilih'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar mode="single" selected={customStockDateFrom} onSelect={setCustomStockDateFrom} />
+                  </PopoverContent>
+                </Popover>
               </div>
-            </CardContent>
-          </Card>
-        )}
-        
+              <div className="space-y-2">
+                <Label className="text-xs">Sampai</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="w-full justify-start text-left font-normal">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {customStockDateTo ? format(customStockDateTo, 'dd/MM/yy') : 'Pilih'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar mode="single" selected={customStockDateTo} onSelect={setCustomStockDateTo} />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* 6 Summary Cards */}
+      <div className="grid grid-cols-2 gap-3">
+        <Card className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 border-blue-200">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Stock Masuk</p>
+              <h3 className="text-2xl font-bold">{stockCardStats.stockIn}</h3>
+            </div>
+            <div className="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center">
+              <TrendingUp className="h-5 w-5 text-white" />
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-4 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 border-green-200">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Total Penjualan</p>
+              <h3 className="text-lg font-bold">Rp {(stockCardStats.totalSales / 1000).toFixed(0)}k</h3>
+            </div>
+            <div className="h-10 w-10 rounded-full bg-green-500 flex items-center justify-center">
+              <DollarSign className="h-5 w-5 text-white" />
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-4 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 border-purple-200">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Total Transaksi</p>
+              <h3 className="text-2xl font-bold">{stockCardStats.totalTransactions}</h3>
+            </div>
+            <div className="h-10 w-10 rounded-full bg-purple-500 flex items-center justify-center">
+              <Activity className="h-5 w-5 text-white" />
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-4 bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950 dark:to-orange-900 border-orange-200">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Produk Terjual</p>
+              <h3 className="text-2xl font-bold">{stockCardStats.totalProductsSold}</h3>
+            </div>
+            <div className="h-10 w-10 rounded-full bg-orange-500 flex items-center justify-center">
+              <Package className="h-5 w-5 text-white" />
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-4 bg-gradient-to-br from-pink-50 to-pink-100 dark:from-pink-950 dark:to-pink-900 border-pink-200">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Rata2 Transaksi</p>
+              <h3 className="text-lg font-bold">Rp {(stockCardStats.avgTransaction / 1000).toFixed(0)}k</h3>
+            </div>
+            <div className="h-10 w-10 rounded-full bg-pink-500 flex items-center justify-center">
+              <BarChart3 className="h-5 w-5 text-white" />
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-4 bg-gradient-to-br from-cyan-50 to-cyan-100 dark:from-cyan-950 dark:to-cyan-900 border-cyan-200">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Sisa Stock</p>
+              <h3 className="text-2xl font-bold">{stockCardStats.remainingStock}</h3>
+            </div>
+            <div className="h-10 w-10 rounded-full bg-cyan-500 flex items-center justify-center">
+              <Package className="h-5 w-5 text-white" />
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Sales Chart - 30 Days */}
+      {chartData.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Manajemen Shift</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <TrendingUp className="h-4 w-4" />
+              Grafik Penjualan (30 Hari)
+            </CardTitle>
           </CardHeader>
-          <CardContent className="flex justify-between items-center">
-            {hasActiveShift ? (
-              <Button variant="destructive" onClick={handleShiftEnd}>
-                Akhiri Shift
-              </Button>
-            ) : (
-              <Button onClick={handleShiftStart}>Mulai Shift</Button>
-            )}
+          <CardContent>
+            <ResponsiveContainer width="100%" height={180}>
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" style={{ fontSize: '10px' }} />
+                <YAxis style={{ fontSize: '10px' }} />
+                <Tooltip formatter={(value) => `Rp ${Number(value).toLocaleString('id-ID')}`} />
+                <Line type="monotone" dataKey="sales" stroke="#ef4444" strokeWidth={2} />
+              </LineChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
+      )}
+
+      {/* Riwayat Stock Card Table */}
+      <Card className="p-4">
+        <h3 className="font-semibold mb-3 text-sm">Riwayat Stock Card</h3>
+        <div className="rounded-md border overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-xs">No</TableHead>
+                <TableHead className="text-xs">Nama Menu</TableHead>
+                <TableHead className="text-xs text-right">Masuk</TableHead>
+                <TableHead className="text-xs text-right">Terjual</TableHead>
+                <TableHead className="text-xs text-right">Sisa</TableHead>
+                <TableHead className="text-xs text-right">Kembali</TableHead>
+                <TableHead className="text-xs text-right">Nilai</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {stockCardData.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-xs text-muted-foreground py-4">
+                    Tidak ada data
+                  </TableCell>
+                </TableRow>
+              ) : (
+                stockCardData.map((item, index) => (
+                  <TableRow key={index}>
+                    <TableCell className="text-xs">{index + 1}</TableCell>
+                    <TableCell className="text-xs font-medium">{item.product_name}</TableCell>
+                    <TableCell className="text-xs text-right">{item.stock_in}</TableCell>
+                    <TableCell className="text-xs text-right">{item.stock_sold}</TableCell>
+                    <TableCell className="text-xs text-right">{item.remaining_stock}</TableCell>
+                    <TableCell className="text-xs text-right">{item.stock_returned}</TableCell>
+                    <TableCell className="text-xs text-right">
+                      {(item.stock_value / 1000).toFixed(0)}k
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </Card>
+
+      {/* Top Products */}
+      {topProducts.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <BarChart3 className="h-4 w-4" />
+              Produk Terlaris
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {topProducts.map((product, index) => (
+                <div key={index} className="flex items-center justify-between p-2 bg-muted rounded-lg">
+                  <span className="text-xs font-medium">{product.name}</span>
+                  <span className="text-xs text-muted-foreground">{product.quantity} pcs</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Shift Management */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Manajemen Shift</CardTitle>
+        </CardHeader>
+        <CardContent className="flex justify-between items-center">
+          {hasActiveShift ? (
+            <Button variant="destructive" onClick={handleShiftEnd} size="sm" className="w-full">
+              Akhiri Shift
+            </Button>
+          ) : (
+            <Button onClick={handleShiftStart} size="sm" className="w-full">
+              Mulai Shift
+            </Button>
+          )}
         </CardContent>
       </Card>
 

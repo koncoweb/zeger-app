@@ -21,11 +21,11 @@ interface Rider {
 }
 
 interface StockCardItem {
-  date: string;
   product_name: string;
   stock_in: number;
   stock_sold: number;
   remaining_stock: number;
+  stock_returned: number;
   stock_value: number;
 }
 
@@ -41,7 +41,8 @@ export default function StockCardRider() {
   const [summaryData, setSummaryData] = useState({
     totalStockIn: 0,
     totalStockSold: 0,
-    totalRemainingStock: 0
+    totalRemainingStock: 0,
+    totalStockReturned: 0
   });
 
   // Fetch riders based on user role
@@ -169,15 +170,14 @@ export default function StockCardRider() {
       stockIn?.forEach((item: any) => {
         const productId = item.product_id;
         const productName = item.products?.name || 'Unknown';
-        const date = format(new Date(item.created_at), 'dd/MM/yyyy', { locale: idLocale });
 
         if (!productMap.has(productId)) {
           productMap.set(productId, {
-            date,
             product_name: productName,
             stock_in: 0,
             stock_sold: 0,
             remaining_stock: 0,
+            stock_returned: 0,
             stock_value: 0
           });
         }
@@ -191,15 +191,14 @@ export default function StockCardRider() {
       transactions?.forEach((item: any) => {
         const productId = item.product_id;
         const productName = item.products?.name || 'Unknown';
-        const date = format(new Date(item.transactions.created_at), 'dd/MM/yyyy', { locale: idLocale });
 
         if (!productMap.has(productId)) {
           productMap.set(productId, {
-            date,
             product_name: productName,
             stock_in: 0,
             stock_sold: 0,
             remaining_stock: 0,
+            stock_returned: 0,
             stock_value: 0
           });
         }
@@ -217,17 +216,18 @@ export default function StockCardRider() {
 
         if (!productMap.has(productId)) {
           productMap.set(productId, {
-            date: format(new Date(), 'dd/MM/yyyy', { locale: idLocale }),
             product_name: productName,
             stock_in: 0,
             stock_sold: 0,
             remaining_stock: 0,
+            stock_returned: 0,
             stock_value: 0
           });
         }
 
         const existing = productMap.get(productId)!;
         existing.remaining_stock = item.stock_quantity;
+        existing.stock_returned = item.stock_quantity;
         existing.stock_value = item.stock_quantity * costPrice;
         productMap.set(productId, existing);
       });
@@ -241,9 +241,10 @@ export default function StockCardRider() {
         (acc, item) => ({
           totalStockIn: acc.totalStockIn + item.stock_in,
           totalStockSold: acc.totalStockSold + item.stock_sold,
-          totalRemainingStock: acc.totalRemainingStock + item.remaining_stock
+          totalRemainingStock: acc.totalRemainingStock + item.remaining_stock,
+          totalStockReturned: acc.totalStockReturned + item.stock_returned
         }),
-        { totalStockIn: 0, totalStockSold: 0, totalRemainingStock: 0 }
+        { totalStockIn: 0, totalStockSold: 0, totalRemainingStock: 0, totalStockReturned: 0 }
       );
 
       setSummaryData(summary);
@@ -267,11 +268,11 @@ export default function StockCardRider() {
     const worksheet = XLSX.utils.json_to_sheet(
       stockCardData.map((item, index) => ({
         No: index + 1,
-        Tanggal: item.date,
         'Nama Menu': item.product_name,
         'Stock Masuk': item.stock_in,
         'Stock Terjual': item.stock_sold,
         'Sisa Stock': item.remaining_stock,
+        'Stock Kembali': item.stock_returned,
         'Nilai Stock': new Intl.NumberFormat('id-ID', {
           style: 'currency',
           currency: 'IDR'
@@ -390,7 +391,7 @@ export default function StockCardRider() {
       </Card>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -426,6 +427,18 @@ export default function StockCardRider() {
             </div>
           </div>
         </Card>
+
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Stock Kembali</p>
+              <h3 className="text-2xl font-bold">{summaryData.totalStockReturned}</h3>
+            </div>
+            <div className="h-12 w-12 rounded-full bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center">
+              <Package className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+            </div>
+          </div>
+        </Card>
       </div>
 
       {/* Stock Card Table */}
@@ -443,11 +456,11 @@ export default function StockCardRider() {
             <TableHeader>
               <TableRow>
                 <TableHead>No</TableHead>
-                <TableHead>Tanggal</TableHead>
                 <TableHead>Nama Menu</TableHead>
                 <TableHead className="text-right">Stock Masuk</TableHead>
                 <TableHead className="text-right">Stock Terjual</TableHead>
                 <TableHead className="text-right">Sisa Stock</TableHead>
+                <TableHead className="text-right">Stock Kembali</TableHead>
                 <TableHead className="text-right">Nilai Stock</TableHead>
               </TableRow>
             </TableHeader>
@@ -469,11 +482,11 @@ export default function StockCardRider() {
                   {stockCardData.map((item, index) => (
                     <TableRow key={index}>
                       <TableCell>{index + 1}</TableCell>
-                      <TableCell>{item.date}</TableCell>
                       <TableCell className="font-medium">{item.product_name}</TableCell>
                       <TableCell className="text-right">{item.stock_in}</TableCell>
                       <TableCell className="text-right">{item.stock_sold}</TableCell>
                       <TableCell className="text-right">{item.remaining_stock}</TableCell>
+                      <TableCell className="text-right">{item.stock_returned}</TableCell>
                       <TableCell className="text-right">
                         {new Intl.NumberFormat('id-ID', {
                           style: 'currency',
@@ -483,10 +496,11 @@ export default function StockCardRider() {
                     </TableRow>
                   ))}
                   <TableRow className="bg-muted/50 font-semibold">
-                    <TableCell colSpan={3}>Total</TableCell>
+                    <TableCell colSpan={2}>Total</TableCell>
                     <TableCell className="text-right">{summaryData.totalStockIn}</TableCell>
                     <TableCell className="text-right">{summaryData.totalStockSold}</TableCell>
                     <TableCell className="text-right">{summaryData.totalRemainingStock}</TableCell>
+                    <TableCell className="text-right">{summaryData.totalStockReturned}</TableCell>
                     <TableCell className="text-right">
                       {new Intl.NumberFormat('id-ID', {
                         style: 'currency',
