@@ -90,6 +90,33 @@ const MobileSellerEnhanced = () => {
     };
   }, []);
 
+  // Subscribe to real-time inventory updates
+  useEffect(() => {
+    if (!userProfile?.id) return;
+
+    const inventorySubscription = supabase
+      .channel('rider_inventory_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'inventory',
+          filter: `rider_id=eq.${userProfile.id}`
+        },
+        (payload) => {
+          console.log('📦 Inventory changed:', payload);
+          fetchSellingStock();
+          toast.info('Stok diperbarui!', { duration: 2000 });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      inventorySubscription.unsubscribe();
+    };
+  }, [userProfile?.id]);
+
   const checkPreConditions = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -246,10 +273,17 @@ const MobileSellerEnhanced = () => {
   const addToCart = (productId: string) => {
     const stockItem = stockItems.find(item => item.product_id === productId);
     if (!stockItem) return;
+
     const currentCartItem = cart.find(item => item.product_id === productId);
     const currentQuantity = currentCartItem?.quantity || 0;
-    if (currentQuantity >= stockItem.rider_stock) {
-      toast.error("Stok tidak mencukupi");
+    const availableStock = stockItem.rider_stock;
+
+    // Enhanced validation with detailed message
+    if (currentQuantity >= availableStock) {
+      toast.error(
+        `❌ Stok ${stockItem.product.name} tidak cukup!\nTersedia: ${availableStock}, Sudah di cart: ${currentQuantity}`,
+        { duration: 4000 }
+      );
       return;
     }
     if (currentCartItem) {
@@ -263,7 +297,11 @@ const MobileSellerEnhanced = () => {
         quantity: 1
       }]);
     }
-    toast.success("Ditambahkan ke keranjang");
+
+    toast.success(
+      `✅ ${stockItem.product.name} ditambahkan (${currentQuantity + 1}/${availableStock})`,
+      { duration: 2000 }
+    );
   };
   const removeFromCart = (productId: string) => {
     const currentCartItem = cart.find(item => item.product_id === productId);
@@ -305,6 +343,38 @@ const MobileSellerEnhanced = () => {
       const {
         data: profile
       } = await supabase.from('profiles').select('id, branch_id').eq('user_id', user?.id).maybeSingle();
+
+      // Validate stock from database (real-time check)
+      console.log('🔍 Validating stock from database...');
+      const stockValidationErrors = [];
+
+      for (const cartItem of cart) {
+        const { data: currentInventory, error: invError } = await supabase
+          .from('inventory')
+          .select('stock_quantity, product_id, products(name)')
+          .eq('product_id', cartItem.product_id)
+          .eq('rider_id', profile?.id)
+          .single();
+
+        if (invError || !currentInventory) {
+          stockValidationErrors.push(`Gagal validasi stok untuk produk ${cartItem.product_id}`);
+          continue;
+        }
+
+        if (currentInventory.stock_quantity < cartItem.quantity) {
+          stockValidationErrors.push(
+            `Stok ${currentInventory.products.name} tidak cukup! Tersedia: ${currentInventory.stock_quantity}, Diminta: ${cartItem.quantity}`
+          );
+        }
+      }
+
+      if (stockValidationErrors.length > 0) {
+        toast.error(stockValidationErrors.join('\n'), { duration: 5000 });
+        setLoading(false);
+        return;
+      }
+
+      console.log('✅ Stock validation passed');
       let paymentProofUrl = '';
 
       // Upload payment proof if exists
@@ -380,13 +450,23 @@ const MobileSellerEnhanced = () => {
       } = await supabase.from('transaction_items').insert(itemsWithTransactionId);
       if (itemsError) throw itemsError;
 
-      // Update rider stock
+      // Update rider stock with atomic decrement (prevent negative stock)
       for (const cartItem of cart) {
-        const stockItem = stockItems.find(s => s.product_id === cartItem.product_id);
-        if (stockItem) {
-          await supabase.from('inventory').update({
-            stock_quantity: stockItem.rider_stock - cartItem.quantity
-          }).eq('id', stockItem.id);
+        const { data: updatedInventory, error: updateError } = await supabase.rpc(
+          'decrement_rider_stock',
+          {
+            p_rider_id: profile?.id,
+            p_product_id: cartItem.product_id,
+            p_quantity: cartItem.quantity
+          }
+        );
+
+        if (updateError) {
+          throw new Error(`Gagal update stok: ${updateError.message}`);
+        }
+
+        if (!updatedInventory || updatedInventory.length === 0) {
+          throw new Error(`Stok tidak mencukupi untuk produk ${cartItem.product_id}`);
         }
       }
       setCart([]);

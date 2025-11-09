@@ -102,6 +102,7 @@ const getMenuItems = (userRole: string): MenuItem[] => [
       { id: "waste-management", label: "Waste Management", icon: Trash2, path: "/inventory/waste-management", roles: ["1_HO_Admin", "1_HO_Owner", "2_Hub_Branch_Manager", "ho_admin", "branch_manager"] },
       { id: "small-branch-stock", label: "Small Branch Stock", icon: Store, path: "/inventory/small-branch-stock", roles: ["3_SB_Branch_Manager", "sb_branch_manager"] },
       { id: "stock-transfer", label: "Kirim Stok ke Rider", icon: Truck, path: "/stock-transfer", roles: ["1_HO_Admin", "1_HO_Owner", "2_Hub_Branch_Manager", "3_SB_Branch_Manager", "ho_admin", "branch_manager", "sb_branch_manager"] },
+      { id: "stock-card-rider", label: "Stock Card Rider", icon: FileText, path: "/inventory/stock-card-rider", roles: ["1_HO_Admin", "1_HO_Owner", "2_Hub_Branch_Manager", "ho_admin", "branch_manager"] },
       { id: "branch-transfer", label: "Kirim Stok Ke Small Branch", icon: Store, path: "/inventory/branch-transfer", roles: ["1_HO_Admin", "1_HO_Owner", "2_Hub_Branch_Manager", "ho_admin", "branch_manager"] }
     ]
   },

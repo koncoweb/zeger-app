@@ -2155,6 +2155,13 @@ export type Database = {
         }
         Returns: boolean
       }
+      decrement_rider_stock: {
+        Args: { p_product_id: string; p_quantity: number; p_rider_id: string }
+        Returns: {
+          id: string
+          stock_quantity: number
+        }[]
+      }
       disablelongtransactions: { Args: never; Returns: string }
       dropgeometrycolumn:
         | {

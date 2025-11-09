@@ -37,6 +37,7 @@ import { LocationAnalytics } from "./pages/analytics/LocationAnalytics";
 import CentralKitchenAnalytics from "./pages/analytics/CentralKitchen";
 import CashDeposit from "./pages/analytics/CashDeposit";
 import WasteManagementPage from "./pages/inventory/WasteManagementPage";
+import StockCardRider from "./pages/inventory/StockCardRider";
 import SettingsUserManagement from "./pages/settings/UserManagement";
 import SettingsRiderManagement from "./pages/settings/RiderManagement";
 import BranchManagement from "./pages/settings/BranchManagement";
@@ -341,6 +342,13 @@ const App = () => (
               <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', '1_HO_Admin', '1_HO_Owner', '2_Hub_Branch_Manager']}>
                 <ModernLayout>
                   <WasteManagementPage />
+                </ModernLayout>
+              </RoleBasedRoute>
+            } />
+            <Route path="/inventory/stock-card-rider" element={
+              <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', '1_HO_Admin', '1_HO_Owner', '2_Hub_Branch_Manager']}>
+                <ModernLayout>
+                  <StockCardRider />
                 </ModernLayout>
               </RoleBasedRoute>
             } />
