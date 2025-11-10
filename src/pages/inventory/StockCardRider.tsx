@@ -144,12 +144,13 @@ export default function StockCardRider() {
       const { data: transactions, error: transError } = await supabase
         .from('transaction_items')
         .select(`
-          transactions!inner(created_at, rider_id),
+          transactions!inner(created_at, rider_id, is_voided),
           quantity,
           product_id,
           products(name, cost_price)
         `)
         .eq('transactions.rider_id', selectedRider)
+        .eq('transactions.is_voided', false)
         .gte('transactions.created_at', `${start}T00:00:00+07:00`)
         .lte('transactions.created_at', `${end}T23:59:59+07:00`);
 
@@ -233,6 +234,7 @@ export default function StockCardRider() {
       });
 
       const stockCardArray = Array.from(productMap.values())
+        .filter(item => item.stock_in > 0 || item.stock_sold > 0 || item.remaining_stock > 0)
         .sort((a, b) => a.product_name.localeCompare(b.product_name));
       setStockCardData(stockCardArray);
 

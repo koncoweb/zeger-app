@@ -405,6 +405,7 @@ const MobileRiderDashboard = () => {
         .from('transactions')
         .select('final_amount, transaction_date')
         .eq('rider_id', riderId)
+        .eq('is_voided', false)
         .gte('transaction_date', `${today}T00:00:00`)
         .lte('transaction_date', `${today}T23:59:59`);
 
@@ -424,6 +425,7 @@ const MobileRiderDashboard = () => {
         .from('transactions')
         .select('id, final_amount, transaction_date')
         .eq('rider_id', riderId)
+        .eq('is_voided', false)
         .gte('transaction_date', thirtyDaysAgo.toISOString())
         .order('transaction_date', { ascending: true });
 
@@ -761,12 +763,13 @@ const MobileRiderDashboard = () => {
       const { data: transactions, error: transError } = await supabase
         .from('transaction_items')
         .select(`
-          transactions!inner(created_at, rider_id, final_amount),
+          transactions!inner(created_at, rider_id, final_amount, is_voided),
           quantity,
           product_id,
           products(name, cost_price)
         `)
         .eq('transactions.rider_id', riderProfile.id)
+        .eq('transactions.is_voided', false)
         .gte('transactions.created_at', `${start}T00:00:00+07:00`)
         .lte('transactions.created_at', `${end}T23:59:59+07:00`);
 
@@ -868,6 +871,7 @@ const MobileRiderDashboard = () => {
       });
 
       const stockCardArray = Array.from(productMap.values())
+        .filter(item => item.stock_in > 0 || item.stock_sold > 0 || item.remaining_stock > 0)
         .sort((a, b) => a.product_name.localeCompare(b.product_name));
 
       setStockCardData(stockCardArray);
