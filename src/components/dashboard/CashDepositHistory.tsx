@@ -76,6 +76,13 @@ export const CashDepositHistory = () => {
     }
   };
 
+  const formatYMD = (d: Date): string => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
   const getDateRange = () => {
     const today = new Date();
     let startDate: Date;
@@ -119,8 +126,10 @@ export const CashDepositHistory = () => {
     setLoading(true);
     try {
       const { startDate, endDate } = dateRange;
+      const startYMD = formatYMD(startDate);
+      const endYMD = formatYMD(endDate);
 
-      // Fetch transactions
+      // Fetch transactions (exclude voided transactions)
       let transactionQuery = supabase
         .from('transactions')
         .select(`
@@ -132,8 +141,9 @@ export const CashDepositHistory = () => {
           profiles!transactions_rider_id_fkey(full_name)
         `)
         .eq('status', 'completed')
-        .gte('transaction_date', startDate.toISOString())
-        .lte('transaction_date', endDate.toISOString());
+        .eq('is_voided', false)
+        .gte('transaction_date', `${startYMD}T00:00:00+07:00`)
+        .lte('transaction_date', `${endYMD}T23:59:59+07:00`);
 
       if (selectedRider !== 'all') {
         transactionQuery = transactionQuery.eq('rider_id', selectedRider);
@@ -146,8 +156,8 @@ export const CashDepositHistory = () => {
       let expenseQuery = supabase
         .from('daily_operational_expenses')
         .select('rider_id, expense_date, amount')
-        .gte('expense_date', startDate.toISOString().split('T')[0])
-        .lte('expense_date', endDate.toISOString().split('T')[0]);
+        .gte('expense_date', startYMD)
+        .lte('expense_date', endYMD);
 
       if (selectedRider !== 'all') {
         expenseQuery = expenseQuery.eq('rider_id', selectedRider);
@@ -160,7 +170,7 @@ export const CashDepositHistory = () => {
       const depositMap = new Map<string, CashDepositData>();
 
       transactions?.forEach(tx => {
-        const date = tx.transaction_date.split('T')[0];
+        const date = new Date(tx.transaction_date).toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
         const key = `${tx.rider_id}_${date}`;
         
         if (!depositMap.has(key)) {
