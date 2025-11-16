@@ -11,14 +11,26 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabaseClient = createClient(
+    // Create client with service role for admin operations
+    const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const authHeader = req.headers.get('Authorization')!;
+    // Verify user authentication using anon key client
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      throw new Error('Unauthorized: No authorization header');
+    }
+
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
+    const supabaseUser = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: { user }, error: authError } = await supabaseUser.auth.getUser();
     
     if (authError || !user) {
       console.error('Auth error:', authError);
@@ -29,7 +41,7 @@ Deno.serve(async (req) => {
     console.log('Processing void request:', { void_request_id, action, user_id: user.id });
     
     // Get void request details with transaction data
-    const { data: voidRequest, error: voidError } = await supabaseClient
+    const { data: voidRequest, error: voidError } = await supabaseAdmin
       .from('transaction_void_requests')
       .select('*, transactions(*)')
       .eq('id', void_request_id)
@@ -43,7 +55,7 @@ Deno.serve(async (req) => {
     console.log('Void request found:', voidRequest);
 
     // Verify user has permission to approve/reject
-    const { data: profile, error: profileError } = await supabaseClient
+    const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('id, role, branch_id')
       .eq('user_id', user.id)
@@ -74,7 +86,7 @@ Deno.serve(async (req) => {
       }
 
       // 1. Update transaction status
-      const { error: txError } = await supabaseClient
+      const { error: txError } = await supabaseAdmin
         .from('transactions')
         .update({
           is_voided: true,
@@ -95,7 +107,7 @@ Deno.serve(async (req) => {
       const transactionAmount = voidRequest.transactions.final_amount;
       
       // Insert negative revenue entry to reverse the original revenue
-      const { error: revenueReversalError } = await supabaseClient
+      const { error: revenueReversalError } = await supabaseAdmin
         .from('financial_transactions')
         .insert({
           transaction_id: voidRequest.transaction_id,
@@ -114,7 +126,7 @@ Deno.serve(async (req) => {
       }
 
       // Insert negative cash entry to reverse the original cash receipt
-      const { error: cashReversalError } = await supabaseClient
+      const { error: cashReversalError } = await supabaseAdmin
         .from('financial_transactions')
         .insert({
           transaction_id: voidRequest.transaction_id,
@@ -135,7 +147,7 @@ Deno.serve(async (req) => {
       console.log('Financial reversals created successfully');
 
       // 3. Restore inventory for transaction items
-      const { data: txItems, error: itemsError } = await supabaseClient
+      const { data: txItems, error: itemsError } = await supabaseAdmin
         .from('transaction_items')
         .select('product_id, quantity')
         .eq('transaction_id', voidRequest.transaction_id);
@@ -155,7 +167,7 @@ Deno.serve(async (req) => {
             quantity: item.quantity 
           });
 
-          const { error: invError } = await supabaseClient.rpc('increment_inventory_stock', {
+          const { error: invError } = await supabaseAdmin.rpc('increment_inventory_stock', {
             p_rider_id: voidRequest.rider_id,
             p_product_id: item.product_id,
             p_quantity: item.quantity
@@ -170,7 +182,7 @@ Deno.serve(async (req) => {
       }
 
       // 4. Update void request status
-      const { error: updateError } = await supabaseClient
+      const { error: updateError } = await supabaseAdmin
         .from('transaction_void_requests')
         .update({
           status: 'approved',
@@ -196,7 +208,7 @@ Deno.serve(async (req) => {
       console.log('Rejecting void request...');
 
       // Update void request status to rejected
-      const { error: updateError } = await supabaseClient
+      const { error: updateError } = await supabaseAdmin
         .from('transaction_void_requests')
         .update({
           status: 'rejected',
