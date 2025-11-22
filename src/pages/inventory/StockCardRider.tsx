@@ -59,8 +59,8 @@ export default function StockCardRider() {
       .in('role', ['rider', 'sb_rider', 'bh_rider'])
       .eq('is_active', true);
 
-    // Branch managers only see their branch riders
-    if (userProfile.role === 'branch_manager' && userProfile.branch_id) {
+    // Branch managers and Small Branch managers only see their branch riders
+    if (['branch_manager', 'sb_branch_manager', '2_Hub_Branch_Manager', '3_SB_Branch_Manager'].includes(userProfile.role) && userProfile.branch_id) {
       query = query.eq('branch_id', userProfile.branch_id);
     }
 
