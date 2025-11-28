@@ -1,0 +1,30 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "uvx",
+      "args": [
+        "mcp-server-filesystem",
+        "D:\\projects\\zeger-app"
+      ],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      },
+      "disabled": false,
+      "autoApprove": []
+    },
+    "supabase": {
+      "url": "https://mcp.supabase.com/mcp?project_ref=uqgxxgbhvqjxrpotyilj",
+      "disabled": false,
+      "autoApprove": [
+        "list_tables",
+        "execute_sql",
+        "execute_sql",
+        "execute_sql",
+        "execute_sql",
+        "execute_sql",
+        "execute_sql",
+        "apply_migration"
+      ]
+    }
+  }
+}

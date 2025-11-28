@@ -50,17 +50,28 @@ import CRMManagement from "./pages/settings/CRMManagement";
 import { BranchHubReportLayout } from "./components/layout/BranchHubReportLayout";
 import { BranchHubReportDashboard } from "./components/dashboard/BranchHubReportDashboard";
 import CreateMalangBranch from "./pages/CreateMalangBranch";
+import { POSAuth } from "./pages/pos/POSAuth";
+import { POSDashboard } from "./pages/pos/POSDashboard";
+import { POSTransaction } from "./pages/pos/POSTransaction";
+import { POSHistory } from "./pages/pos/POSHistory";
+import POSInventory from "./pages/pos/POSInventory";
+import POSAttendance from "./pages/pos/POSAttendance";
+import { POSAuthProvider } from "./hooks/usePOSAuth";
+import { POSProtectedRoute } from "./components/pos/POSProtectedRoute";
+import { ErrorBoundary } from "./components/pos/ErrorBoundary";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <Routes>
+      <POSAuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/pos-app/auth" element={<POSAuth />} />
             <Route path="/" element={
               <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'sb_branch_manager', 'finance']}>
                 <ModernLayout>
@@ -100,12 +111,57 @@ const App = () => (
                 </ModernLayout>
               </RoleBasedRoute>
             } />
+            {/* Legacy POS Route - kept for backward compatibility */}
             <Route path="/pos" element={
               <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'sb_branch_manager']}>
                 <Layout>
                   <POS />
                 </Layout>
               </RoleBasedRoute>
+            } />
+            
+            {/* New POS App Routes for Kasir */}
+            <Route path="/pos-app" element={
+              <ErrorBoundary>
+                <POSProtectedRoute>
+                  <POSDashboard />
+                </POSProtectedRoute>
+              </ErrorBoundary>
+            } />
+            <Route path="/pos-app/dashboard" element={
+              <ErrorBoundary>
+                <POSProtectedRoute>
+                  <POSDashboard />
+                </POSProtectedRoute>
+              </ErrorBoundary>
+            } />
+            <Route path="/pos-app/transaction" element={
+              <ErrorBoundary>
+                <POSProtectedRoute>
+                  <POSTransaction />
+                </POSProtectedRoute>
+              </ErrorBoundary>
+            } />
+            <Route path="/pos-app/history" element={
+              <ErrorBoundary>
+                <POSProtectedRoute>
+                  <POSHistory />
+                </POSProtectedRoute>
+              </ErrorBoundary>
+            } />
+            <Route path="/pos-app/inventory" element={
+              <ErrorBoundary>
+                <POSProtectedRoute>
+                  <POSInventory />
+                </POSProtectedRoute>
+              </ErrorBoundary>
+            } />
+            <Route path="/pos-app/attendance" element={
+              <ErrorBoundary>
+                <POSProtectedRoute>
+                  <POSAttendance />
+                </POSProtectedRoute>
+              </ErrorBoundary>
             } />
             <Route path="/branches" element={
               <RoleBasedRoute allowedRoles={['ho_admin']}>
@@ -460,6 +516,7 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
         </Routes>
       </TooltipProvider>
+      </POSAuthProvider>
     </AuthProvider>
   </QueryClientProvider>
 );

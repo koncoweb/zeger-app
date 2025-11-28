@@ -5,6 +5,18 @@ import { Tables } from "@/integrations/supabase/types";
 export type UserRole = Tables<'profiles'>['role'];
 export type Profile = Tables<'profiles'>;  
 export type Branch = Tables<'branches'>;
+export type Product = Tables<'products'>;
+export type InventoryItem = Tables<'inventory'>;
+
+// POS specific types
+export interface CartItem {
+  product_id: string;
+  product_name: string;
+  product_code: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+}
 
 // Helper function to get user level from role
 export const getUserLevel = (role: UserRole): number => {
