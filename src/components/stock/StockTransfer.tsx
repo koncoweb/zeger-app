@@ -977,7 +977,7 @@ export const StockTransfer = ({ role, userId, branchId }: StockTransferProps) =>
                       <Input
                         type="number"
                         min="0"
-                        className="w-12 h-8 text-center border-red-500 focus:border-red-600 focus:ring-red-500"
+                        className="w-16 h-8 text-center border-red-500 focus:border-red-600 focus:ring-red-500"
                         value={productQuantities[product.id] || 0}
                         onChange={(e) => {
                           const value = Math.max(0, parseInt(e.target.value) || 0);
