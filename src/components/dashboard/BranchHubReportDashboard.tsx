@@ -170,8 +170,8 @@ export const BranchHubReportDashboard = () => {
         .eq('status', 'completed')
         .eq('is_voided', false)
         .eq('rider_id', assignedRiderId)
-        .gte('transaction_date', `${startStr}T00:00:00`)
-        .lte('transaction_date', `${endStr}T23:59:59`);
+        .gte('transaction_date', `${startStr}T00:00:00+07:00`)
+        .lte('transaction_date', `${endStr}T23:59:59+07:00`);
 
       if (branchIds.length > 0) {
         query = query.in('branch_id', branchIds);
@@ -265,7 +265,7 @@ export const BranchHubReportDashboard = () => {
       const totalProfit = grossProfit - totalFoodCost - operationalExpenses;
 
       // Active riders = 1 if assigned rider has active shift today, 0 otherwise
-      const today = new Date().toISOString().split('T')[0];
+      const today = formatYMD(getJakartaNow());
       const { data: activeShifts } = await supabase
         .from('shift_management')
         .select('id')
@@ -321,8 +321,8 @@ export const BranchHubReportDashboard = () => {
             .eq('status', 'completed')
             .eq('is_voided', false)
             .eq('rider_id', assignedRiderId)
-            .gte('transaction_date', `${dateStr}T00:00:00`)
-            .lte('transaction_date', `${dateStr}T23:59:59`);
+            .gte('transaction_date', `${dateStr}T00:00:00+07:00`)
+            .lte('transaction_date', `${dateStr}T23:59:59+07:00`);
           const dailySales = dailyTransactions?.reduce((sum, t) => sum + parseFloat(t.final_amount.toString()), 0) || 0;
           chartData.push({
             month: date.toLocaleDateString('id-ID', {
@@ -378,8 +378,8 @@ export const BranchHubReportDashboard = () => {
         `).eq('status', 'completed')
         .eq('is_voided', false)
         .eq('rider_id', assignedRiderId)
-        .gte('transaction_date', `${startDate}T00:00:00`)
-        .lte('transaction_date', `${endDate}T23:59:59`);
+        .gte('transaction_date', `${startDate}T00:00:00+07:00`)
+        .lte('transaction_date', `${endDate}T23:59:59+07:00`);
 
       if (!transactions) {
         setProductSales([]);
@@ -454,8 +454,8 @@ export const BranchHubReportDashboard = () => {
         `).eq('status', 'completed')
         .eq('is_voided', false)
         .eq('rider_id', assignedRiderId)
-        .gte('transaction_date', `${startDate}T00:00:00`)
-        .lte('transaction_date', `${endDate}T23:59:59`);
+        .gte('transaction_date', `${startDate}T00:00:00+07:00`)
+        .lte('transaction_date', `${endDate}T23:59:59+07:00`);
 
       if (!transactions) {
         setHourlyData([]);
