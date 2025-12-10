@@ -8,7 +8,11 @@ import Autoplay from "embla-carousel-autoplay";
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 
-export function PromoBannerCarousel() {
+interface PromoBannerCarouselProps {
+  onNavigate?: (view: string) => void;
+}
+
+export function PromoBannerCarousel({ onNavigate }: PromoBannerCarouselProps) {
   const [api, setApi] = useState<any>();
   const [current, setCurrent] = useState(0);
   const [banners, setBanners] = useState<Array<{ id: string; title: string; image_url: string; link_url: string | null }>>([]);
@@ -65,6 +69,23 @@ export function PromoBannerCarousel() {
     });
   }, [api]);
 
+  // Handle banner click navigation
+  const handleBannerClick = (banner: { id: string; title: string; image_url: string; link_url: string | null }) => {
+    if (!banner.link_url || !onNavigate) return;
+    
+    console.log('Banner clicked:', banner.title, 'Link:', banner.link_url);
+    
+    // Parse link_url to determine navigation target
+    // Support formats: "menu", "vouchers", "loyalty", "outlets", "promo-reward"
+    const validViews = ['menu', 'vouchers', 'loyalty', 'outlets', 'promo-reward', 'orders', 'profile', 'map'];
+    
+    if (validViews.includes(banner.link_url)) {
+      onNavigate(banner.link_url);
+    } else {
+      console.warn('Invalid navigation target:', banner.link_url);
+    }
+  };
+
   return (
     <div className="w-full overflow-hidden">
       <Carousel
@@ -89,7 +110,13 @@ export function PromoBannerCarousel() {
           ) : (
             banners.map((banner) => (
               <CarouselItem key={banner.id}>
-                <div className="relative w-full h-64 bg-gradient-to-br from-red-500 to-red-600">
+                <div 
+                  className={cn(
+                    "relative w-full h-64 bg-gradient-to-br from-red-500 to-red-600",
+                    banner.link_url && "cursor-pointer hover:opacity-90 transition-opacity"
+                  )}
+                  onClick={() => handleBannerClick(banner)}
+                >
                   <img
                     src={banner.image_url}
                     alt={banner.title}
@@ -98,6 +125,12 @@ export function PromoBannerCarousel() {
                       e.currentTarget.src = 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=800&auto=format&fit=crop';
                     }}
                   />
+                  {/* Click indicator for banners with links */}
+                  {banner.link_url && (
+                    <div className="absolute top-2 right-2 bg-black/20 rounded-full p-1">
+                      <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                    </div>
+                  )}
                 </div>
               </CarouselItem>
             ))

@@ -65,13 +65,16 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <POSAuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <Routes>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <Routes>
             <Route path="/auth" element={<Auth />} />
-            <Route path="/pos-app/auth" element={<POSAuth />} />
+            <Route path="/pos-app/auth" element={
+              <POSAuthProvider>
+                <POSAuth />
+              </POSAuthProvider>
+            } />
             <Route path="/" element={
               <RoleBasedRoute allowedRoles={['ho_admin', 'branch_manager', 'sb_branch_manager', 'finance']}>
                 <ModernLayout>
@@ -122,46 +125,58 @@ const App = () => (
             
             {/* New POS App Routes for Kasir */}
             <Route path="/pos-app" element={
-              <ErrorBoundary>
-                <POSProtectedRoute>
-                  <POSDashboard />
-                </POSProtectedRoute>
-              </ErrorBoundary>
+              <POSAuthProvider>
+                <ErrorBoundary>
+                  <POSProtectedRoute>
+                    <POSDashboard />
+                  </POSProtectedRoute>
+                </ErrorBoundary>
+              </POSAuthProvider>
             } />
             <Route path="/pos-app/dashboard" element={
-              <ErrorBoundary>
-                <POSProtectedRoute>
-                  <POSDashboard />
-                </POSProtectedRoute>
-              </ErrorBoundary>
+              <POSAuthProvider>
+                <ErrorBoundary>
+                  <POSProtectedRoute>
+                    <POSDashboard />
+                  </POSProtectedRoute>
+                </ErrorBoundary>
+              </POSAuthProvider>
             } />
             <Route path="/pos-app/transaction" element={
-              <ErrorBoundary>
-                <POSProtectedRoute>
-                  <POSTransaction />
-                </POSProtectedRoute>
-              </ErrorBoundary>
+              <POSAuthProvider>
+                <ErrorBoundary>
+                  <POSProtectedRoute>
+                    <POSTransaction />
+                  </POSProtectedRoute>
+                </ErrorBoundary>
+              </POSAuthProvider>
             } />
             <Route path="/pos-app/history" element={
-              <ErrorBoundary>
-                <POSProtectedRoute>
-                  <POSHistory />
-                </POSProtectedRoute>
-              </ErrorBoundary>
+              <POSAuthProvider>
+                <ErrorBoundary>
+                  <POSProtectedRoute>
+                    <POSHistory />
+                  </POSProtectedRoute>
+                </ErrorBoundary>
+              </POSAuthProvider>
             } />
             <Route path="/pos-app/inventory" element={
-              <ErrorBoundary>
-                <POSProtectedRoute>
-                  <POSInventory />
-                </POSProtectedRoute>
-              </ErrorBoundary>
+              <POSAuthProvider>
+                <ErrorBoundary>
+                  <POSProtectedRoute>
+                    <POSInventory />
+                  </POSProtectedRoute>
+                </ErrorBoundary>
+              </POSAuthProvider>
             } />
             <Route path="/pos-app/attendance" element={
-              <ErrorBoundary>
-                <POSProtectedRoute>
-                  <POSAttendance />
-                </POSProtectedRoute>
-              </ErrorBoundary>
+              <POSAuthProvider>
+                <ErrorBoundary>
+                  <POSProtectedRoute>
+                    <POSAttendance />
+                  </POSProtectedRoute>
+                </ErrorBoundary>
+              </POSAuthProvider>
             } />
             <Route path="/branches" element={
               <RoleBasedRoute allowedRoles={['ho_admin']}>
@@ -516,7 +531,6 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
         </Routes>
       </TooltipProvider>
-      </POSAuthProvider>
     </AuthProvider>
   </QueryClientProvider>
 );

@@ -79,7 +79,7 @@ export function CustomerHome({ customerUser, onNavigate, recentProducts = [], on
     <div className="min-h-screen bg-[#f8f6f6]">
       {/* Hero Banner - Clean without overlay */}
       <div className="relative h-64 overflow-hidden">
-        <PromoBannerCarousel />
+        <PromoBannerCarousel onNavigate={onNavigate} />
       </div>
 
       {/* Member Card */}
