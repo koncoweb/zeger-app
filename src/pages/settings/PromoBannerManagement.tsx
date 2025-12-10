@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 import { Badge } from "@/components/ui/badge";
 import { Image, Plus, Pencil, Trash2, ArrowLeft, ExternalLink, Info } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -59,7 +59,7 @@ export default function PromoBannerManagement() {
     valid_from: '',
     valid_until: ''
   });
-  const [filterActive, setFilterActive] = useState<'all' | 'active' | 'inactive'>('all');
+
 
   useEffect(() => {
     document.title = 'Promo Banner Management | Zeger ERP';
@@ -281,34 +281,15 @@ export default function PromoBannerManagement() {
                 </p>
               </div>
               <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  Navigasi Banner
-                  <Info className="w-4 h-4 text-muted-foreground" />
-                </Label>
-                <Select
+                <Label>Link URL (Optional)</Label>
+                <Input
                   value={formData.link_url}
-                  onValueChange={(value) => setFormData({ ...formData, link_url: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pilih halaman tujuan..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {NAVIGATION_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        <div className="flex flex-col">
-                          <span className="font-medium">{option.label}</span>
-                          <span className="text-xs text-muted-foreground">{option.description}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {formData.link_url && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <ExternalLink className="w-4 h-4" />
-                    <span>Banner akan mengarah ke: <strong>{getNavigationLabel(formData.link_url)}</strong></span>
-                  </div>
-                )}
+                  onChange={(e) => setFormData({ ...formData, link_url: e.target.value })}
+                  placeholder="menu, vouchers, loyalty, outlets, etc."
+                />
+                <p className="text-xs text-muted-foreground">
+                  Pilihan: menu, vouchers, loyalty, outlets, promo-reward, orders, profile, map
+                </p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -358,48 +339,15 @@ export default function PromoBannerManagement() {
         </Dialog>
       </header>
 
-      {/* Help Section */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex items-start gap-3">
-          <Info className="w-5 h-5 text-blue-600 mt-0.5" />
-          <div className="space-y-2">
-            <h3 className="font-medium text-blue-900">Panduan Banner Management</h3>
-            <div className="text-sm text-blue-800 space-y-1">
-              <p>• Banner akan ditampilkan di halaman utama aplikasi customer dalam bentuk carousel</p>
-              <p>• Banner dengan navigasi akan menampilkan indikator klik (dot berkedip) dan dapat ditekan customer</p>
-              <p>• Urutan tampil menentukan posisi banner dalam carousel (angka kecil = tampil lebih dulu)</p>
-              <p>• Banner hanya akan muncul jika status aktif dan masih dalam periode berlaku</p>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Filter Controls */}
-      <div className="flex items-center gap-4">
-        <Label className="text-sm font-medium">Filter:</Label>
-        <Select value={filterActive} onValueChange={(value: 'all' | 'active' | 'inactive') => setFilterActive(value)}>
-          <SelectTrigger className="w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Semua Banner</SelectItem>
-            <SelectItem value="active">Hanya Aktif</SelectItem>
-            <SelectItem value="inactive">Hanya Nonaktif</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+
+
 
       {loading && banners.length === 0 ? (
         <div className="text-center py-8">Loading...</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {banners
-            .filter(banner => {
-              if (filterActive === 'active') return banner.is_active;
-              if (filterActive === 'inactive') return !banner.is_active;
-              return true;
-            })
-            .map((banner) => (
+          {banners.map((banner) => (
             <Card key={banner.id}>
               <CardHeader>
                 <div className="flex items-start justify-between">
