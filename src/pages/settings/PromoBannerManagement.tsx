@@ -5,7 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Image, Plus, Pencil, Trash2, ArrowLeft } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Image, Plus, Pencil, Trash2, ArrowLeft, ExternalLink, Info } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -21,6 +23,25 @@ interface Banner {
   valid_from: string | null;
   valid_until: string | null;
 }
+
+// Navigation options for customer app
+const NAVIGATION_OPTIONS = [
+  { value: '', label: 'Tidak ada navigasi', description: 'Banner hanya untuk tampilan' },
+  { value: 'menu', label: 'Menu Produk', description: 'Halaman daftar produk dan menu' },
+  { value: 'vouchers', label: 'Voucher', description: 'Halaman voucher customer' },
+  { value: 'loyalty', label: 'Program Loyalty', description: 'Halaman poin dan rewards' },
+  { value: 'outlets', label: 'Pilih Outlet', description: 'Halaman daftar outlet' },
+  { value: 'promo-reward', label: 'Promo & Reward', description: 'Halaman promo dan hadiah' },
+  { value: 'orders', label: 'Pesanan', description: 'Halaman riwayat pesanan' },
+  { value: 'profile', label: 'Profil', description: 'Halaman profil customer' },
+  { value: 'map', label: 'Peta Delivery', description: 'Halaman peta untuk delivery' }
+];
+
+const getNavigationLabel = (value: string | null) => {
+  if (!value) return 'Tidak ada navigasi';
+  const option = NAVIGATION_OPTIONS.find(opt => opt.value === value);
+  return option ? option.label : value;
+};
 
 export default function PromoBannerManagement() {
   const navigate = useNavigate();
@@ -38,6 +59,7 @@ export default function PromoBannerManagement() {
     valid_from: '',
     valid_until: ''
   });
+  const [filterActive, setFilterActive] = useState<'all' | 'active' | 'inactive'>('all');
 
   useEffect(() => {
     document.title = 'Promo Banner Management | Zeger ERP';
@@ -141,13 +163,16 @@ export default function PromoBannerManagement() {
   };
 
   const resetForm = () => {
+    // Auto-increment display_order for new banners
+    const maxOrder = banners.length > 0 ? Math.max(...banners.map(b => b.display_order)) : 0;
+    
     setFormData({
       title: '',
       description: '',
       image_url: '',
       link_url: '',
       is_active: true,
-      display_order: 0,
+      display_order: maxOrder + 1,
       valid_from: '',
       valid_until: ''
     });
@@ -182,9 +207,16 @@ export default function PromoBannerManagement() {
               Promo Banner Management
             </h1>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Kelola banner promosi yang ditampilkan di aplikasi customer
-          </p>
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground">
+              Kelola banner promosi yang ditampilkan di aplikasi customer
+            </p>
+            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+              <span>Total: {banners.length} banner</span>
+              <span>Aktif: {banners.filter(b => b.is_active).length} banner</span>
+              <span>Dengan navigasi: {banners.filter(b => b.link_url).length} banner</span>
+            </div>
+          </div>
         </div>
         <Dialog open={dialogOpen} onOpenChange={(open) => {
           setDialogOpen(open);
@@ -227,15 +259,56 @@ export default function PromoBannerManagement() {
                   required
                 />
                 {formData.image_url && (
-                  <img src={formData.image_url} alt="Preview" className="w-full h-32 object-cover rounded" />
+                  <div className="relative">
+                    <img src={formData.image_url} alt="Preview" className="w-full h-32 object-cover rounded" />
+                    {/* Preview click indicator */}
+                    {formData.link_url && (
+                      <div className="absolute top-2 right-2 bg-black/20 rounded-full p-1">
+                        <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                      </div>
+                    )}
+                    {/* Preview navigation overlay */}
+                    {formData.link_url && (
+                      <div className="absolute bottom-2 left-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded flex items-center gap-1">
+                        <ExternalLink className="w-3 h-3" />
+                        Preview: Klik → {getNavigationLabel(formData.link_url)}
+                      </div>
+                    )}
+                  </div>
                 )}
+                <p className="text-xs text-muted-foreground">
+                  Gunakan URL gambar yang dapat diakses publik. Ukuran optimal: 800x300px
+                </p>
               </div>
               <div className="space-y-2">
-                <Label>Link URL (Optional)</Label>
-                <Input
+                <Label className="flex items-center gap-2">
+                  Navigasi Banner
+                  <Info className="w-4 h-4 text-muted-foreground" />
+                </Label>
+                <Select
                   value={formData.link_url}
-                  onChange={(e) => setFormData({ ...formData, link_url: e.target.value })}
-                />
+                  onValueChange={(value) => setFormData({ ...formData, link_url: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih halaman tujuan..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {NAVIGATION_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{option.label}</span>
+                          <span className="text-xs text-muted-foreground">{option.description}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {formData.link_url && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <ExternalLink className="w-4 h-4" />
+                    <span>Banner akan mengarah ke: <strong>{getNavigationLabel(formData.link_url)}</strong></span>
+                  </div>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -285,11 +358,48 @@ export default function PromoBannerManagement() {
         </Dialog>
       </header>
 
+      {/* Help Section */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex items-start gap-3">
+          <Info className="w-5 h-5 text-blue-600 mt-0.5" />
+          <div className="space-y-2">
+            <h3 className="font-medium text-blue-900">Panduan Banner Management</h3>
+            <div className="text-sm text-blue-800 space-y-1">
+              <p>• Banner akan ditampilkan di halaman utama aplikasi customer dalam bentuk carousel</p>
+              <p>• Banner dengan navigasi akan menampilkan indikator klik (dot berkedip) dan dapat ditekan customer</p>
+              <p>• Urutan tampil menentukan posisi banner dalam carousel (angka kecil = tampil lebih dulu)</p>
+              <p>• Banner hanya akan muncul jika status aktif dan masih dalam periode berlaku</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Filter Controls */}
+      <div className="flex items-center gap-4">
+        <Label className="text-sm font-medium">Filter:</Label>
+        <Select value={filterActive} onValueChange={(value: 'all' | 'active' | 'inactive') => setFilterActive(value)}>
+          <SelectTrigger className="w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Semua Banner</SelectItem>
+            <SelectItem value="active">Hanya Aktif</SelectItem>
+            <SelectItem value="inactive">Hanya Nonaktif</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
       {loading && banners.length === 0 ? (
         <div className="text-center py-8">Loading...</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {banners.map((banner) => (
+          {banners
+            .filter(banner => {
+              if (filterActive === 'active') return banner.is_active;
+              if (filterActive === 'inactive') return !banner.is_active;
+              return true;
+            })
+            .map((banner) => (
             <Card key={banner.id}>
               <CardHeader>
                 <div className="flex items-start justify-between">
@@ -310,15 +420,46 @@ export default function PromoBannerManagement() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                <img src={banner.image_url} alt={banner.title} className="w-full h-40 object-cover rounded" />
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Order: {banner.display_order}</span>
+                <div className="relative">
+                  <img src={banner.image_url} alt={banner.title} className="w-full h-40 object-cover rounded" />
+                  {/* Click indicator for banners with navigation */}
+                  {banner.link_url && (
+                    <div className="absolute top-2 right-2 bg-black/20 rounded-full p-1">
+                      <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                    </div>
+                  )}
+                  {/* Navigation overlay */}
+                  {banner.link_url && (
+                    <div className="absolute bottom-2 left-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded flex items-center gap-1">
+                      <ExternalLink className="w-3 h-3" />
+                      Klik → {getNavigationLabel(banner.link_url)}
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Order: {banner.display_order}</span>
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={banner.is_active}
+                        onCheckedChange={() => handleToggleActive(banner)}
+                      />
+                      <span className="text-sm">{banner.is_active ? 'Aktif' : 'Nonaktif'}</span>
+                    </div>
+                  </div>
+                  
+                  {/* Navigation Info */}
                   <div className="flex items-center gap-2">
-                    <Switch
-                      checked={banner.is_active}
-                      onCheckedChange={() => handleToggleActive(banner)}
-                    />
-                    <span className="text-sm">{banner.is_active ? 'Aktif' : 'Nonaktif'}</span>
+                    {banner.link_url ? (
+                      <Badge variant="secondary" className="flex items-center gap-1">
+                        <ExternalLink className="w-3 h-3" />
+                        {getNavigationLabel(banner.link_url)}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-muted-foreground">
+                        Tidak ada navigasi
+                      </Badge>
+                    )}
                   </div>
                 </div>
                 {banner.valid_until && (
