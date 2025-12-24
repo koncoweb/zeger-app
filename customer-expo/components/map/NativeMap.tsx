@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useRef, useEffect, useState } from 'react';
+import { forwardRef, useImperativeHandle, useRef, useEffect } from 'react';
 import { StyleSheet, View, Text } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE, Region, Polyline } from 'react-native-maps';
 import { COLORS } from '@/lib/constants';
@@ -38,8 +38,6 @@ export const NativeMap = forwardRef<NativeMapRef, NativeMapProps>(({
   routeCoordinates = [],
 }, ref) => {
   const mapRef = useRef<MapView>(null);
-  const [isMapReady, setIsMapReady] = useState(false);
-  const [mapError, setMapError] = useState<string | null>(null);
 
   useImperativeHandle(ref, () => ({
     fitToCoordinates: (coordinates, options) => {
@@ -52,162 +50,89 @@ export const NativeMap = forwardRef<NativeMapRef, NativeMapProps>(({
 
   // Debug log untuk troubleshooting
   useEffect(() => {
-    console.log('🗺️ NativeMap initialized with region:', initialRegion);
-    console.log('📍 User location:', userLocation);
-    console.log('🎯 Markers count:', markers.length);
-    console.log('🔑 Google Maps API Key:', 'AIzaSyAKD46ByVcCD4hejp2X1h1uVnELF680MpU'.substring(0, 20) + '...');
-  }, [initialRegion, userLocation, markers]);
+    console.log('🗺️ NativeMap initialized');
+  }, []);
 
   const handleMapReady = () => {
     console.log('✅ Map is ready');
-    setIsMapReady(true);
-    setMapError(null);
   };
-
-  const handleMapLoadEnd = () => {
-    console.log('✅ Map loading finished');
-  };
-
-  // Timeout untuk loading yang terlalu lama
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      if (!isMapReady && !mapError) {
-        console.warn('⚠️ Map loading timeout - possible API key issue');
-        setMapError('Map loading timeout. Check API key configuration.');
-      }
-    }, 15000); // 15 detik timeout
-
-    return () => clearTimeout(timeout);
-  }, [isMapReady, mapError]);
 
   return (
-    <View style={styles.container}>
-      {mapError ? (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorTitle}>Map Error</Text>
-          <Text style={styles.errorText}>{mapError}</Text>
-          <Text style={styles.errorHint}>
-            Kemungkinan masalah:
-            {'\n'}• API key restrictions terlalu ketat
-            {'\n'}• Maps SDK for Android belum diaktifkan
-            {'\n'}• Tunggu 5 menit untuk propagasi settings
-          </Text>
-        </View>
-      ) : (
-        <MapView
-          ref={mapRef}
-          style={styles.map}
-          // provider={PROVIDER_GOOGLE} // Sementara comment untuk test
-          initialRegion={initialRegion}
-          showsUserLocation={false}
-          showsMyLocationButton={false}
-          showsCompass={true}
-          mapType="standard"
-          onMapReady={handleMapReady}
-          onMapLoaded={handleMapLoadEnd}
-          loadingEnabled={true}
-          loadingIndicatorColor={COLORS.primary}
-          loadingBackgroundColor={COLORS.gray[100]}
-          zoomEnabled={true}
-          scrollEnabled={true}
-          pitchEnabled={false}
-          rotateEnabled={false}
+    <MapView
+      ref={mapRef}
+      style={styles.map}
+      provider={PROVIDER_GOOGLE}
+      initialRegion={initialRegion}
+      showsUserLocation={false}
+      showsMyLocationButton={false}
+      showsCompass={true}
+      mapType="standard"
+      onMapReady={handleMapReady}
+      loadingEnabled={true}
+      loadingIndicatorColor={COLORS.primary}
+      loadingBackgroundColor={COLORS.gray[100]}
+    >
+      {/* User Location Marker */}
+      {userLocation && (
+        <Marker
+          coordinate={{
+            latitude: userLocation.latitude,
+            longitude: userLocation.longitude,
+          }}
+          title="Lokasi Anda"
+          anchor={{ x: 0.5, y: 0.5 }}
         >
-          {/* User Location Marker */}
-          {userLocation && (
-            <Marker
-              coordinate={{
-                latitude: userLocation.latitude,
-                longitude: userLocation.longitude,
-              }}
-              title="Lokasi Anda"
-              anchor={{ x: 0.5, y: 0.5 }}
-            >
-              <View style={styles.userMarker}>
-                <View style={styles.userMarkerInner} />
-              </View>
-            </Marker>
-          )}
-
-          {/* Custom Markers */}
-          {markers.map((marker) => (
-            <Marker
-              key={marker.id}
-              coordinate={{
-                latitude: marker.latitude,
-                longitude: marker.longitude,
-              }}
-              title={marker.title}
-              description={marker.description}
-              onPress={() => onMarkerPress?.(marker)}
-              anchor={{ x: 0.5, y: 0.5 }}
-            >
-              <View
-                style={[
-                  styles.customMarker,
-                  { backgroundColor: marker.color || COLORS.primary },
-                  marker.isSelected && styles.customMarkerSelected,
-                ]}
-              >
-                {marker.label && (
-                  <Text style={styles.markerLabel}>{marker.label}</Text>
-                )}
-              </View>
-            </Marker>
-          ))}
-
-          {/* Route Polyline */}
-          {showRoute && routeCoordinates.length >= 2 && (
-            <Polyline
-              coordinates={routeCoordinates}
-              strokeColor={COLORS.primary}
-              strokeWidth={3}
-              lineDashPattern={[10, 5]}
-            />
-          )}
-        </MapView>
+          <View style={styles.userMarker}>
+            <View style={styles.userMarkerInner} />
+          </View>
+        </Marker>
       )}
-    </View>
+
+      {/* Custom Markers */}
+      {markers.map((marker) => (
+        <Marker
+          key={marker.id}
+          coordinate={{
+            latitude: marker.latitude,
+            longitude: marker.longitude,
+          }}
+          title={marker.title}
+          description={marker.description}
+          onPress={() => onMarkerPress?.(marker)}
+          anchor={{ x: 0.5, y: 0.5 }}
+        >
+          <View
+            style={[
+              styles.customMarker,
+              { backgroundColor: marker.color || COLORS.primary },
+              marker.isSelected && styles.customMarkerSelected,
+            ]}
+          >
+            {marker.label && (
+              <Text style={styles.markerLabel}>{marker.label}</Text>
+            )}
+          </View>
+        </Marker>
+      ))}
+
+      {/* Route Polyline */}
+      {showRoute && routeCoordinates.length >= 2 && (
+        <Polyline
+          coordinates={routeCoordinates}
+          strokeColor={COLORS.primary}
+          strokeWidth={3}
+          lineDashPattern={[10, 5]}
+        />
+      )}
+    </MapView>
   );
 });
 
 NativeMap.displayName = 'NativeMap';
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
   map: {
     flex: 1,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: COLORS.gray[50],
-    padding: 20,
-  },
-  errorTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: COLORS.error,
-    marginBottom: 10,
-  },
-  errorText: {
-    fontSize: 14,
-    color: COLORS.gray[700],
-    textAlign: 'center',
-    marginBottom: 15,
-  },
-  errorHint: {
-    fontSize: 12,
-    color: COLORS.gray[600],
-    textAlign: 'left',
-    backgroundColor: COLORS.warning + '20',
-    padding: 12,
-    borderRadius: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: COLORS.warning,
   },
   userMarker: {
     width: 24,
