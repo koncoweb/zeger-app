@@ -76,8 +76,8 @@ const App = () => (
                 <ModernLayout>
                   <div className="space-y-6">
                     <header>
-                      <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-                      <p className="text-gray-600">Selamat datang di Zeger Management System</p>
+                      <h1 className="text-3xl font-bold text-white">Dashboard</h1>
+                      <p className="text-white">Selamat datang di Zeger Management System</p>
                     </header>
                     
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

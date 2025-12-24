@@ -47,7 +47,13 @@ const SettingsRiderManagement = () => {
         .in('role', ['rider', 'bh_rider', 'sb_rider', '2_Hub_Rider', '3_SB_Rider']);
 
       if (userProfile?.role !== 'ho_admin' && userProfile?.role !== '1_HO_Admin' && userProfile?.role !== 'ho_owner') {
-        query = query.eq('branch_id', userProfile?.branch_id);
+        if (userProfile?.branch_id) {
+          query = query.eq('branch_id', userProfile.branch_id);
+        } else {
+          // If no branch_id, return empty result
+          setRiders([]);
+          return;
+        }
       }
 
       const { data, error } = await query;

@@ -28,7 +28,8 @@ import { CustomerPromoReward } from '@/components/customer/CustomerPromoReward';
 import { CustomerVouchers } from '@/components/customer/CustomerVouchers';
 import { CustomerOrders } from '@/components/customer/CustomerOrders';
 import { CustomerProfile } from '@/components/customer/CustomerProfile';
-import CustomerMap from '@/components/customer/CustomerMap';
+import CustomerMapSimpleGoogle from '@/components/customer/CustomerMapSimpleGoogle';
+import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { CustomerMenu } from '@/components/customer/CustomerMenu';
 import { CustomerCartNew } from '@/components/customer/CustomerCartNew';
 import { CustomerProductDetail } from '@/components/customer/CustomerProductDetail';
@@ -125,10 +126,15 @@ export default function CustomerApp() {
 
   // Check authentication and fetch customer profile
   useEffect(() => {
-    if (user) {
+    if (user?.id) {
+      console.log('User authenticated with ID:', user.id);
       fetchCustomerProfile();
     } else {
-      setIsAuthenticated(false);
+      console.log('User not authenticated or no user ID');
+      // Only set unauthenticated if we're not in loading state
+      if (!loading) {
+        setIsAuthenticated(false);
+      }
       setLoading(false);
     }
   }, [user]);
@@ -354,24 +360,55 @@ export default function CustomerApp() {
   };
 
   const fetchCustomerProfile = async () => {
+    if (!user?.id) {
+      console.log('No user ID available, skipping profile fetch');
+      setIsAuthenticated(false);
+      setLoading(false);
+      return;
+    }
+
+    console.log('Fetching customer profile for user:', user.id);
+    setLoading(true);
     try {
       const { data, error } = await supabase
         .from('customer_users')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .single();
 
       if (error && error.code === 'PGRST116') {
-        // No profile exists, user needs to complete registration
-        setIsAuthenticated(false);
+        // No profile exists, create a basic one
+        console.log('No customer profile found, creating one...');
+        const { data: newProfile, error: createError } = await supabase
+          .from('customer_users')
+          .insert({
+            user_id: user.id,
+            email: user.email,
+            name: user.email?.split('@')[0] || 'Customer',
+            role: 'customer'
+          })
+          .select()
+          .single();
+
+        if (createError) {
+          console.error('Error creating customer profile:', createError);
+          setIsAuthenticated(false);
+        } else {
+          console.log('Customer profile created:', newProfile);
+          setCustomerUser(newProfile);
+          setIsAuthenticated(true);
+        }
       } else if (error) {
         throw error;
       } else {
+        console.log('Customer profile found:', data);
         setCustomerUser(data);
         setIsAuthenticated(true);
       }
     } catch (error) {
       console.error('Error fetching customer profile:', error);
+      setIsAuthenticated(false);
+      setLoading(false);
       toast({
         title: "Error",
         description: "Gagal memuat profil customer",
@@ -631,8 +668,16 @@ export default function CustomerApp() {
 
   if (!isAuthenticated) {
     return <CustomerAuth onAuthSuccess={() => {
-      setIsAuthenticated(true);
-      fetchCustomerProfile();
+      // Wait a bit for auth state to update, then fetch profile
+      setTimeout(() => {
+        setIsAuthenticated(true);
+        // Force refetch user session
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (session?.user) {
+            fetchCustomerProfile();
+          }
+        });
+      }, 500);
     }} />;
   }
 
@@ -676,15 +721,17 @@ export default function CustomerApp() {
             {activeView === 'orders' && <CustomerOrders customerUser={customerUser} />}
             {activeView === 'profile' && <CustomerProfile customerUser={customerUser} onUpdateProfile={() => fetchCustomerProfile()} />}
             {activeView === 'map' && (
-              <CustomerMap 
-                customerUser={customerUser}
-                onCallRider={(orderId, rider) => {
-                  setPendingOrderId(orderId);
-                  setPendingRider(rider);
-                  localStorage.setItem('zeger-last-pending-order', orderId);
-                  setActiveView('waiting');
-                }}
-              />
+              <ErrorBoundary>
+                <CustomerMapSimpleGoogle 
+                  customerUser={customerUser}
+                  onCallRider={(orderId, rider) => {
+                    setPendingOrderId(orderId);
+                    setPendingRider(rider);
+                    localStorage.setItem('zeger-last-pending-order', orderId);
+                    setActiveView('waiting');
+                  }}
+                />
+              </ErrorBoundary>
             )}
             {activeView === 'outlets' && (
               <CustomerOutletList 

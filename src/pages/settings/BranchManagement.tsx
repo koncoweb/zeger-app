@@ -53,9 +53,11 @@ const BranchManagement = () => {
   });
 
   useEffect(() => {
-    fetchBranches();
-    fetchUsers();
-  }, []);
+    if (userProfile) {
+      fetchBranches();
+      fetchUsers();
+    }
+  }, [userProfile]);
 
   const fetchBranches = async () => {
     try {
@@ -66,7 +68,13 @@ const BranchManagement = () => {
         .eq('level', 3);
 
       if (userProfile?.role !== 'ho_admin' && userProfile?.role !== '1_HO_Admin') {
-        query = query.eq('parent_branch_id', userProfile?.branch_id);
+        if (userProfile?.branch_id) {
+          query = query.eq('parent_branch_id', userProfile.branch_id);
+        } else {
+          // If no branch_id, return empty result
+          setBranches([]);
+          return;
+        }
       }
 
       const { data, error } = await query;
@@ -93,15 +101,22 @@ const BranchManagement = () => {
 
   const fetchUsers = async () => {
     try {
+      // Only fetch users if userProfile and branch_id exist
+      if (!userProfile?.branch_id) {
+        setUsers([]);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name, role, branch_id')
-        .eq('branch_id', userProfile?.branch_id)
+        .eq('branch_id', userProfile.branch_id)
         .neq('role', 'rider');
 
       if (error) throw error;
       setUsers(data || []);
     } catch (error: any) {
+      console.error("Error fetching users:", error);
       toast.error("Gagal memuat data user: " + error.message);
     }
   };
@@ -110,11 +125,16 @@ const BranchManagement = () => {
     e.preventDefault();
     
     try {
+      if (!userProfile?.branch_id) {
+        toast.error("User tidak memiliki branch_id yang valid");
+        return;
+      }
+
       const branchData = {
         ...formData,
         branch_type: 'small',
         level: 3,
-        parent_branch_id: userProfile?.branch_id,
+        parent_branch_id: userProfile.branch_id,
         is_active: true
       };
 
@@ -183,8 +203,15 @@ const BranchManagement = () => {
     branch.code.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (loading) {
-    return <div>Loading...</div>;
+  if (loading || !userProfile) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
   }
 
   return (

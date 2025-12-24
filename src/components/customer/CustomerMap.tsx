@@ -161,6 +161,12 @@ const CustomerMap = ({ customerUser, onCallRider }: CustomerMapProps = {}) => {
 
   const loadGoogleMaps = (): Promise<void> => {
     return new Promise((resolve, reject) => {
+      // Check if API key is available
+      if (!GOOGLE_MAPS_API_KEY) {
+        reject(new Error('Google Maps API key tidak ditemukan. Pastikan VITE_GOOGLE_MAPS_API_KEY sudah dikonfigurasi di file .env'));
+        return;
+      }
+
       if ((window as any).google?.maps) {
         resolve();
         return;
@@ -174,6 +180,8 @@ const CustomerMap = ({ customerUser, onCallRider }: CustomerMapProps = {}) => {
         return;
       }
 
+      console.log('🔑 Loading Google Maps with API key:', GOOGLE_MAPS_API_KEY ? 'Key found' : 'Key missing');
+      
       const script = document.createElement('script');
       script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`;
       script.async = true;

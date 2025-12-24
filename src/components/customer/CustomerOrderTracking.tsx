@@ -51,10 +51,24 @@ export default function CustomerOrderTracking({
     if (!mapContainer.current) return;
 
     const loadGoogleMaps = () => {
+      // Check if API key is available
+      if (!GOOGLE_MAPS_API_KEY) {
+        console.error('❌ Google Maps API key tidak ditemukan');
+        setMapLoadError(true);
+        toast({
+          title: "Konfigurasi Maps Tidak Lengkap",
+          description: "Google Maps API key belum dikonfigurasi",
+          variant: "destructive"
+        });
+        return;
+      }
+
       if ((window as any).google?.maps) {
         initializeMap();
         return;
       }
+
+      console.log('🔑 Loading Google Maps with API key:', GOOGLE_MAPS_API_KEY ? 'Key found' : 'Key missing');
 
       const script = document.createElement('script');
       script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`;

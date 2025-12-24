@@ -29,10 +29,10 @@
     --glass-border: 0 0% 100% / 0.2;
     --glass-shadow: 0 84% 60% / 0.1;
 
-    /* Zeger Coffee - Red Primary */
-    --primary: 0 84% 60%;        /* Merah Zeger #DC2626 */
-    --primary-dark: 0 72% 51%;   /* Merah gelap #B91C1C */
-    --primary-light: 0 84% 75%;  /* Merah terang */
+    /* Zeger Coffee - Red Primary - Darker for better contrast */
+    --primary: 0 84% 45%;        /* Merah Zeger lebih gelap */
+    --primary-dark: 0 72% 35%;   /* Merah gelap */
+    --primary-light: 0 84% 60%;  /* Merah terang */
     --primary-foreground: 0 0% 100%;
     
     /* Accent Colors */
@@ -373,3 +373,47 @@
 .branch-hub-table .bg-muted {
   @apply bg-white !important;
 }
+
+/* TARGETED FIX: Only red backgrounds get white text */
+
+/* White text ONLY on red backgrounds */
+.bg-red-500,
+.bg-red-600,
+.bg-primary,
+[style*="background-color: rgb(220, 38, 38)"],
+[style*="background: rgb(220, 38, 38)"],
+[class*="bg-red"] {
+  color: white !important;
+}
+
+.bg-red-500 *,
+.bg-red-600 *,
+.bg-primary *,
+[style*="background-color: rgb(220, 38, 38)"] *,
+[style*="background: rgb(220, 38, 38)"] *,
+[class*="bg-red"] * {
+  color: white !important;
+}
+
+/* Force black text on white/light backgrounds */
+.bg-white,
+.bg-white *,
+.bg-gray-50,
+.bg-gray-50 *,
+.bg-gray-100,
+.bg-gray-100 *,
+.card,
+.card *,
+.modal,
+.modal *,
+.dialog,
+.dialog *,
+.popover,
+.popover *,
+[data-radix-popper-content-wrapper],
+[data-radix-popper-content-wrapper] *,
+[role="dialog"],
+[role="dialog"] * {
+  color: black !important;
+}
+
