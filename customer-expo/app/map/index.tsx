@@ -258,7 +258,14 @@ export default function MapScreen() {
     <View style={styles.container}>
       {/* Map */}
       <View style={styles.mapContainer}>
-        <SimpleMap />
+        {Platform.OS === 'web' ? (
+          <View style={styles.webMapPlaceholder}>
+            <Text style={styles.webMapText}>Map tidak tersedia di web</Text>
+            <Text style={styles.webMapSubtext}>Gunakan aplikasi mobile untuk melihat peta</Text>
+          </View>
+        ) : (
+          <SimpleMap />
+        )}
         
         {/* Map Legend - Only show on native */}
         {Platform.OS !== 'web' && (
@@ -811,5 +818,22 @@ const styles = StyleSheet.create({
     borderColor: COLORS.success,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  webMapPlaceholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.gray[100],
+  },
+  webMapText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.gray[700],
+    marginBottom: 8,
+  },
+  webMapSubtext: {
+    fontSize: 14,
+    color: COLORS.gray[500],
+    textAlign: 'center',
   },
 });
