@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useRef, useEffect } from 'react';
+import { forwardRef, useImperativeHandle, useRef } from 'react';
 import { StyleSheet, View, Text } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE, Region, Polyline } from 'react-native-maps';
 import { COLORS } from '@/lib/constants';
@@ -48,15 +48,6 @@ export const NativeMap = forwardRef<NativeMapRef, NativeMapProps>(({
     },
   }));
 
-  // Debug log untuk troubleshooting
-  useEffect(() => {
-    console.log('🗺️ NativeMap initialized');
-  }, []);
-
-  const handleMapReady = () => {
-    console.log('✅ Map is ready');
-  };
-
   return (
     <MapView
       ref={mapRef}
@@ -67,10 +58,6 @@ export const NativeMap = forwardRef<NativeMapRef, NativeMapProps>(({
       showsMyLocationButton={false}
       showsCompass={true}
       mapType="standard"
-      onMapReady={handleMapReady}
-      loadingEnabled={true}
-      loadingIndicatorColor={COLORS.primary}
-      loadingBackgroundColor={COLORS.gray[100]}
     >
       {/* User Location Marker */}
       {userLocation && (
