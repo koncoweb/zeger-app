@@ -54,10 +54,12 @@ export const NativeMap = forwardRef<NativeMapRef, NativeMapProps>(({
       style={styles.map}
       provider={PROVIDER_GOOGLE}
       initialRegion={initialRegion}
-      showsUserLocation={false}
-      showsMyLocationButton={false}
+      showsUserLocation={true}
+      showsMyLocationButton={true}
       showsCompass={true}
       mapType="standard"
+      minZoomLevel={5}
+      maxZoomLevel={20}
     >
       {/* User Location Marker */}
       {userLocation && (
