@@ -55,22 +55,13 @@ export const NativeMap = forwardRef<NativeMapRef, NativeMapProps>(({
     console.log('🗺️ NativeMap initialized with region:', initialRegion);
     console.log('📍 User location:', userLocation);
     console.log('🎯 Markers count:', markers.length);
+    console.log('🔑 Google Maps API Key:', 'AIzaSyAKD46ByVcCD4hejp2X1h1uVnELF680MpU'.substring(0, 20) + '...');
   }, [initialRegion, userLocation, markers]);
 
   const handleMapReady = () => {
     console.log('✅ Map is ready');
     setIsMapReady(true);
     setMapError(null);
-  };
-
-  const handleMapError = (error: any) => {
-    console.error('❌ Map error:', error);
-    console.error('❌ Map error details:', JSON.stringify(error, null, 2));
-    setMapError(error?.message || 'Map failed to load');
-  };
-
-  const handleMapLoadStart = () => {
-    console.log('🔄 Map loading started...');
   };
 
   const handleMapLoadEnd = () => {
@@ -113,7 +104,6 @@ export const NativeMap = forwardRef<NativeMapRef, NativeMapProps>(({
           showsCompass={true}
           mapType="standard"
           onMapReady={handleMapReady}
-          onError={handleMapError}
           onMapLoaded={handleMapLoadEnd}
           loadingEnabled={true}
           loadingIndicatorColor={COLORS.primary}

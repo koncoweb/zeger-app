@@ -21,6 +21,7 @@ import { useAuthStore } from '@/store/authStore';
 import { supabase, Rider } from '@/lib/supabase';
 import { formatPhoneForWhatsApp, getGoogleMapsDirectionsUrl } from '@/lib/utils';
 import { NativeMap, NativeMapRef, MapMarker } from '@/components/map/NativeMap';
+import { SimpleMap } from '@/components/map/SimpleMap';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const MAP_HEIGHT = SCREEN_HEIGHT * 0.45;
@@ -257,31 +258,14 @@ export default function MapScreen() {
     <View style={styles.container}>
       {/* Map */}
       <View style={styles.mapContainer}>
-        <NativeMap
-          ref={mapRef}
-          initialRegion={initialRegion}
-          userLocation={location}
-          markers={mapMarkers}
-          selectedMarkerId={selectedRider?.id}
-          onMarkerPress={handleMarkerPress}
-          showRoute={!!selectedRider}
-          routeCoordinates={routeCoordinates}
-        />
-
+        <SimpleMap />
+        
         {/* Map Legend - Only show on native */}
         {Platform.OS !== 'web' && (
           <View style={styles.legend}>
             <View style={styles.legendItem}>
               <View style={[styles.legendDot, { backgroundColor: COLORS.info }]} />
-              <Text style={styles.legendText}>Anda</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: COLORS.success }]} />
-              <Text style={styles.legendText}>Online</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: COLORS.warning }]} />
-              <Text style={styles.legendText}>Shift</Text>
+              <Text style={styles.legendText}>Test Mode</Text>
             </View>
           </View>
         )}
