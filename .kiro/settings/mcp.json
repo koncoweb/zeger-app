@@ -23,7 +23,8 @@
         "execute_sql",
         "execute_sql",
         "execute_sql",
-        "apply_migration"
+        "apply_migration",
+        "generate_typescript_types"
       ]
     }
   }

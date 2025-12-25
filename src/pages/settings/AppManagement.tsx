@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Smartphone, Image, Award, Users, Ticket, TrendingUp } from "lucide-react";
+import { Smartphone, Image, Award, Users, Ticket, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 
@@ -11,7 +11,9 @@ export default function AppManagement() {
     totalBanners: 0,
     activeBanners: 0,
     totalCustomers: 0,
-    totalRewards: 0
+    totalRewards: 0,
+    totalVouchers: 0,
+    activeVouchers: 0
   });
 
   useEffect(() => {
@@ -21,19 +23,23 @@ export default function AppManagement() {
 
   const fetchStats = async () => {
     try {
-      const [bannersRes, customersRes, rewardsRes] = await Promise.all([
+      const [bannersRes, customersRes, rewardsRes, vouchersRes] = await Promise.all([
         supabase.from('promo_banners').select('id, is_active', { count: 'exact' }),
         supabase.from('customer_users').select('id', { count: 'exact' }),
-        supabase.from('loyalty_rewards').select('id', { count: 'exact' })
+        supabase.from('loyalty_rewards').select('id', { count: 'exact' }),
+        supabase.from('customer_vouchers').select('id, is_active, valid_until', { count: 'exact' })
       ]);
 
       const activeBanners = bannersRes.data?.filter(b => b.is_active).length || 0;
+      const activeVouchers = vouchersRes.data?.filter(v => v.is_active && new Date(v.valid_until) >= new Date()).length || 0;
 
       setStats({
         totalBanners: bannersRes.count || 0,
         activeBanners,
         totalCustomers: customersRes.count || 0,
-        totalRewards: rewardsRes.count || 0
+        totalRewards: rewardsRes.count || 0,
+        totalVouchers: vouchersRes.count || 0,
+        activeVouchers
       });
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -48,6 +54,14 @@ export default function AppManagement() {
       path: "/settings/app-management/promo-banners",
       stats: `${stats.activeBanners} aktif dari ${stats.totalBanners} banner`,
       color: "text-blue-600 bg-blue-50"
+    },
+    {
+      title: "Vouchers",
+      description: "Kelola voucher & kupon diskon",
+      icon: Ticket,
+      path: "/settings/app-management/vouchers",
+      stats: `${stats.activeVouchers} aktif dari ${stats.totalVouchers} voucher`,
+      color: "text-orange-600 bg-orange-50"
     },
     {
       title: "Loyalty Settings",
@@ -66,12 +80,12 @@ export default function AppManagement() {
       color: "text-green-600 bg-green-50"
     },
     {
-      title: "Vouchers",
-      description: "Kelola voucher & kupon diskon",
-      icon: Ticket,
-      path: "/settings/app-management/vouchers",
-      stats: "Coming soon",
-      color: "text-orange-600 bg-orange-50"
+      title: "Pengaturan Aplikasi",
+      description: "Delivery, Order, Payment, Theme & lainnya",
+      icon: Settings,
+      path: "/settings/app-management/app-settings",
+      stats: "Konfigurasi lengkap",
+      color: "text-gray-600 bg-gray-50"
     }
   ];
 
@@ -135,11 +149,11 @@ export default function AppManagement() {
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-orange-50 rounded-lg">
-                <TrendingUp className="w-5 h-5 text-orange-600" />
+                <Ticket className="w-5 h-5 text-orange-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-orange-600">24%</p>
-                <p className="text-xs text-muted-foreground">Growth Rate</p>
+                <p className="text-2xl font-bold text-orange-600">{stats.activeVouchers}</p>
+                <p className="text-xs text-muted-foreground">Voucher Aktif</p>
               </div>
             </div>
           </CardContent>
@@ -170,9 +184,8 @@ export default function AppManagement() {
                 <Button 
                   onClick={() => navigate(section.path)}
                   className="w-full"
-                  disabled={section.stats === "Coming soon"}
                 >
-                  {section.stats === "Coming soon" ? "Coming Soon" : "Kelola"}
+                  Kelola
                 </Button>
               </CardContent>
             </Card>

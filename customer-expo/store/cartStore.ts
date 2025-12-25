@@ -21,6 +21,7 @@ interface CartState {
   
   // Actions
   addItem: (product: Product, quantity?: number, customizations?: CartItem['customizations']) => void;
+  addMultipleItems: (items: Array<{ product: Product; quantity: number; customizations: CartItem['customizations'] }>) => void;
   removeItem: (productId: string, customizations: CartItem['customizations']) => void;
   updateQuantity: (productId: string, customizations: CartItem['customizations'], quantity: number) => void;
   clearCart: () => void;
@@ -55,6 +56,13 @@ export const useCartStore = create<CartState>((set, get) => ({
         items: [...items, { ...product, quantity, customizations }],
       });
     }
+  },
+
+  addMultipleItems: (itemsToAdd) => {
+    const { addItem } = get();
+    itemsToAdd.forEach(({ product, quantity, customizations }) => {
+      addItem(product, quantity, customizations);
+    });
   },
 
   removeItem: (productId, customizations) => {

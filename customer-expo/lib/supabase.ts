@@ -2,8 +2,16 @@ import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-const supabaseUrl = 'https://uqgxxgbhvqjxrpotyilj.supabase.co';
+export const supabaseUrl = 'https://uqgxxgbhvqjxrpotyilj.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVxZ3h4Z2JodnFqeHJwb3R5aWxqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU2MDkwNTUsImV4cCI6MjA3MTE4NTA1NX0.GeOdMGjJy8ykhgTcUtd1spkxV6ljxNlNjy1EPovm9Xw';
+
+// Helper to get full image URL from relative path
+export const getImageUrl = (path: string | null | undefined): string | null => {
+  if (!path) return null;
+  if (path.startsWith('http')) return path;
+  // Handle relative paths like /promo-banners/image.png
+  return `${supabaseUrl}/storage/v1/object/public${path}`;
+};
 
 // Custom storage adapter for Expo SecureStore with web fallback
 const ExpoSecureStoreAdapter = {

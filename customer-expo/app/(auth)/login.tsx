@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/lib/constants';
 import { useAuthStore } from '@/store/authStore';
+import { ZegerLogo } from '@/components/ui/ZegerLogo';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -60,11 +61,7 @@ export default function LoginScreen() {
       >
         {/* Logo */}
         <View style={styles.logoContainer}>
-          <View style={styles.logo}>
-            <Ionicons name="cafe" size={48} color={COLORS.white} />
-          </View>
-          <Text style={styles.logoText}>ZEGER</Text>
-          <Text style={styles.logoSubtext}>Coffee On The Wheels</Text>
+          <ZegerLogo size="md" showText={true} textColor={COLORS.white} />
         </View>
 
         {/* Form */}
@@ -154,26 +151,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     borderBottomLeftRadius: 40,
     borderBottomRightRadius: 40,
-  },
-  logo: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  logoText: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: COLORS.white,
-  },
-  logoSubtext: {
-    fontSize: 14,
-    color: COLORS.white,
-    opacity: 0.8,
-    marginTop: 4,
   },
   form: {
     flex: 1,

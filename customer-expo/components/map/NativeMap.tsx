@@ -12,6 +12,7 @@ export interface MapMarker {
   color?: string;
   label?: string;
   isSelected?: boolean;
+  icon?: string;
 }
 
 export interface NativeMapRef {
@@ -27,6 +28,9 @@ export interface NativeMapProps {
   onMarkerPress?: (marker: MapMarker) => void;
   showRoute?: boolean;
   routeCoordinates?: { latitude: number; longitude: number }[];
+  style?: any;
+  showsUserLocation?: boolean;
+  showsMyLocationButton?: boolean;
 }
 
 export const NativeMap = forwardRef<NativeMapRef, NativeMapProps>(({
@@ -36,6 +40,9 @@ export const NativeMap = forwardRef<NativeMapRef, NativeMapProps>(({
   onMarkerPress,
   showRoute = false,
   routeCoordinates = [],
+  style,
+  showsUserLocation = true,
+  showsMyLocationButton = true,
 }, ref) => {
   const mapRef = useRef<MapView>(null);
 
@@ -51,11 +58,11 @@ export const NativeMap = forwardRef<NativeMapRef, NativeMapProps>(({
   return (
     <MapView
       ref={mapRef}
-      style={styles.map}
+      style={[styles.map, style]}
       provider={PROVIDER_GOOGLE}
       initialRegion={initialRegion}
-      showsUserLocation={true}
-      showsMyLocationButton={true}
+      showsUserLocation={showsUserLocation}
+      showsMyLocationButton={showsMyLocationButton}
       showsCompass={true}
       mapType="standard"
       minZoomLevel={5}

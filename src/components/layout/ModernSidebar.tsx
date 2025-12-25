@@ -31,7 +31,8 @@ import {
   Smartphone,
   LayoutDashboard,
   Award,
-  Image
+  Image,
+  Ticket
 } from "lucide-react";
 import { MapPin as LocationPin } from "lucide-react";
 import { ZegerLogo } from "@/components/ui/zeger-logo";
@@ -161,6 +162,12 @@ const getMenuItems = (userRole: string): MenuItem[] => [
             path: "/settings/app-management/promo-banners"
           },
           {
+            id: "vouchers",
+            label: "Vouchers",
+            icon: Ticket,
+            path: "/settings/app-management/vouchers"
+          },
+          {
             id: "loyalty-settings",
             label: "Loyalty Settings",
             icon: Award,
@@ -171,6 +178,13 @@ const getMenuItems = (userRole: string): MenuItem[] => [
             label: "CRM",
             icon: Users,
             path: "/settings/app-management/crm"
+          },
+          {
+            id: "app-settings",
+            label: "Pengaturan App",
+            icon: Settings,
+            path: "/settings/app-management/app-settings",
+            roles: ["1_HO_Admin", "1_HO_Owner", "ho_admin"]
           }
         ]
       },

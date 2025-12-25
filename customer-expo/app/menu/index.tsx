@@ -9,6 +9,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   FlatList,
+  TextInput,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,6 +26,8 @@ export default function MenuScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
 
   const fetchProducts = async () => {
     try {
@@ -53,9 +56,14 @@ export default function MenuScreen() {
     setRefreshing(false);
   };
 
-  const filteredProducts = selectedCategory
-    ? products.filter((p) => p.category === selectedCategory)
-    : products;
+  const filteredProducts = products.filter((product) => {
+    const matchesCategory = selectedCategory ? product.category === selectedCategory : true;
+    const matchesSearch = searchQuery
+      ? product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        product.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      : true;
+    return matchesCategory && matchesSearch;
+  });
 
   const categories = ['Semua', ...PRODUCT_CATEGORIES];
 
@@ -84,6 +92,12 @@ export default function MenuScreen() {
             </Text>
           )}
         </View>
+        <TouchableOpacity 
+          style={styles.searchButton} 
+          onPress={() => setShowSearch(!showSearch)}
+        >
+          <Ionicons name="search" size={24} color={COLORS.white} />
+        </TouchableOpacity>
         <TouchableOpacity style={styles.cartButton} onPress={() => router.push('/cart' as any)}>
           <Ionicons name="cart" size={24} color={COLORS.white} />
           {totalItems > 0 && (
@@ -93,6 +107,27 @@ export default function MenuScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* Search Bar */}
+      {showSearch && (
+        <View style={styles.searchContainer}>
+          <View style={styles.searchInputContainer}>
+            <Ionicons name="search" size={20} color={COLORS.gray[400]} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Cari menu..."
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoFocus
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <Ionicons name="close-circle" size={20} color={COLORS.gray[400]} />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      )}
 
       {/* Categories */}
       <View style={styles.categoriesContainer}>
@@ -131,15 +166,22 @@ export default function MenuScreen() {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Ionicons name="cafe-outline" size={64} color={COLORS.gray[300]} />
-            <Text style={styles.emptyTitle}>Tidak Ada Produk</Text>
-            <Text style={styles.emptyText}>Produk tidak tersedia untuk kategori ini</Text>
+            <Text style={styles.emptyTitle}>
+              {searchQuery ? 'Tidak Ditemukan' : 'Tidak Ada Produk'}
+            </Text>
+            <Text style={styles.emptyText}>
+              {searchQuery 
+                ? `Tidak ada produk yang cocok dengan "${searchQuery}"`
+                : 'Produk tidak tersedia untuk kategori ini'
+              }
+            </Text>
           </View>
         }
         renderItem={({ item }) => (
           <ProductCard
             product={item}
             onPress={() => {
-              // Navigate to product detail or add to cart
+              // Navigate to product detail
               router.push(`/product/${item.id}` as any);
             }}
           />
@@ -236,6 +278,15 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     opacity: 0.8,
   },
+  searchButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
   cartButton: {
     width: 40,
     height: 40,
@@ -259,6 +310,27 @@ const styles = StyleSheet.create({
   cartBadgeText: {
     fontSize: 11,
     fontWeight: 'bold',
+    color: COLORS.gray[900],
+  },
+  searchContainer: {
+    backgroundColor: COLORS.white,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.gray[200],
+  },
+  searchInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.gray[100],
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
     color: COLORS.gray[900],
   },
   categoriesContainer: {

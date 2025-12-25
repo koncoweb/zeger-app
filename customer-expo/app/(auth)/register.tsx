@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/lib/constants';
 import { useAuthStore } from '@/store/authStore';
+import { ZegerLogo } from '@/components/ui/ZegerLogo';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -84,6 +85,11 @@ export default function RegisterScreen() {
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Daftar</Text>
           <View style={styles.headerPlaceholder} />
+        </View>
+
+        {/* Logo */}
+        <View style={styles.logoContainer}>
+          <ZegerLogo size="sm" showText={true} textColor={COLORS.white} />
         </View>
 
         {/* Form */}
@@ -201,6 +207,14 @@ const styles = StyleSheet.create({
   },
   headerPlaceholder: {
     width: 40,
+  },
+  logoContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+    backgroundColor: COLORS.primary,
+    borderBottomLeftRadius: 40,
+    borderBottomRightRadius: 40,
+    marginTop: -20,
   },
   form: {
     flex: 1,
