@@ -39,9 +39,8 @@ export const COLORS = {
   },
 };
 
-// Google Maps API Key - TEMPORARY: Use unrestricted key for testing
-// TODO: Replace with properly configured restricted key
-export const GOOGLE_MAPS_API_KEY = 'AIzaSyAKD46ByVcCD4hejp2X1h1uVnELF680MpU';
+// Google Maps API Key
+export const GOOGLE_MAPS_API_KEY = 'AIzaSyBX-Ud57WsonDCCPfx-X6KsStupHdcRlNc';
 
 // Map default region (Indonesia - Surabaya area)
 export const DEFAULT_REGION = {

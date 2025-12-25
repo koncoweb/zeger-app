@@ -17,7 +17,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.zeger.customer",
       "config": {
-        "googleMapsApiKey": "AIzaSyAKD46ByVcCD4hejp2X1h1uVnELF680MpU"
+        "googleMapsApiKey": "AIzaSyBX-Ud57WsonDCCPfx-X6KsStupHdcRlNc"
       },
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Zeger membutuhkan akses lokasi untuk menemukan rider terdekat dan melacak pengiriman pesanan Anda.",
@@ -32,7 +32,7 @@
       "package": "com.zeger.customer",
       "config": {
         "googleMaps": {
-          "apiKey": "AIzaSyAKD46ByVcCD4hejp2X1h1uVnELF680MpU"
+          "apiKey": "AIzaSyBX-Ud57WsonDCCPfx-X6KsStupHdcRlNc"
         }
       },
       "permissions": [
