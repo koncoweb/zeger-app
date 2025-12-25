@@ -1,5 +1,15 @@
-﻿import { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator, Modal } from 'react-native';
+import { useState, useEffect } from 'react';
+import {
+  StyleSheet,
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  Alert,
+  ActivityIndicator,
+  Modal,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/lib/constants';
@@ -49,86 +59,171 @@ export default function CheckoutScreen() {
   const calculateVoucherDiscount = (voucher: Voucher, orderTotal: number): number => {
     if (orderTotal < voucher.min_order) return 0;
     switch (voucher.discount_type) {
-      case 'percentage': return Math.floor(orderTotal * (voucher.discount_value / 100));
-      case 'fixed': return Math.min(voucher.discount_value, orderTotal);
-      case 'shipping': return deliveryFee;
-      default: return 0;
+      case 'percentage':
+        return Math.floor(orderTotal * (voucher.discount_value / 100));
+      case 'fixed':
+        return Math.min(voucher.discount_value, orderTotal);
+      case 'shipping':
+        return deliveryFee;
+      default:
+        return 0;
     }
   };
 
-  const voucherDiscount = selectedVoucher ? calculateVoucherDiscount(selectedVoucher.voucher, subtotal) : 0;
+  const voucherDiscount = selectedVoucher 
+    ? calculateVoucherDiscount(selectedVoucher.voucher, subtotal) 
+    : 0;
   const pointsDiscount = usePoints ? pointsToUse * 100 : 0;
   const total = Math.max(0, subtotal + deliveryFee - voucherDiscount - pointsDiscount);
 
-  useEffect(() => { if (customerUser) fetchAvailableVouchers(); }, [customerUser]);
-  useEffect(() => { if (usePoints && pointsToUse === 0) setPointsToUse(Math.min(maxPointsCanUse, Math.floor(subtotal / 100))); }, [usePoints, maxPointsCanUse, subtotal]);
+  useEffect(() => {
+    if (customerUser) fetchAvailableVouchers();
+  }, [customerUser]);
+
+  useEffect(() => {
+    if (usePoints && pointsToUse === 0) {
+      setPointsToUse(Math.min(maxPointsCanUse, Math.floor(subtotal / 100)));
+    }
+  }, [usePoints, maxPointsCanUse, subtotal]);
 
   const fetchAvailableVouchers = async () => {
     if (!customerUser?.id) return;
     try {
-      const { data, error } = await supabase.from('customer_user_vouchers').select('*, voucher:customer_vouchers(*)').eq('user_id', customerUser.id).eq('is_used', false);
+      const { data, error } = await supabase
+        .from('customer_user_vouchers')
+        .select('*, voucher:customer_vouchers(*)')
+        .eq('user_id', customerUser.id)
+        .eq('is_used', false);
       if (error) throw error;
       setAvailableVouchers(data || []);
-    } catch (error) { console.error('Error fetching vouchers:', error); }
+    } catch (error) {
+      console.error('Error fetching vouchers:', error);
+    }
   };
 
-  const handleVoucherSelect = (voucher: UserVoucher | null) => { setSelectedVoucher(voucher); setShowVoucherModal(false); };
+  const handleVoucherSelect = (voucher: UserVoucher | null) => {
+    setSelectedVoucher(voucher);
+    setShowVoucherModal(false);
+  };
 
   const handlePlaceOrder = async () => {
-    if (!customerUser || !selectedOutlet) { Alert.alert('Error', 'Data tidak lengkap'); return; }
-    if (orderType === 'outlet_delivery' && !deliveryAddress) { Alert.alert('Error', 'Silakan isi alamat pengiriman'); return; }
+    if (!customerUser || !selectedOutlet) {
+      Alert.alert('Error', 'Data tidak lengkap');
+      return;
+    }
+    if (orderType === 'outlet_delivery' && !deliveryAddress) {
+      Alert.alert('Error', 'Silakan isi alamat pengiriman');
+      return;
+    }
     setIsLoading(true);
     try {
-      const { data: order, error: orderError } = await supabase.from('customer_orders').insert({
-        user_id: customerUser.id, outlet_id: selectedOutlet.id, order_type: orderType,
-        delivery_address: orderType === 'outlet_delivery' ? deliveryAddress : null,
-        latitude: location?.latitude || null, longitude: location?.longitude || null,
-        payment_method: paymentMethod, total_price: total, delivery_fee: deliveryFee,
-        discount_amount: voucherDiscount + pointsDiscount, voucher_id: selectedVoucher?.voucher_id || null, status: 'pending',
-      }).select().single();
+      const { data: order, error: orderError } = await supabase
+        .from('customer_orders')
+        .insert({
+          user_id: customerUser.id,
+          outlet_id: selectedOutlet.id,
+          order_type: orderType,
+          delivery_address: orderType === 'outlet_delivery' ? deliveryAddress : null,
+          latitude: location?.latitude || null,
+          longitude: location?.longitude || null,
+          payment_method: paymentMethod,
+          total_price: total,
+          delivery_fee: deliveryFee,
+          discount_amount: voucherDiscount + pointsDiscount,
+          voucher_id: selectedVoucher?.voucher_id || null,
+          status: 'pending',
+        })
+        .select()
+        .single();
       if (orderError) throw orderError;
-      const orderItems = items.map((item) => ({ order_id: order.id, product_id: item.id, quantity: item.quantity, price: item.price, custom_options: item.customizations }));
-      const { error: itemsError } = await supabase.from('customer_order_items').insert(orderItems);
+
+      const orderItems = items.map((item) => ({
+        order_id: order.id,
+        product_id: item.id,
+        quantity: item.quantity,
+        price: item.price,
+        custom_options: item.customizations,
+      }));
+      const { error: itemsError } = await supabase
+        .from('customer_order_items')
+        .insert(orderItems);
       if (itemsError) throw itemsError;
-      if (selectedVoucher) await supabase.from('customer_user_vouchers').update({ is_used: true, used_at: new Date().toISOString() }).eq('id', selectedVoucher.id);
+
+      if (selectedVoucher) {
+        await supabase
+          .from('customer_user_vouchers')
+          .update({ is_used: true, used_at: new Date().toISOString() })
+          .eq('id', selectedVoucher.id);
+      }
+
       if (usePoints && pointsToUse > 0) {
         const newPoints = (customerUser.points || 0) - pointsToUse;
         await supabase.from('customer_users').update({ points: newPoints }).eq('id', customerUser.id);
-        await supabase.from('customer_points_history').insert({ user_id: customerUser.id, change: -pointsToUse, description: 'Digunakan untuk pesanan #' + order.id.slice(0, 8), order_id: order.id });
+        await supabase.from('customer_points_history').insert({
+          user_id: customerUser.id,
+          change: -pointsToUse,
+          description: `Digunakan untuk pesanan #${order.id.slice(0, 8)}`,
+          order_id: order.id,
+        });
       }
+
       clearCart();
       router.replace({ pathname: '/order-success', params: { orderId: order.id } } as any);
-    } catch (error: any) { console.error('Error creating order:', error); Alert.alert('Error', error.message || 'Gagal membuat pesanan'); }
-    finally { setIsLoading(false); }
+    } catch (error: any) {
+      console.error('Error creating order:', error);
+      Alert.alert('Error', error.message || 'Gagal membuat pesanan');
+    } finally {
+      setIsLoading(false);
+    }
   };
+
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}><Ionicons name="arrow-back" size={24} color={COLORS.white} /></TouchableOpacity>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={24} color={COLORS.white} />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Checkout</Text>
         <View style={styles.headerPlaceholder} />
       </View>
+
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Tipe Pesanan</Text>
           <View style={styles.orderTypeRow}>
-            <TouchableOpacity style={[styles.orderTypeButton, orderType === 'outlet_pickup' && styles.orderTypeButtonSelected]} onPress={() => setOrderType('outlet_pickup')}>
+            <TouchableOpacity
+              style={[styles.orderTypeButton, orderType === 'outlet_pickup' && styles.orderTypeButtonSelected]}
+              onPress={() => setOrderType('outlet_pickup')}
+            >
               <Ionicons name="storefront" size={24} color={orderType === 'outlet_pickup' ? COLORS.primary : COLORS.gray[500]} />
               <Text style={[styles.orderTypeText, orderType === 'outlet_pickup' && styles.orderTypeTextSelected]}>Ambil di Outlet</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.orderTypeButton, orderType === 'outlet_delivery' && styles.orderTypeButtonSelected]} onPress={() => setOrderType('outlet_delivery')}>
+            <TouchableOpacity
+              style={[styles.orderTypeButton, orderType === 'outlet_delivery' && styles.orderTypeButtonSelected]}
+              onPress={() => setOrderType('outlet_delivery')}
+            >
               <Ionicons name="bicycle" size={24} color={orderType === 'outlet_delivery' ? COLORS.primary : COLORS.gray[500]} />
               <Text style={[styles.orderTypeText, orderType === 'outlet_delivery' && styles.orderTypeTextSelected]}>Delivery</Text>
             </TouchableOpacity>
           </View>
         </View>
+
         {orderType === 'outlet_delivery' && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Alamat Pengiriman</Text>
-            <TextInput style={styles.addressInput} placeholder="Masukkan alamat lengkap" placeholderTextColor={COLORS.gray[400]} value={deliveryAddress} onChangeText={setDeliveryAddress} multiline numberOfLines={3} />
+            <TextInput
+              style={styles.addressInput}
+              placeholder="Masukkan alamat lengkap"
+              placeholderTextColor={COLORS.gray[400]}
+              value={deliveryAddress}
+              onChangeText={setDeliveryAddress}
+              multiline
+              numberOfLines={3}
+            />
           </View>
         )}
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Voucher</Text>
           <TouchableOpacity style={styles.voucherSelector} onPress={() => setShowVoucherModal(true)}>
@@ -140,15 +235,20 @@ export default function CheckoutScreen() {
           </TouchableOpacity>
           {selectedVoucher && <Text style={styles.voucherDiscountText}>-{formatCurrency(voucherDiscount)}</Text>}
         </View>
+
         {(customerUser?.points || 0) > 0 && (
           <View style={styles.section}>
-            <View style={styles.pointsHeader}><Text style={styles.sectionTitle}>Gunakan Poin</Text><Text style={styles.pointsBalance}>{customerUser?.points || 0} poin tersedia</Text></View>
+            <View style={styles.pointsHeader}>
+              <Text style={styles.sectionTitle}>Gunakan Poin</Text>
+              <Text style={styles.pointsBalance}>{customerUser?.points || 0} poin tersedia</Text>
+            </View>
             <TouchableOpacity style={styles.pointsToggleButton} onPress={() => setUsePoints(!usePoints)}>
               <Ionicons name={usePoints ? 'checkbox' : 'square-outline'} size={24} color={usePoints ? COLORS.primary : COLORS.gray[400]} />
-              <Text style={styles.pointsToggleText}>{usePoints ? 'Menggunakan ' + pointsToUse + ' poin (-' + formatCurrency(pointsDiscount) + ')' : 'Gunakan poin saya'}</Text>
+              <Text style={styles.pointsToggleText}>{usePoints ? `Menggunakan ${pointsToUse} poin (-${formatCurrency(pointsDiscount)})` : 'Gunakan poin saya'}</Text>
             </TouchableOpacity>
           </View>
         )}
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Metode Pembayaran</Text>
           <TouchableOpacity style={[styles.paymentOption, paymentMethod === 'cash' && styles.paymentOptionSelected]} onPress={() => setPaymentMethod('cash')}>
@@ -162,36 +262,79 @@ export default function CheckoutScreen() {
             {paymentMethod === 'qris' && <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />}
           </TouchableOpacity>
         </View>
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Catatan</Text>
           <TextInput style={styles.notesInput} placeholder="Tambahkan catatan (opsional)" placeholderTextColor={COLORS.gray[400]} value={notes} onChangeText={setNotes} multiline />
         </View>
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Ringkasan</Text>
           <View style={styles.summaryCard}>
-            <View style={styles.summaryRow}><Text style={styles.summaryLabel}>Subtotal ({items.length} item)</Text><Text style={styles.summaryValue}>{formatCurrency(subtotal)}</Text></View>
-            {orderType === 'outlet_delivery' && <View style={styles.summaryRow}><Text style={styles.summaryLabel}>Ongkos Kirim</Text><Text style={styles.summaryValue}>{formatCurrency(deliveryFee)}</Text></View>}
-            {voucherDiscount > 0 && <View style={styles.summaryRow}><Text style={styles.summaryLabelDiscount}>Diskon Voucher</Text><Text style={styles.summaryValueDiscount}>-{formatCurrency(voucherDiscount)}</Text></View>}
-            {pointsDiscount > 0 && <View style={styles.summaryRow}><Text style={styles.summaryLabelDiscount}>Diskon Poin</Text><Text style={styles.summaryValueDiscount}>-{formatCurrency(pointsDiscount)}</Text></View>}
-            <View style={[styles.summaryRow, styles.summaryTotal]}><Text style={styles.totalLabel}>Total</Text><Text style={styles.totalValue}>{formatCurrency(total)}</Text></View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Subtotal ({items.length} item)</Text>
+              <Text style={styles.summaryValue}>{formatCurrency(subtotal)}</Text>
+            </View>
+            {orderType === 'outlet_delivery' && (
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Ongkos Kirim</Text>
+                <Text style={styles.summaryValue}>{formatCurrency(deliveryFee)}</Text>
+              </View>
+            )}
+            {voucherDiscount > 0 && (
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabelDiscount}>Diskon Voucher</Text>
+                <Text style={styles.summaryValueDiscount}>-{formatCurrency(voucherDiscount)}</Text>
+              </View>
+            )}
+            {pointsDiscount > 0 && (
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabelDiscount}>Diskon Poin</Text>
+                <Text style={styles.summaryValueDiscount}>-{formatCurrency(pointsDiscount)}</Text>
+              </View>
+            )}
+            <View style={[styles.summaryRow, styles.summaryTotal]}>
+              <Text style={styles.totalLabel}>Total</Text>
+              <Text style={styles.totalValue}>{formatCurrency(total)}</Text>
+            </View>
           </View>
         </View>
       </ScrollView>
+
       <View style={styles.footer}>
         <TouchableOpacity style={[styles.placeOrderButton, isLoading && styles.placeOrderButtonDisabled]} onPress={handlePlaceOrder} disabled={isLoading}>
-          {isLoading ? <ActivityIndicator color={COLORS.white} /> : <><Text style={styles.placeOrderButtonText}>Buat Pesanan</Text><Text style={styles.placeOrderPrice}>{formatCurrency(total)}</Text></>}
+          {isLoading ? <ActivityIndicator color={COLORS.white} /> : (
+            <>
+              <Text style={styles.placeOrderButtonText}>Buat Pesanan</Text>
+              <Text style={styles.placeOrderPrice}>{formatCurrency(total)}</Text>
+            </>
+          )}
         </TouchableOpacity>
       </View>
+
+
       <Modal visible={showVoucherModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}><Text style={styles.modalTitle}>Pilih Voucher</Text><TouchableOpacity onPress={() => setShowVoucherModal(false)}><Ionicons name="close" size={24} color={COLORS.gray[600]} /></TouchableOpacity></View>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Pilih Voucher</Text>
+              <TouchableOpacity onPress={() => setShowVoucherModal(false)}>
+                <Ionicons name="close" size={24} color={COLORS.gray[600]} />
+              </TouchableOpacity>
+            </View>
             <ScrollView style={styles.modalContent}>
-              <TouchableOpacity style={[styles.voucherOption, !selectedVoucher && styles.voucherOptionSelected]} onPress={() => handleVoucherSelect(null)}><Text style={styles.voucherOptionText}>Tidak menggunakan voucher</Text></TouchableOpacity>
+              <TouchableOpacity style={[styles.voucherOption, !selectedVoucher && styles.voucherOptionSelected]} onPress={() => handleVoucherSelect(null)}>
+                <Text style={styles.voucherOptionText}>Tidak menggunakan voucher</Text>
+              </TouchableOpacity>
               {availableVouchers.map((uv) => {
                 const isEligible = subtotal >= uv.voucher.min_order;
                 return (
-                  <TouchableOpacity key={uv.id} style={[styles.voucherOption, selectedVoucher?.id === uv.id && styles.voucherOptionSelected, !isEligible && styles.voucherOptionDisabled]} onPress={() => isEligible && handleVoucherSelect(uv)} disabled={!isEligible}>
+                  <TouchableOpacity
+                    key={uv.id}
+                    style={[styles.voucherOption, selectedVoucher?.id === uv.id && styles.voucherOptionSelected, !isEligible && styles.voucherOptionDisabled]}
+                    onPress={() => isEligible && handleVoucherSelect(uv)}
+                    disabled={!isEligible}
+                  >
                     <View style={styles.voucherOptionContent}>
                       <Text style={[styles.voucherOptionCode, !isEligible && styles.voucherOptionTextDisabled]}>{uv.voucher.code}</Text>
                       <Text style={[styles.voucherOptionDesc, !isEligible && styles.voucherOptionTextDisabled]}>{uv.voucher.description}</Text>
