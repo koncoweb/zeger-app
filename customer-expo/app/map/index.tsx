@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Dimensions,
   Platform,
+  FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -45,6 +46,8 @@ export default function MapScreen() {
   const [selectedRider, setSelectedRider] = useState<Rider | null>(null);
   const [isRequesting, setIsRequesting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const riderCardRefs = useRef<{ [key: string]: number }>({});
 
   // Fit map to show all markers
   useEffect(() => {
@@ -75,30 +78,36 @@ export default function MapScreen() {
     setRefreshing(false);
   }, [refreshLocation, refetchRiders]);
 
-  // Handle rider selection
-  const handleRiderSelect = (rider: Rider) => {
+  // Handle rider selection from list - zoom to rider on map
+  const handleRiderSelect = (rider: Rider, index: number) => {
     setSelectedRider(rider);
     
-    // Animate map to show both user and rider
-    if (mapRef.current && location && rider.lat && rider.lng) {
-      mapRef.current.fitToCoordinates(
-        [
-          { latitude: location.latitude, longitude: location.longitude },
-          { latitude: rider.lat, longitude: rider.lng },
-        ],
-        {
-          edgePadding: { top: 100, right: 50, bottom: 300, left: 50 },
-          animated: true,
-        }
-      );
+    // Animate map to show rider location with zoom
+    if (mapRef.current && rider.lat && rider.lng) {
+      mapRef.current.animateToRegion({
+        latitude: rider.lat,
+        longitude: rider.lng,
+        latitudeDelta: 0.02,
+        longitudeDelta: 0.02,
+      }, 500);
     }
   };
 
-  // Handle marker press from map
+  // Handle marker press from map - scroll to rider card
   const handleMarkerPress = (marker: MapMarker) => {
-    const rider = riders.find(r => r.id === marker.id);
+    const riderIndex = riders.findIndex(r => r.id === marker.id);
+    const rider = riders[riderIndex];
+    
     if (rider) {
-      handleRiderSelect(rider);
+      setSelectedRider(rider);
+      
+      // Scroll to the rider card (approximate position based on index)
+      if (scrollViewRef.current && riderIndex >= 0) {
+        const cardHeight = 200; // Approximate height of each card
+        const headerHeight = 60; // Title height
+        const scrollPosition = headerHeight + (riderIndex * cardHeight);
+        scrollViewRef.current.scrollTo({ y: scrollPosition, animated: true });
+      }
     }
   };
 
@@ -294,6 +303,7 @@ export default function MapScreen() {
 
       {/* Riders List */}
       <ScrollView
+        ref={scrollViewRef}
         style={styles.ridersList}
         contentContainerStyle={styles.ridersListContent}
         refreshControl={
@@ -327,12 +337,12 @@ export default function MapScreen() {
           </View>
         )}
 
-        {riders.map((rider) => (
+        {riders.map((rider, index) => (
           <RiderCard
             key={rider.id}
             rider={rider}
             isSelected={selectedRider?.id === rider.id}
-            onSelect={() => handleRiderSelect(rider)}
+            onSelect={() => handleRiderSelect(rider, index)}
             onVisit={() => handleVisitRider(rider)}
             onCall={() => handleCallRider(rider)}
             onWhatsApp={() => handleContactWhatsApp(rider)}
