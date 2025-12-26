@@ -1,19 +1,22 @@
 import { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@/store/authStore';
 import { useLocationStore } from '@/store/locationStore';
+import { useToast } from '@/components/ui/ToastProvider';
 import { supabase } from '@/lib/supabase';
 import { formatDate, formatTime, getTodayDate } from '@/lib/utils';
 import { COLORS } from '@/lib/constants';
 import { Attendance } from '@/lib/types';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { LoadingScreen } from '@/components/ui/LoadingScreen';
 
 export default function AttendanceScreen() {
   const { profile } = useAuthStore();
   const { getCurrentLocation } = useLocationStore();
+  const toast = useToast();
   const [attendance, setAttendance] = useState<Attendance | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -35,6 +38,7 @@ export default function AttendanceScreen() {
       setAttendance(data);
     } catch (error) {
       console.error('Error fetching attendance:', error);
+      toast.error('Error', 'Gagal memuat data kehadiran');
     } finally {
       setLoading(false);
     }
@@ -75,10 +79,10 @@ export default function AttendanceScreen() {
 
       if (error) throw error;
       setAttendance(data);
-      Alert.alert('Sukses', 'Check-in berhasil');
+      toast.success('Sukses', 'Check-in berhasil');
     } catch (error) {
       console.error('Error checking in:', error);
-      Alert.alert('Error', 'Gagal melakukan check-in');
+      toast.error('Error', 'Gagal melakukan check-in');
     } finally {
       setActionLoading(false);
     }
@@ -107,10 +111,10 @@ export default function AttendanceScreen() {
 
       if (error) throw error;
       setAttendance(data);
-      Alert.alert('Sukses', 'Check-out berhasil');
+      toast.success('Sukses', 'Check-out berhasil');
     } catch (error) {
       console.error('Error checking out:', error);
-      Alert.alert('Error', 'Gagal melakukan check-out');
+      toast.error('Error', 'Gagal melakukan check-out');
     } finally {
       setActionLoading(false);
     }
@@ -119,6 +123,10 @@ export default function AttendanceScreen() {
   const now = new Date();
   const hasCheckedIn = !!attendance?.check_in_time;
   const hasCheckedOut = !!attendance?.check_out_time;
+
+  if (loading) {
+    return <LoadingScreen message="Memuat data kehadiran..." />;
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>

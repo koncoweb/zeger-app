@@ -1,9 +1,10 @@
-import { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, Alert } from 'react-native';
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '@/store/authStore';
 import { useShiftStore } from '@/store/shiftStore';
 import { useLocationStore } from '@/store/locationStore';
+import { useToast } from '@/components/ui/ToastProvider';
 import { supabase } from '@/lib/supabase';
 import { formatCurrency, getTodayDate } from '@/lib/utils';
 import { COLORS } from '@/lib/constants';
@@ -12,12 +13,14 @@ import { QuickActions } from '@/components/dashboard/QuickActions';
 import { GPSIndicator } from '@/components/common/GPSIndicator';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { DashboardStats } from '@/lib/types';
 
 export default function DashboardScreen() {
   const { profile } = useAuthStore();
   const { activeShift, isShiftActive, fetchActiveShift, startShift } = useShiftStore();
   const { startTracking, stopTracking, isTracking } = useLocationStore();
+  const toast = useToast();
   
   const [stats, setStats] = useState<DashboardStats>({
     totalSales: 0,
@@ -71,6 +74,7 @@ export default function DashboardScreen() {
       });
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
+      toast.error('Error', 'Gagal memuat data dashboard');
     } finally {
       setLoading(false);
     }
@@ -101,20 +105,33 @@ export default function DashboardScreen() {
     }
   }, [isShiftActive, profile, isTracking, startTracking, stopTracking]);
 
-  const handleStartShift = async () => {
+  // Memoize formatted values to prevent recalculation on every render
+  const formattedSales = useMemo(() => formatCurrency(stats.totalSales), [stats.totalSales]);
+  const firstName = useMemo(() => profile?.full_name?.split(' ')[0], [profile?.full_name]);
+  const branchName = useMemo(() => profile?.branch?.name || 'Branch', [profile?.branch?.name]);
+  const shiftInfo = useMemo(() => {
+    if (!activeShift?.shift_start_time) return null;
+    return `Shift #${activeShift.shift_number} • Mulai ${new Date(activeShift.shift_start_time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}`;
+  }, [activeShift?.shift_number, activeShift?.shift_start_time]);
+
+  const handleStartShift = useCallback(async () => {
     if (!profile?.branch_id) {
-      Alert.alert('Error', 'Branch tidak ditemukan');
+      toast.error('Error', 'Branch tidak ditemukan');
       return;
     }
 
     const result = await startShift(profile.id, profile.branch_id);
     if (result.error) {
-      Alert.alert('Error', result.error);
+      toast.error('Error', result.error);
     } else {
-      Alert.alert('Sukses', 'Shift berhasil dimulai');
+      toast.success('Sukses', 'Shift berhasil dimulai');
       fetchDashboardData();
     }
-  };
+  }, [profile, startShift, toast, fetchDashboardData]);
+
+  if (loading) {
+    return <LoadingScreen message="Memuat dashboard..." />;
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -128,8 +145,8 @@ export default function DashboardScreen() {
         {/* Header Info */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>Halo, {profile?.full_name?.split(' ')[0]}!</Text>
-            <Text style={styles.branchName}>{profile?.branch?.name || 'Branch'}</Text>
+            <Text style={styles.greeting}>Halo, {firstName}!</Text>
+            <Text style={styles.branchName}>{branchName}</Text>
           </View>
           <GPSIndicator />
         </View>
@@ -144,10 +161,8 @@ export default function DashboardScreen() {
               </Text>
             </View>
           </View>
-          {isShiftActive && activeShift ? (
-            <Text style={styles.shiftInfo}>
-              Shift #{activeShift.shift_number} • Mulai {new Date(activeShift.shift_start_time!).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
-            </Text>
+          {isShiftActive && shiftInfo ? (
+            <Text style={styles.shiftInfo}>{shiftInfo}</Text>
           ) : (
             <Button
               title="Mulai Shift"
@@ -162,7 +177,7 @@ export default function DashboardScreen() {
         <View style={styles.statsGrid}>
           <StatCard
             title="Penjualan"
-            value={formatCurrency(stats.totalSales)}
+            value={formattedSales}
             icon="cash-outline"
             color={COLORS.success}
           />

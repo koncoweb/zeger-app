@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,12 +7,14 @@ import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '@/store/authStore';
 import { useShiftStore } from '@/store/shiftStore';
 import { useLocationStore } from '@/store/locationStore';
+import { useToast } from '@/components/ui/ToastProvider';
 import { supabase } from '@/lib/supabase';
 import { formatCurrency, getTodayDate } from '@/lib/utils';
 import { COLORS } from '@/lib/constants';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { LoadingScreen } from '@/components/ui/LoadingScreen';
 
 interface ShiftSummary {
   cashSales: number;
@@ -28,6 +30,7 @@ export default function ShiftReportScreen() {
   const { profile } = useAuthStore();
   const { activeShift, endShift } = useShiftStore();
   const { stopTracking, getCurrentLocation } = useLocationStore();
+  const toast = useToast();
 
   const [summary, setSummary] = useState<ShiftSummary>({
     cashSales: 0,
@@ -40,6 +43,7 @@ export default function ShiftReportScreen() {
   const [expenses, setExpenses] = useState('0');
   const [expenseNotes, setExpenseNotes] = useState('');
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const fetchSummary = useCallback(async () => {
@@ -80,6 +84,7 @@ export default function ShiftReportScreen() {
       });
     } catch (error) {
       console.error('Error fetching summary:', error);
+      toast.error('Error', 'Gagal memuat ringkasan shift');
     } finally {
       setLoading(false);
     }
@@ -89,23 +94,33 @@ export default function ShiftReportScreen() {
     fetchSummary();
   }, [fetchSummary]);
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchSummary();
+    setRefreshing(false);
+  }, [fetchSummary]);
+
   const cashDeposit = summary.cashSales - Number(expenses || 0);
+
+  if (loading) {
+    return <LoadingScreen message="Memuat ringkasan shift..." />;
+  }
 
   const handleSubmitReport = async () => {
     if (!profile || !activeShift) {
-      Alert.alert('Error', 'Tidak ada shift aktif');
+      toast.error('Error', 'Tidak ada shift aktif');
       return;
     }
 
     if (summary.remainingStock > 0) {
-      Alert.alert('Stok Belum Diretur', 'Harap retur semua stok sebelum submit laporan');
+      toast.warning('Stok Belum Diretur', 'Harap retur semua stok sebelum submit laporan');
       return;
     }
 
     // Take photo of cash deposit
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Error', 'Izin kamera diperlukan untuk foto setoran');
+      toast.error('Error', 'Izin kamera diperlukan untuk foto setoran');
       return;
     }
 
@@ -174,12 +189,11 @@ export default function ShiftReportScreen() {
       // End shift in store
       await endShift();
 
-      Alert.alert('Sukses', 'Laporan shift berhasil disubmit', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      toast.success('Sukses', 'Laporan shift berhasil disubmit');
+      router.back();
     } catch (error) {
       console.error('Error submitting report:', error);
-      Alert.alert('Error', 'Gagal submit laporan');
+      toast.error('Error', 'Gagal submit laporan');
     } finally {
       setSubmitting(false);
     }
@@ -199,7 +213,12 @@ export default function ShiftReportScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView 
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
+        }
+      >
         {/* Sales Summary */}
         <Card style={styles.summaryCard}>
           <Text style={styles.sectionTitle}>Ringkasan Penjualan</Text>
@@ -234,7 +253,7 @@ export default function ShiftReportScreen() {
         </Card>
 
         {/* Stock Status */}
-        <Card style={[styles.stockCard, summary.remainingStock > 0 && styles.stockWarning]}>
+        <Card style={summary.remainingStock > 0 ? [styles.stockCard, styles.stockWarning] : styles.stockCard}>
           <View style={styles.stockHeader}>
             <Ionicons
               name={summary.remainingStock > 0 ? 'warning' : 'checkmark-circle'}

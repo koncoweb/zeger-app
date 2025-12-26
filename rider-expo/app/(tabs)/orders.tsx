@@ -1,21 +1,138 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo, memo } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@/store/authStore';
+import { useToast } from '@/components/ui/ToastProvider';
 import { supabase } from '@/lib/supabase';
 import { formatCurrency, formatDateTime, openGoogleMaps } from '@/lib/utils';
 import { COLORS, ORDER_STATUS } from '@/lib/constants';
+import { FLATLIST_PERFORMANCE_CONFIG } from '@/lib/performance';
 import { CustomerOrder } from '@/lib/types';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { LoadingScreen } from '@/components/ui/LoadingScreen';
 
 type TabType = 'pending' | 'active' | 'completed';
+
+// Memoized Order Card component
+const OrderCard = memo(({ 
+  order, 
+  onAccept, 
+  onReject, 
+  onComplete, 
+  onNavigate, 
+  onViewDetail 
+}: { 
+  order: CustomerOrder;
+  onAccept: (id: string) => void;
+  onReject: (id: string) => void;
+  onComplete: (id: string) => void;
+  onNavigate: (order: CustomerOrder) => void;
+  onViewDetail: (id: string) => void;
+}) => {
+  const status = ORDER_STATUS[order.status as keyof typeof ORDER_STATUS] || ORDER_STATUS.pending;
+  const itemCount = order.items?.reduce((sum, i) => sum + i.quantity, 0) || 0;
+
+  const handleAccept = useCallback(() => onAccept(order.id), [order.id, onAccept]);
+  const handleReject = useCallback(() => onReject(order.id), [order.id, onReject]);
+  const handleComplete = useCallback(() => onComplete(order.id), [order.id, onComplete]);
+  const handleNavigate = useCallback(() => onNavigate(order), [order, onNavigate]);
+  const handleViewDetail = useCallback(() => onViewDetail(order.id), [order.id, onViewDetail]);
+
+  const statusBadgeStyle = useMemo(
+    () => [styles.statusBadge, { backgroundColor: `${status.color}20` }],
+    [status.color]
+  );
+
+  const statusTextStyle = useMemo(
+    () => [styles.statusText, { color: status.color }],
+    [status.color]
+  );
+
+  return (
+    <Card style={styles.orderCard}>
+      <View style={styles.orderHeader}>
+        <View>
+          <Text style={styles.orderId}>#{order.id.slice(0, 8).toUpperCase()}</Text>
+          <Text style={styles.orderDate}>{formatDateTime(order.created_at)}</Text>
+        </View>
+        <View style={statusBadgeStyle}>
+          <Text style={statusTextStyle}>{status.label}</Text>
+        </View>
+      </View>
+
+      <View style={styles.customerInfo}>
+        <Ionicons name="person-outline" size={16} color={COLORS.gray[500]} />
+        <Text style={styles.customerName}>{order.customer_user?.name || 'Customer'}</Text>
+      </View>
+
+      {order.delivery_address && (
+        <View style={styles.addressInfo}>
+          <Ionicons name="location-outline" size={16} color={COLORS.gray[500]} />
+          <Text style={styles.addressText} numberOfLines={2}>{order.delivery_address}</Text>
+        </View>
+      )}
+
+      <View style={styles.orderSummary}>
+        <Text style={styles.itemCount}>{itemCount} item</Text>
+        <Text style={styles.orderTotal}>{formatCurrency(order.total_price)}</Text>
+      </View>
+
+      <View style={styles.orderActions}>
+        {order.status === 'pending' && (
+          <>
+            <Button
+              title="Tolak"
+              variant="outline"
+              size="sm"
+              onPress={handleReject}
+              style={{ flex: 1 }}
+            />
+            <Button
+              title="Terima"
+              size="sm"
+              onPress={handleAccept}
+              style={{ flex: 1 }}
+            />
+          </>
+        )}
+        {(order.status === 'accepted' || order.status === 'on_delivery') && (
+          <>
+            <Button
+              title="Navigasi"
+              variant="outline"
+              size="sm"
+              onPress={handleNavigate}
+              icon={<Ionicons name="navigate-outline" size={16} color={COLORS.primary} />}
+              style={{ flex: 1 }}
+            />
+            <Button
+              title="Selesai"
+              size="sm"
+              onPress={handleComplete}
+              style={{ flex: 1 }}
+            />
+          </>
+        )}
+        {order.status === 'completed' && (
+          <TouchableOpacity style={styles.detailButton} onPress={handleViewDetail}>
+            <Text style={styles.detailButtonText}>Lihat Detail</Text>
+            <Ionicons name="chevron-forward" size={16} color={COLORS.primary} />
+          </TouchableOpacity>
+        )}
+      </View>
+    </Card>
+  );
+});
+
+OrderCard.displayName = 'OrderCard';
 
 export default function OrdersScreen() {
   const router = useRouter();
   const { profile } = useAuthStore();
+  const toast = useToast();
   const [orders, setOrders] = useState<CustomerOrder[]>([]);
   const [activeTab, setActiveTab] = useState<TabType>('pending');
   const [refreshing, setRefreshing] = useState(false);
@@ -53,6 +170,7 @@ export default function OrdersScreen() {
       setOrders(data || []);
     } catch (error) {
       console.error('Error fetching orders:', error);
+      toast.error('Error', 'Gagal memuat pesanan');
     } finally {
       setLoading(false);
     }
@@ -93,7 +211,7 @@ export default function OrdersScreen() {
     setRefreshing(false);
   }, [fetchOrders]);
 
-  const handleAcceptOrder = async (orderId: string) => {
+  const handleAcceptOrder = useCallback(async (orderId: string) => {
     try {
       const { error } = await supabase
         .from('customer_orders')
@@ -101,14 +219,14 @@ export default function OrdersScreen() {
         .eq('id', orderId);
 
       if (error) throw error;
-      Alert.alert('Sukses', 'Pesanan diterima');
+      toast.success('Sukses', 'Pesanan diterima');
       fetchOrders();
     } catch (error) {
-      Alert.alert('Error', 'Gagal menerima pesanan');
+      toast.error('Error', 'Gagal menerima pesanan');
     }
-  };
+  }, [toast, fetchOrders]);
 
-  const handleRejectOrder = async (orderId: string) => {
+  const handleRejectOrder = useCallback(async (orderId: string) => {
     Alert.prompt(
       'Tolak Pesanan',
       'Masukkan alasan penolakan:',
@@ -125,17 +243,17 @@ export default function OrdersScreen() {
             .eq('id', orderId);
 
           if (error) throw error;
-          Alert.alert('Sukses', 'Pesanan ditolak');
+          toast.success('Sukses', 'Pesanan ditolak');
           fetchOrders();
         } catch (error) {
-          Alert.alert('Error', 'Gagal menolak pesanan');
+          toast.error('Error', 'Gagal menolak pesanan');
         }
       },
       'plain-text'
     );
-  };
+  }, [toast, fetchOrders]);
 
-  const handleCompleteOrder = async (orderId: string) => {
+  const handleCompleteOrder = useCallback(async (orderId: string) => {
     try {
       const { error } = await supabase
         .from('customer_orders')
@@ -143,109 +261,57 @@ export default function OrdersScreen() {
         .eq('id', orderId);
 
       if (error) throw error;
-      Alert.alert('Sukses', 'Pesanan selesai');
+      toast.success('Sukses', 'Pesanan selesai');
       fetchOrders();
     } catch (error) {
-      Alert.alert('Error', 'Gagal menyelesaikan pesanan');
+      toast.error('Error', 'Gagal menyelesaikan pesanan');
     }
-  };
+  }, [toast, fetchOrders]);
 
-  const handleNavigate = (order: CustomerOrder) => {
+  const handleNavigate = useCallback((order: CustomerOrder) => {
     if (order.latitude && order.longitude) {
       openGoogleMaps(order.latitude, order.longitude);
     } else {
-      Alert.alert('Error', 'Lokasi tidak tersedia');
+      toast.error('Error', 'Lokasi tidak tersedia');
     }
-  };
+  }, [toast]);
 
-  const renderOrder = ({ item: order }: { item: CustomerOrder }) => {
-    const status = ORDER_STATUS[order.status as keyof typeof ORDER_STATUS] || ORDER_STATUS.pending;
-    const itemCount = order.items?.reduce((sum, i) => sum + i.quantity, 0) || 0;
+  const handleViewDetail = useCallback((orderId: string) => {
+    router.push(`/order/${orderId}`);
+  }, [router]);
 
-    return (
-      <Card style={styles.orderCard}>
-        <View style={styles.orderHeader}>
-          <View>
-            <Text style={styles.orderId}>#{order.id.slice(0, 8).toUpperCase()}</Text>
-            <Text style={styles.orderDate}>{formatDateTime(order.created_at)}</Text>
-          </View>
-          <View style={[styles.statusBadge, { backgroundColor: `${status.color}20` }]}>
-            <Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text>
-          </View>
-        </View>
+  // Memoized render function
+  const renderOrder = useCallback(({ item: order }: { item: CustomerOrder }) => (
+    <OrderCard
+      order={order}
+      onAccept={handleAcceptOrder}
+      onReject={handleRejectOrder}
+      onComplete={handleCompleteOrder}
+      onNavigate={handleNavigate}
+      onViewDetail={handleViewDetail}
+    />
+  ), [handleAcceptOrder, handleRejectOrder, handleCompleteOrder, handleNavigate, handleViewDetail]);
 
-        <View style={styles.customerInfo}>
-          <Ionicons name="person-outline" size={16} color={COLORS.gray[500]} />
-          <Text style={styles.customerName}>{order.customer_user?.name || 'Customer'}</Text>
-        </View>
+  // Memoized key extractor
+  const keyExtractor = useCallback((item: CustomerOrder) => item.id, []);
 
-        {order.delivery_address && (
-          <View style={styles.addressInfo}>
-            <Ionicons name="location-outline" size={16} color={COLORS.gray[500]} />
-            <Text style={styles.addressText} numberOfLines={2}>{order.delivery_address}</Text>
-          </View>
-        )}
+  // Memoized empty component
+  const EmptyComponent = useMemo(() => (
+    <View style={styles.emptyState}>
+      <Ionicons name="receipt-outline" size={48} color={COLORS.gray[300]} />
+      <Text style={styles.emptyText}>Tidak ada pesanan</Text>
+    </View>
+  ), []);
 
-        <View style={styles.orderSummary}>
-          <Text style={styles.itemCount}>{itemCount} item</Text>
-          <Text style={styles.orderTotal}>{formatCurrency(order.total_price)}</Text>
-        </View>
-
-        <View style={styles.orderActions}>
-          {order.status === 'pending' && (
-            <>
-              <Button
-                title="Tolak"
-                variant="outline"
-                size="sm"
-                onPress={() => handleRejectOrder(order.id)}
-                style={{ flex: 1 }}
-              />
-              <Button
-                title="Terima"
-                size="sm"
-                onPress={() => handleAcceptOrder(order.id)}
-                style={{ flex: 1 }}
-              />
-            </>
-          )}
-          {(order.status === 'accepted' || order.status === 'on_delivery') && (
-            <>
-              <Button
-                title="Navigasi"
-                variant="outline"
-                size="sm"
-                onPress={() => handleNavigate(order)}
-                icon={<Ionicons name="navigate-outline" size={16} color={COLORS.primary} />}
-                style={{ flex: 1 }}
-              />
-              <Button
-                title="Selesai"
-                size="sm"
-                onPress={() => handleCompleteOrder(order.id)}
-                style={{ flex: 1 }}
-              />
-            </>
-          )}
-          {order.status === 'completed' && (
-            <TouchableOpacity
-              style={styles.detailButton}
-              onPress={() => router.push(`/order/${order.id}`)}
-            >
-              <Text style={styles.detailButtonText}>Lihat Detail</Text>
-              <Ionicons name="chevron-forward" size={16} color={COLORS.primary} />
-            </TouchableOpacity>
-          )}
-        </View>
-      </Card>
-    );
-  };
-
-  const tabs: { key: TabType; label: string }[] = [
+  const tabs: { key: TabType; label: string }[] = useMemo(() => [
     { key: 'pending', label: 'Menunggu' },
     { key: 'active', label: 'Aktif' },
     { key: 'completed', label: 'Selesai' },
-  ];
+  ], []);
+
+  if (loading) {
+    return <LoadingScreen message="Memuat pesanan..." />;
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -264,21 +330,17 @@ export default function OrdersScreen() {
         ))}
       </View>
 
-      {/* Orders List */}
+      {/* Orders List - Optimized FlatList */}
       <FlatList
         data={orders}
         renderItem={renderOrder}
-        keyExtractor={(item) => item.id}
+        keyExtractor={keyExtractor}
         contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
         }
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Ionicons name="receipt-outline" size={48} color={COLORS.gray[300]} />
-            <Text style={styles.emptyText}>Tidak ada pesanan</Text>
-          </View>
-        }
+        ListEmptyComponent={EmptyComponent}
+        {...FLATLIST_PERFORMANCE_CONFIG}
       />
     </SafeAreaView>
   );

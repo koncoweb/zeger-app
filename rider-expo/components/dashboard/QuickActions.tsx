@@ -1,3 +1,4 @@
+import { memo, useCallback, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -20,30 +21,53 @@ const actions: QuickAction[] = [
   { id: 'shift-report', title: 'Laporan', icon: 'document-text-outline', route: '/shift-report', color: COLORS.brown },
 ];
 
-export const QuickActions = () => {
+// Memoized action button component
+const ActionButton = memo(({ action, onPress }: { action: QuickAction; onPress: (route: string) => void }) => {
+  const iconContainerStyle = useMemo(
+    () => [styles.iconContainer, { backgroundColor: `${action.color}15` }],
+    [action.color]
+  );
+
+  const handlePress = useCallback(() => {
+    onPress(action.route);
+  }, [action.route, onPress]);
+
+  return (
+    <TouchableOpacity
+      style={styles.actionButton}
+      onPress={handlePress}
+      activeOpacity={0.7}
+    >
+      <View style={iconContainerStyle}>
+        <Ionicons name={action.icon} size={24} color={action.color} />
+      </View>
+      <Text style={styles.actionTitle}>{action.title}</Text>
+    </TouchableOpacity>
+  );
+});
+
+ActionButton.displayName = 'ActionButton';
+
+const QuickActionsComponent = () => {
   const router = useRouter();
+
+  const handlePress = useCallback((route: string) => {
+    router.push(route as any);
+  }, [router]);
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Menu Cepat</Text>
       <View style={styles.grid}>
         {actions.map((action) => (
-          <TouchableOpacity
-            key={action.id}
-            style={styles.actionButton}
-            onPress={() => router.push(action.route as any)}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.iconContainer, { backgroundColor: `${action.color}15` }]}>
-              <Ionicons name={action.icon} size={24} color={action.color} />
-            </View>
-            <Text style={styles.actionTitle}>{action.title}</Text>
-          </TouchableOpacity>
+          <ActionButton key={action.id} action={action} onPress={handlePress} />
         ))}
       </View>
     </View>
   );
 };
+
+export const QuickActions = memo(QuickActionsComponent);
 
 const styles = StyleSheet.create({
   container: {

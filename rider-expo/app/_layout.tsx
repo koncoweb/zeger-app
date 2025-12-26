@@ -2,9 +2,11 @@ import { useEffect, useRef } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Platform, AppState, AppStateStatus } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuthStore } from '@/store/authStore';
 import { useOfflineStore } from '@/store/offlineStore';
 import { useNotifications } from '@/hooks/useNotifications';
+import { ToastProvider } from '@/components/ui/ToastProvider';
 import { COLORS } from '@/lib/constants';
 
 export default function RootLayout() {
@@ -57,87 +59,89 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <>
-      <StatusBar style="light" />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: COLORS.gray[50] },
-          animation: 'slide_from_right',
-        }}
-      >
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="stock/receive"
-          options={{
-            headerShown: true,
-            title: 'Terima Stok',
-            headerStyle: { backgroundColor: COLORS.primary },
-            headerTintColor: COLORS.white,
-            presentation: 'modal',
+    <SafeAreaProvider>
+      <ToastProvider>
+        <StatusBar style="light" />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: COLORS.gray[50] },
+            animation: 'slide_from_right',
           }}
-        />
-        <Stack.Screen
-          name="stock/return"
-          options={{
-            headerShown: true,
-            title: 'Retur Stok',
-            headerStyle: { backgroundColor: COLORS.primary },
-            headerTintColor: COLORS.white,
-            presentation: 'modal',
-          }}
-        />
-        <Stack.Screen
-          name="attendance/index"
-          options={{
-            headerShown: true,
-            title: 'Absensi',
-            headerStyle: { backgroundColor: COLORS.primary },
-            headerTintColor: COLORS.white,
-            presentation: 'modal',
-          }}
-        />
-        <Stack.Screen
-          name="checkpoints/index"
-          options={{
-            headerShown: true,
-            title: 'Checkpoint',
-            headerStyle: { backgroundColor: COLORS.primary },
-            headerTintColor: COLORS.white,
-            presentation: 'modal',
-          }}
-        />
-        <Stack.Screen
-          name="analytics/index"
-          options={{
-            headerShown: true,
-            title: 'Analitik Penjualan',
-            headerStyle: { backgroundColor: COLORS.primary },
-            headerTintColor: COLORS.white,
-            presentation: 'modal',
-          }}
-        />
-        <Stack.Screen
-          name="shift-report/index"
-          options={{
-            headerShown: true,
-            title: 'Laporan Shift',
-            headerStyle: { backgroundColor: COLORS.primary },
-            headerTintColor: COLORS.white,
-            presentation: 'modal',
-          }}
-        />
-        <Stack.Screen
-          name="order/[orderId]"
-          options={{
-            headerShown: true,
-            title: 'Detail Pesanan',
-            headerStyle: { backgroundColor: COLORS.primary },
-            headerTintColor: COLORS.white,
-          }}
-        />
-      </Stack>
-    </>
+        >
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="stock/receive"
+            options={{
+              headerShown: true,
+              title: 'Terima Stok',
+              headerStyle: { backgroundColor: COLORS.primary },
+              headerTintColor: COLORS.white,
+              presentation: 'modal',
+            }}
+          />
+          <Stack.Screen
+            name="stock/return"
+            options={{
+              headerShown: true,
+              title: 'Retur Stok',
+              headerStyle: { backgroundColor: COLORS.primary },
+              headerTintColor: COLORS.white,
+              presentation: 'modal',
+            }}
+          />
+          <Stack.Screen
+            name="attendance/index"
+            options={{
+              headerShown: true,
+              title: 'Absensi',
+              headerStyle: { backgroundColor: COLORS.primary },
+              headerTintColor: COLORS.white,
+              presentation: 'modal',
+            }}
+          />
+          <Stack.Screen
+            name="checkpoints/index"
+            options={{
+              headerShown: true,
+              title: 'Checkpoint',
+              headerStyle: { backgroundColor: COLORS.primary },
+              headerTintColor: COLORS.white,
+              presentation: 'modal',
+            }}
+          />
+          <Stack.Screen
+            name="analytics/index"
+            options={{
+              headerShown: true,
+              title: 'Analitik Penjualan',
+              headerStyle: { backgroundColor: COLORS.primary },
+              headerTintColor: COLORS.white,
+              presentation: 'modal',
+            }}
+          />
+          <Stack.Screen
+            name="shift-report/index"
+            options={{
+              headerShown: true,
+              title: 'Laporan Shift',
+              headerStyle: { backgroundColor: COLORS.primary },
+              headerTintColor: COLORS.white,
+              presentation: 'modal',
+            }}
+          />
+          <Stack.Screen
+            name="order/[orderId]"
+            options={{
+              headerShown: true,
+              title: 'Detail Pesanan',
+              headerStyle: { backgroundColor: COLORS.primary },
+              headerTintColor: COLORS.white,
+            }}
+          />
+        </Stack>
+      </ToastProvider>
+    </SafeAreaProvider>
   );
 }

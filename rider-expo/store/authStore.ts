@@ -52,6 +52,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
         // Fetch profile
         await get().fetchProfile();
+
+        // Validate rider role after fetching profile
+        const { profile } = get();
+        if (profile && !isRiderRole(profile.role)) {
+          console.log('Non-rider user detected, signing out...');
+          await supabase.auth.signOut();
+          set({
+            session: null,
+            user: null,
+            profile: null,
+            isAuthenticated: false,
+            error: 'Akun ini bukan akun rider',
+          });
+        }
       }
 
       // Listen for auth changes
@@ -66,6 +80,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
         if (session) {
           await get().fetchProfile();
+          
+          // Validate rider role on auth state change
+          const { profile } = get();
+          if (profile && !isRiderRole(profile.role)) {
+            console.log('Non-rider user detected on auth change, signing out...');
+            await supabase.auth.signOut();
+            set({
+              session: null,
+              user: null,
+              profile: null,
+              isAuthenticated: false,
+              error: 'Akun ini bukan akun rider',
+            });
+          }
         } else {
           set({ profile: null });
         }

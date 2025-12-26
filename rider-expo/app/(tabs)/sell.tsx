@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, Modal } from 'react-native';
+import { useEffect, useState, useCallback, useMemo, memo } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@/store/authStore';
@@ -7,21 +7,116 @@ import { useCartStore } from '@/store/cartStore';
 import { useShiftStore } from '@/store/shiftStore';
 import { useLocationStore } from '@/store/locationStore';
 import { useOffline } from '@/hooks/useOffline';
+import { useToast } from '@/components/ui/ToastProvider';
 import { supabase, getImageUrl } from '@/lib/supabase';
 import { formatCurrency } from '@/lib/utils';
 import { COLORS, PAYMENT_METHODS } from '@/lib/constants';
+import { FLATLIST_PERFORMANCE_CONFIG, IMAGE_CACHE_CONFIG } from '@/lib/performance';
 import { Inventory, Product } from '@/lib/types';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { CustomerSelector } from '@/components/pos/CustomerSelector';
 import { OfflineIndicator } from '@/components/common/OfflineIndicator';
+import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { Image } from 'expo-image';
+
+// Memoized product card component
+const ProductCard = memo(({ 
+  item, 
+  cartQty, 
+  onPress 
+}: { 
+  item: Inventory; 
+  cartQty: number; 
+  onPress: (product: Product) => void;
+}) => {
+  const product = item.product!;
+  const availableStock = item.stock_quantity - cartQty;
+
+  const handlePress = useCallback(() => {
+    onPress(product);
+  }, [product, onPress]);
+
+  return (
+    <TouchableOpacity
+      style={styles.productCard}
+      onPress={handlePress}
+      disabled={availableStock <= 0}
+      activeOpacity={0.7}
+    >
+      <Image
+        source={{ uri: getImageUrl(product.image_url) || undefined }}
+        style={styles.productImage}
+        contentFit="cover"
+        cachePolicy={IMAGE_CACHE_CONFIG.cachePolicy}
+        transition={IMAGE_CACHE_CONFIG.transition}
+      />
+      <View style={styles.productInfo}>
+        <Text style={styles.productName} numberOfLines={2}>{product.name}</Text>
+        <Text style={styles.productPrice}>{formatCurrency(product.price)}</Text>
+        <Text style={[styles.stockText, availableStock <= 0 && styles.stockEmpty]}>
+          Stok: {availableStock}
+        </Text>
+      </View>
+      {cartQty > 0 && (
+        <View style={styles.cartBadge}>
+          <Text style={styles.cartBadgeText}>{cartQty}</Text>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+});
+
+ProductCard.displayName = 'ProductCard';
+
+// Memoized cart item component
+const CartItemRow = memo(({ 
+  item, 
+  maxStock, 
+  onUpdateQuantity,
+  onShowWarning
+}: { 
+  item: { product: Product; quantity: number }; 
+  maxStock: number;
+  onUpdateQuantity: (productId: string, quantity: number, maxStock: number) => boolean;
+  onShowWarning: () => void;
+}) => {
+  const handleDecrease = useCallback(() => {
+    onUpdateQuantity(item.product.id, item.quantity - 1, maxStock);
+  }, [item.product.id, item.quantity, maxStock, onUpdateQuantity]);
+
+  const handleIncrease = useCallback(() => {
+    const success = onUpdateQuantity(item.product.id, item.quantity + 1, maxStock);
+    if (!success) onShowWarning();
+  }, [item.product.id, item.quantity, maxStock, onUpdateQuantity, onShowWarning]);
+
+  return (
+    <View style={styles.cartItem}>
+      <View style={styles.cartItemInfo}>
+        <Text style={styles.cartItemName} numberOfLines={1}>{item.product.name}</Text>
+        <Text style={styles.cartItemPrice}>{formatCurrency(item.product.price * item.quantity)}</Text>
+      </View>
+      <View style={styles.cartItemActions}>
+        <TouchableOpacity style={styles.qtyButton} onPress={handleDecrease}>
+          <Ionicons name="remove" size={18} color={COLORS.gray[600]} />
+        </TouchableOpacity>
+        <Text style={styles.qtyText}>{item.quantity}</Text>
+        <TouchableOpacity style={styles.qtyButton} onPress={handleIncrease}>
+          <Ionicons name="add" size={18} color={COLORS.gray[600]} />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+});
+
+CartItemRow.displayName = 'CartItemRow';
 
 export default function SellScreen() {
   const { profile } = useAuthStore();
   const { isShiftActive } = useShiftStore();
   const { currentLocation } = useLocationStore();
   const { isOnline } = useOffline();
+  const toast = useToast();
   const {
     items: cartItems,
     customer,
@@ -39,6 +134,7 @@ export default function SellScreen() {
 
   const [inventory, setInventory] = useState<Inventory[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
@@ -56,6 +152,7 @@ export default function SellScreen() {
       setInventory(data || []);
     } catch (error) {
       console.error('Error fetching inventory:', error);
+      toast.error('Error', 'Gagal memuat produk');
     } finally {
       setLoading(false);
     }
@@ -65,36 +162,50 @@ export default function SellScreen() {
     fetchInventory();
   }, [fetchInventory]);
 
-  const getStockForProduct = (productId: string): number => {
-    const inv = inventory.find((i) => i.product_id === productId);
-    return inv?.stock_quantity || 0;
-  };
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchInventory();
+    setRefreshing(false);
+  }, [fetchInventory]);
 
-  const getCartQuantity = (productId: string): number => {
-    const item = cartItems.find((i) => i.product.id === productId);
-    return item?.quantity || 0;
-  };
+  // Memoize stock lookup map for O(1) access
+  const stockMap = useMemo(() => {
+    const map = new Map<string, number>();
+    inventory.forEach((i) => map.set(i.product_id, i.stock_quantity));
+    return map;
+  }, [inventory]);
 
-  const getAvailableStock = (productId: string): number => {
-    return getStockForProduct(productId) - getCartQuantity(productId);
-  };
+  // Memoize cart quantity lookup map
+  const cartQuantityMap = useMemo(() => {
+    const map = new Map<string, number>();
+    cartItems.forEach((i) => map.set(i.product.id, i.quantity));
+    return map;
+  }, [cartItems]);
 
-  const handleAddToCart = (product: Product) => {
+  const getStockForProduct = useCallback((productId: string): number => {
+    return stockMap.get(productId) || 0;
+  }, [stockMap]);
+
+  const getCartQuantity = useCallback((productId: string): number => {
+    return cartQuantityMap.get(productId) || 0;
+  }, [cartQuantityMap]);
+
+  const handleAddToCart = useCallback((product: Product) => {
     const maxStock = getStockForProduct(product.id);
     const success = addItem(product, maxStock);
     if (!success) {
-      Alert.alert('Stok Habis', 'Stok produk tidak mencukupi');
+      toast.warning('Stok Habis', 'Stok produk tidak mencukupi');
     }
-  };
+  }, [getStockForProduct, addItem, toast]);
 
-  const handleCheckout = async () => {
+  const handleCheckout = useCallback(async () => {
     if (!profile?.branch_id || !profile?.branch?.code) {
-      Alert.alert('Error', 'Data branch tidak lengkap');
+      toast.error('Error', 'Data branch tidak lengkap');
       return;
     }
 
     if (!isShiftActive) {
-      Alert.alert('Error', 'Mulai shift terlebih dahulu');
+      toast.error('Error', 'Mulai shift terlebih dahulu');
       return;
     }
 
@@ -108,77 +219,65 @@ export default function SellScreen() {
     setCheckoutLoading(false);
 
     if (result.error) {
-      Alert.alert('Error', result.error);
+      toast.error('Error', result.error);
     } else {
       setShowPaymentModal(false);
-      Alert.alert('Sukses', 'Transaksi berhasil disimpan');
+      toast.success('Sukses', 'Transaksi berhasil disimpan');
       fetchInventory();
     }
-  };
+  }, [profile, isShiftActive, checkout, currentLocation, toast, fetchInventory]);
 
-  const renderProduct = ({ item }: { item: Inventory }) => {
-    const product = item.product!;
-    const cartQty = getCartQuantity(product.id);
-    const availableStock = item.stock_quantity - cartQty;
+  const showStockWarning = useCallback(() => {
+    toast.warning('Stok Habis', 'Stok tidak mencukupi');
+  }, [toast]);
 
+  const openPaymentModal = useCallback(() => {
+    setShowPaymentModal(true);
+  }, []);
+
+  const closePaymentModal = useCallback(() => {
+    setShowPaymentModal(false);
+  }, []);
+
+  // Memoized render functions
+  const renderProduct = useCallback(({ item }: { item: Inventory }) => {
+    const cartQty = getCartQuantity(item.product!.id);
     return (
-      <TouchableOpacity
-        style={styles.productCard}
-        onPress={() => handleAddToCart(product)}
-        disabled={availableStock <= 0}
-        activeOpacity={0.7}
-      >
-        <Image
-          source={{ uri: getImageUrl(product.image_url) || undefined }}
-          style={styles.productImage}
-          contentFit="cover"
-        />
-        <View style={styles.productInfo}>
-          <Text style={styles.productName} numberOfLines={2}>{product.name}</Text>
-          <Text style={styles.productPrice}>{formatCurrency(product.price)}</Text>
-          <Text style={[styles.stockText, availableStock <= 0 && styles.stockEmpty]}>
-            Stok: {availableStock}
-          </Text>
-        </View>
-        {cartQty > 0 && (
-          <View style={styles.cartBadge}>
-            <Text style={styles.cartBadgeText}>{cartQty}</Text>
-          </View>
-        )}
-      </TouchableOpacity>
+      <ProductCard
+        item={item}
+        cartQty={cartQty}
+        onPress={handleAddToCart}
+      />
     );
-  };
+  }, [getCartQuantity, handleAddToCart]);
 
-  const renderCartItem = ({ item }: { item: typeof cartItems[0] }) => {
+  const renderCartItem = useCallback(({ item }: { item: typeof cartItems[0] }) => {
     const maxStock = getStockForProduct(item.product.id);
-
     return (
-      <View style={styles.cartItem}>
-        <View style={styles.cartItemInfo}>
-          <Text style={styles.cartItemName} numberOfLines={1}>{item.product.name}</Text>
-          <Text style={styles.cartItemPrice}>{formatCurrency(item.product.price * item.quantity)}</Text>
-        </View>
-        <View style={styles.cartItemActions}>
-          <TouchableOpacity
-            style={styles.qtyButton}
-            onPress={() => updateQuantity(item.product.id, item.quantity - 1, maxStock)}
-          >
-            <Ionicons name="remove" size={18} color={COLORS.gray[600]} />
-          </TouchableOpacity>
-          <Text style={styles.qtyText}>{item.quantity}</Text>
-          <TouchableOpacity
-            style={styles.qtyButton}
-            onPress={() => {
-              const success = updateQuantity(item.product.id, item.quantity + 1, maxStock);
-              if (!success) Alert.alert('Stok Habis', 'Stok tidak mencukupi');
-            }}
-          >
-            <Ionicons name="add" size={18} color={COLORS.gray[600]} />
-          </TouchableOpacity>
-        </View>
-      </View>
+      <CartItemRow
+        item={item}
+        maxStock={maxStock}
+        onUpdateQuantity={updateQuantity}
+        onShowWarning={showStockWarning}
+      />
     );
-  };
+  }, [getStockForProduct, updateQuantity, showStockWarning]);
+
+  // Memoized key extractors
+  const productKeyExtractor = useCallback((item: Inventory) => item.id, []);
+  const cartKeyExtractor = useCallback((item: typeof cartItems[0]) => item.product.id, []);
+
+  // Memoized empty component
+  const EmptyProductList = useMemo(() => (
+    <View style={styles.emptyState}>
+      <Ionicons name="cube-outline" size={48} color={COLORS.gray[300]} />
+      <Text style={styles.emptyText}>Tidak ada stok tersedia</Text>
+    </View>
+  ), []);
+
+  if (loading) {
+    return <LoadingScreen message="Memuat produk..." />;
+  }
 
   if (!isShiftActive) {
     return (
@@ -207,24 +306,23 @@ export default function SellScreen() {
           <CustomerSelector
             selectedCustomer={customer}
             onSelect={setCustomer}
-            branchId={profile?.branch_id}
+            branchId={profile?.branch_id ?? undefined}
           />
         </View>
 
-        {/* Products Grid */}
+        {/* Products Grid - Optimized FlatList */}
         <FlatList
           data={inventory}
           renderItem={renderProduct}
-          keyExtractor={(item) => item.id}
+          keyExtractor={productKeyExtractor}
           numColumns={2}
           columnWrapperStyle={styles.productRow}
           contentContainerStyle={styles.productList}
-          ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Ionicons name="cube-outline" size={48} color={COLORS.gray[300]} />
-              <Text style={styles.emptyText}>Tidak ada stok tersedia</Text>
-            </View>
+          ListEmptyComponent={EmptyProductList}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
           }
+          {...FLATLIST_PERFORMANCE_CONFIG}
         />
 
         {/* Cart Summary */}
@@ -239,8 +337,9 @@ export default function SellScreen() {
             <FlatList
               data={cartItems}
               renderItem={renderCartItem}
-              keyExtractor={(item) => item.product.id}
+              keyExtractor={cartKeyExtractor}
               style={styles.cartList}
+              {...FLATLIST_PERFORMANCE_CONFIG}
             />
             <View style={styles.cartFooter}>
               <View style={styles.totalRow}>
@@ -249,7 +348,7 @@ export default function SellScreen() {
               </View>
               <Button
                 title="Bayar"
-                onPress={() => setShowPaymentModal(true)}
+                onPress={openPaymentModal}
                 size="lg"
               />
             </View>
@@ -263,7 +362,7 @@ export default function SellScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Pilih Pembayaran</Text>
-              <TouchableOpacity onPress={() => setShowPaymentModal(false)}>
+              <TouchableOpacity onPress={closePaymentModal}>
                 <Ionicons name="close" size={24} color={COLORS.gray[600]} />
               </TouchableOpacity>
             </View>

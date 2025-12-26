@@ -2,16 +2,24 @@ import { Redirect, Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@/store/authStore';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
+import { isRiderRole } from '@/lib/utils';
 import { COLORS } from '@/lib/constants';
 
 export default function TabsLayout() {
-  const { isAuthenticated, isLoading, profile } = useAuthStore();
+  const { isAuthenticated, isLoading, profile, signOut } = useAuthStore();
 
   if (isLoading) {
     return <LoadingScreen message="Memuat..." />;
   }
 
   if (!isAuthenticated || !profile) {
+    return <Redirect href="/(auth)/login" />;
+  }
+
+  // Validate rider role - redirect to login if not a rider
+  if (!isRiderRole(profile.role)) {
+    // Sign out non-rider users
+    signOut();
     return <Redirect href="/(auth)/login" />;
   }
 

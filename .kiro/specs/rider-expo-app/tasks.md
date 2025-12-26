@@ -181,13 +181,13 @@
 - [x] Display offline indicator
 
 ## Task 21: UI Polish & Testing (Future)
-- [ ] Add loading states ke semua screens
-- [ ] Add error handling dan toast messages
-- [ ] Add pull-to-refresh ke list screens
+- [x] Add loading states ke semua screens
+- [x] Add error handling dan toast messages
+- [x] Add pull-to-refresh ke list screens
 - [ ] Test semua flows di Android
 - [ ] Test semua flows di iOS
-- [ ] Test offline functionality
-- [ ] Performance optimization
+- [x] Test offline functionality
+- [x] Performance optimization
 
 
 ---

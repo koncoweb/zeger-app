@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, Image, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '@/store/authStore';
+import { useToast } from '@/components/ui/ToastProvider';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { COLORS } from '@/lib/constants';
@@ -10,10 +11,11 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const { signIn, isLoading, error, clearError } = useAuthStore();
+  const toast = useToast();
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Error', 'Email dan password harus diisi');
+      toast.error('Error', 'Email dan password harus diisi');
       return;
     }
 
@@ -21,7 +23,7 @@ export default function LoginScreen() {
     const result = await signIn(email.trim(), password);
 
     if (result.error) {
-      Alert.alert('Login Gagal', result.error);
+      toast.error('Login Gagal', result.error);
     }
   };
 

@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, RefreshControl, Alert, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, FlatList, RefreshControl, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@/store/authStore';
 import { useLocationStore } from '@/store/locationStore';
+import { useToast } from '@/components/ui/ToastProvider';
 import { supabase } from '@/lib/supabase';
 import { formatTime, getTodayDate, openGoogleMaps } from '@/lib/utils';
 import { COLORS } from '@/lib/constants';
@@ -11,10 +12,12 @@ import { Checkpoint } from '@/lib/types';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { LoadingScreen } from '@/components/ui/LoadingScreen';
 
 export default function CheckpointsScreen() {
   const { profile } = useAuthStore();
   const { getCurrentLocation } = useLocationStore();
+  const toast = useToast();
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -39,6 +42,7 @@ export default function CheckpointsScreen() {
       setCheckpoints(data || []);
     } catch (error) {
       console.error('Error fetching checkpoints:', error);
+      toast.error('Error', 'Gagal memuat checkpoint');
     } finally {
       setLoading(false);
     }
@@ -57,7 +61,7 @@ export default function CheckpointsScreen() {
   const handleAddCheckpoint = async () => {
     if (!profile?.branch_id) return;
     if (!checkpointName.trim()) {
-      Alert.alert('Error', 'Nama checkpoint harus diisi');
+      toast.error('Error', 'Nama checkpoint harus diisi');
       return;
     }
 
@@ -65,7 +69,7 @@ export default function CheckpointsScreen() {
     try {
       const location = await getCurrentLocation();
       if (!location) {
-        Alert.alert('Error', 'Tidak dapat mendapatkan lokasi');
+        toast.error('Error', 'Tidak dapat mendapatkan lokasi');
         setSaving(false);
         return;
       }
@@ -84,11 +88,11 @@ export default function CheckpointsScreen() {
       setShowModal(false);
       setCheckpointName('');
       setCheckpointNotes('');
-      Alert.alert('Sukses', 'Checkpoint berhasil ditambahkan');
+      toast.success('Sukses', 'Checkpoint berhasil ditambahkan');
       fetchCheckpoints();
     } catch (error) {
       console.error('Error adding checkpoint:', error);
-      Alert.alert('Error', 'Gagal menambahkan checkpoint');
+      toast.error('Error', 'Gagal menambahkan checkpoint');
     } finally {
       setSaving(false);
     }
@@ -97,6 +101,10 @@ export default function CheckpointsScreen() {
   const handleOpenMaps = (checkpoint: Checkpoint) => {
     openGoogleMaps(Number(checkpoint.latitude), Number(checkpoint.longitude), checkpoint.checkpoint_name || undefined);
   };
+
+  if (loading) {
+    return <LoadingScreen message="Memuat checkpoint..." />;
+  }
 
   const renderCheckpoint = ({ item }: { item: Checkpoint }) => (
     <Card style={styles.checkpointCard}>

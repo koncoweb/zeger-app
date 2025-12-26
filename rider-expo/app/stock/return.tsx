@@ -1,17 +1,64 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo, memo } from 'react';
 import { View, Text, StyleSheet, FlatList, RefreshControl, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuthStore } from '@/store/authStore';
+import { useToast } from '@/components/ui/ToastProvider';
 import { supabase } from '@/lib/supabase';
 import { COLORS } from '@/lib/constants';
+import { FLATLIST_PERFORMANCE_CONFIG } from '@/lib/performance';
 import { Inventory } from '@/lib/types';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { LoadingScreen } from '@/components/ui/LoadingScreen';
+
+// Memoized inventory item component
+const InventoryItem = memo(({ 
+  item, 
+  onReturn, 
+  isReturning, 
+  isDisabled 
+}: { 
+  item: Inventory; 
+  onReturn: (inv: Inventory) => void;
+  isReturning: boolean;
+  isDisabled: boolean;
+}) => {
+  const handleReturn = useCallback(() => {
+    onReturn(item);
+  }, [item, onReturn]);
+
+  return (
+    <Card style={styles.stockCard}>
+      <View style={styles.stockHeader}>
+        <View style={styles.productInfo}>
+          <Text style={styles.productName}>{item.product?.name}</Text>
+          <Text style={styles.productCode}>{item.product?.code}</Text>
+        </View>
+        <View style={styles.quantityBadge}>
+          <Text style={styles.quantityText}>{item.stock_quantity}</Text>
+        </View>
+      </View>
+
+      <Button
+        title="Retur Stok"
+        variant="outline"
+        onPress={handleReturn}
+        loading={isReturning}
+        disabled={isDisabled}
+        size="sm"
+        icon={<Ionicons name="camera-outline" size={16} color={COLORS.primary} />}
+      />
+    </Card>
+  );
+});
+
+InventoryItem.displayName = 'InventoryItem';
 
 export default function StockReturnScreen() {
   const { profile } = useAuthStore();
+  const toast = useToast();
   const [inventory, setInventory] = useState<Inventory[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -32,6 +79,7 @@ export default function StockReturnScreen() {
       setInventory(data || []);
     } catch (error) {
       console.error('Error fetching inventory:', error);
+      toast.error('Error', 'Gagal memuat inventori');
     } finally {
       setLoading(false);
     }
@@ -53,7 +101,7 @@ export default function StockReturnScreen() {
     // Request camera permission and take photo
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Error', 'Izin kamera diperlukan untuk foto verifikasi');
+      toast.error('Error', 'Izin kamera diperlukan untuk foto verifikasi');
       return;
     }
 
@@ -108,11 +156,11 @@ export default function StockReturnScreen() {
 
       if (invError) throw invError;
 
-      Alert.alert('Sukses', 'Stok berhasil diretur');
+      toast.success('Sukses', 'Stok berhasil diretur');
       fetchInventory();
     } catch (error) {
       console.error('Error returning stock:', error);
-      Alert.alert('Error', 'Gagal meretur stok');
+      toast.error('Error', 'Gagal meretur stok');
     } finally {
       setReturningId(null);
     }
@@ -136,31 +184,37 @@ export default function StockReturnScreen() {
     );
   };
 
-  const totalStock = inventory.reduce((sum, i) => sum + i.stock_quantity, 0);
-
-  const renderInventoryItem = ({ item }: { item: Inventory }) => (
-    <Card style={styles.stockCard}>
-      <View style={styles.stockHeader}>
-        <View style={styles.productInfo}>
-          <Text style={styles.productName}>{item.product?.name}</Text>
-          <Text style={styles.productCode}>{item.product?.code}</Text>
-        </View>
-        <View style={styles.quantityBadge}>
-          <Text style={styles.quantityText}>{item.stock_quantity}</Text>
-        </View>
-      </View>
-
-      <Button
-        title="Retur Stok"
-        variant="outline"
-        onPress={() => handleReturnStock(item)}
-        loading={returningId === item.id}
-        disabled={returningId !== null}
-        size="sm"
-        icon={<Ionicons name="camera-outline" size={16} color={COLORS.primary} />}
-      />
-    </Card>
+  // Memoize total stock calculation
+  const totalStock = useMemo(() => 
+    inventory.reduce((sum, i) => sum + i.stock_quantity, 0),
+    [inventory]
   );
+
+  if (loading) {
+    return <LoadingScreen message="Memuat inventori..." />;
+  }
+
+  // Memoized render function
+  const renderInventoryItem = useCallback(({ item }: { item: Inventory }) => (
+    <InventoryItem
+      item={item}
+      onReturn={handleReturnStock}
+      isReturning={returningId === item.id}
+      isDisabled={returningId !== null}
+    />
+  ), [handleReturnStock, returningId]);
+
+  // Memoized key extractor
+  const keyExtractor = useCallback((item: Inventory) => item.id, []);
+
+  // Memoized empty component
+  const EmptyComponent = useMemo(() => (
+    <View style={styles.emptyState}>
+      <Ionicons name="checkmark-circle-outline" size={64} color={COLORS.success} />
+      <Text style={styles.emptyTitle}>Semua Stok Sudah Diretur</Text>
+      <Text style={styles.emptyText}>Anda dapat submit laporan shift sekarang</Text>
+    </View>
+  ), []);
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -183,18 +237,13 @@ export default function StockReturnScreen() {
       <FlatList
         data={inventory}
         renderItem={renderInventoryItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={keyExtractor}
         contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
         }
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Ionicons name="checkmark-circle-outline" size={64} color={COLORS.success} />
-            <Text style={styles.emptyTitle}>Semua Stok Sudah Diretur</Text>
-            <Text style={styles.emptyText}>Anda dapat submit laporan shift sekarang</Text>
-          </View>
-        }
+        ListEmptyComponent={EmptyComponent}
+        {...FLATLIST_PERFORMANCE_CONFIG}
       />
     </SafeAreaView>
   );

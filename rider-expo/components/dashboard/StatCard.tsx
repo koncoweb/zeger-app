@@ -1,3 +1,4 @@
+import { memo, useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/lib/constants';
@@ -11,16 +12,22 @@ interface StatCardProps {
   subtitle?: string;
 }
 
-export const StatCard = ({
+const StatCardComponent = ({
   title,
   value,
   icon,
   color = COLORS.primary,
   subtitle,
 }: StatCardProps) => {
+  // Memoize the icon container style to prevent recalculation
+  const iconContainerStyle = useMemo(
+    () => [styles.iconContainer, { backgroundColor: `${color}15` }],
+    [color]
+  );
+
   return (
     <Card style={styles.card}>
-      <View style={[styles.iconContainer, { backgroundColor: `${color}15` }]}>
+      <View style={iconContainerStyle}>
         <Ionicons name={icon} size={24} color={color} />
       </View>
       <Text style={styles.value}>{value}</Text>
@@ -29,6 +36,9 @@ export const StatCard = ({
     </Card>
   );
 };
+
+// Memoize the component to prevent unnecessary re-renders
+export const StatCard = memo(StatCardComponent);
 
 const styles = StyleSheet.create({
   card: {

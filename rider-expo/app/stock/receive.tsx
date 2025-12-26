@@ -1,19 +1,78 @@
-import { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, RefreshControl, Alert } from 'react-native';
+import { useEffect, useState, useCallback, useMemo, memo } from 'react';
+import { View, Text, StyleSheet, FlatList, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@/store/authStore';
 import { useShiftStore } from '@/store/shiftStore';
+import { useToast } from '@/components/ui/ToastProvider';
 import { supabase } from '@/lib/supabase';
 import { formatDateTime } from '@/lib/utils';
 import { COLORS } from '@/lib/constants';
+import { FLATLIST_PERFORMANCE_CONFIG } from '@/lib/performance';
 import { StockMovement } from '@/lib/types';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { LoadingScreen } from '@/components/ui/LoadingScreen';
+
+// Memoized stock item component
+const StockItem = memo(({ 
+  item, 
+  onConfirm, 
+  isConfirming, 
+  isDisabled 
+}: { 
+  item: StockMovement; 
+  onConfirm: (movement: StockMovement) => void;
+  isConfirming: boolean;
+  isDisabled: boolean;
+}) => {
+  const handleConfirm = useCallback(() => {
+    onConfirm(item);
+  }, [item, onConfirm]);
+
+  return (
+    <Card style={styles.stockCard}>
+      <View style={styles.stockHeader}>
+        <View style={styles.productInfo}>
+          <Text style={styles.productName}>{item.product?.name}</Text>
+          <Text style={styles.productCode}>{item.product?.code}</Text>
+        </View>
+        <View style={styles.quantityBadge}>
+          <Text style={styles.quantityText}>{item.quantity}</Text>
+        </View>
+      </View>
+
+      <View style={styles.stockMeta}>
+        <View style={styles.metaItem}>
+          <Ionicons name="time-outline" size={14} color={COLORS.gray[500]} />
+          <Text style={styles.metaText}>{formatDateTime(item.created_at)}</Text>
+        </View>
+        {item.notes && (
+          <View style={styles.metaItem}>
+            <Ionicons name="document-text-outline" size={14} color={COLORS.gray[500]} />
+            <Text style={styles.metaText}>{item.notes}</Text>
+          </View>
+        )}
+      </View>
+
+      <Button
+        title="Konfirmasi Terima"
+        onPress={handleConfirm}
+        loading={isConfirming}
+        disabled={isDisabled}
+        size="sm"
+        style={styles.confirmButton}
+      />
+    </Card>
+  );
+});
+
+StockItem.displayName = 'StockItem';
 
 export default function StockReceiveScreen() {
   const { profile } = useAuthStore();
   const { isShiftActive, startShift } = useShiftStore();
+  const toast = useToast();
   const [pendingStock, setPendingStock] = useState<StockMovement[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -35,6 +94,7 @@ export default function StockReceiveScreen() {
       setPendingStock(data || []);
     } catch (error) {
       console.error('Error fetching pending stock:', error);
+      toast.error('Error', 'Gagal memuat stok pending');
     } finally {
       setLoading(false);
     }
@@ -60,7 +120,7 @@ export default function StockReceiveScreen() {
       if (!isShiftActive) {
         const shiftResult = await startShift(profile.id, profile.branch_id);
         if (shiftResult.error) {
-          Alert.alert('Error', shiftResult.error);
+          toast.error('Error', shiftResult.error);
           setConfirmingId(null);
           return;
         }
@@ -102,76 +162,64 @@ export default function StockReceiveScreen() {
         });
       }
 
-      Alert.alert('Sukses', 'Stok berhasil dikonfirmasi');
+      toast.success('Sukses', 'Stok berhasil dikonfirmasi');
       fetchPendingStock();
     } catch (error) {
       console.error('Error confirming stock:', error);
-      Alert.alert('Error', 'Gagal mengkonfirmasi stok');
+      toast.error('Error', 'Gagal mengkonfirmasi stok');
     } finally {
       setConfirmingId(null);
     }
   };
 
-  const renderStockItem = ({ item }: { item: StockMovement }) => (
-    <Card style={styles.stockCard}>
-      <View style={styles.stockHeader}>
-        <View style={styles.productInfo}>
-          <Text style={styles.productName}>{item.product?.name}</Text>
-          <Text style={styles.productCode}>{item.product?.code}</Text>
-        </View>
-        <View style={styles.quantityBadge}>
-          <Text style={styles.quantityText}>{item.quantity}</Text>
-        </View>
-      </View>
+  if (loading) {
+    return <LoadingScreen message="Memuat stok pending..." />;
+  }
 
-      <View style={styles.stockMeta}>
-        <View style={styles.metaItem}>
-          <Ionicons name="time-outline" size={14} color={COLORS.gray[500]} />
-          <Text style={styles.metaText}>{formatDateTime(item.created_at)}</Text>
-        </View>
-        {item.notes && (
-          <View style={styles.metaItem}>
-            <Ionicons name="document-text-outline" size={14} color={COLORS.gray[500]} />
-            <Text style={styles.metaText}>{item.notes}</Text>
-          </View>
-        )}
-      </View>
+  // Memoized render function
+  const renderStockItem = useCallback(({ item }: { item: StockMovement }) => (
+    <StockItem
+      item={item}
+      onConfirm={handleConfirmStock}
+      isConfirming={confirmingId === item.id}
+      isDisabled={confirmingId !== null}
+    />
+  ), [handleConfirmStock, confirmingId]);
 
-      <Button
-        title="Konfirmasi Terima"
-        onPress={() => handleConfirmStock(item)}
-        loading={confirmingId === item.id}
-        disabled={confirmingId !== null}
-        size="sm"
-        style={styles.confirmButton}
-      />
-    </Card>
-  );
+  // Memoized key extractor
+  const keyExtractor = useCallback((item: StockMovement) => item.id, []);
+
+  // Memoized empty component
+  const EmptyComponent = useMemo(() => (
+    <View style={styles.emptyState}>
+      <Ionicons name="cube-outline" size={64} color={COLORS.gray[300]} />
+      <Text style={styles.emptyTitle}>Tidak Ada Stok Pending</Text>
+      <Text style={styles.emptyText}>Semua transfer stok sudah dikonfirmasi</Text>
+    </View>
+  ), []);
+
+  // Memoized header component
+  const HeaderComponent = useMemo(() => (
+    pendingStock.length > 0 ? (
+      <Text style={styles.headerText}>
+        {pendingStock.length} transfer stok menunggu konfirmasi
+      </Text>
+    ) : null
+  ), [pendingStock.length]);
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <FlatList
         data={pendingStock}
         renderItem={renderStockItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={keyExtractor}
         contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
         }
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Ionicons name="cube-outline" size={64} color={COLORS.gray[300]} />
-            <Text style={styles.emptyTitle}>Tidak Ada Stok Pending</Text>
-            <Text style={styles.emptyText}>Semua transfer stok sudah dikonfirmasi</Text>
-          </View>
-        }
-        ListHeaderComponent={
-          pendingStock.length > 0 ? (
-            <Text style={styles.headerText}>
-              {pendingStock.length} transfer stok menunggu konfirmasi
-            </Text>
-          ) : null
-        }
+        ListEmptyComponent={EmptyComponent}
+        ListHeaderComponent={HeaderComponent}
+        {...FLATLIST_PERFORMANCE_CONFIG}
       />
     </SafeAreaView>
   );

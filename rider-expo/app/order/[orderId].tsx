@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
+import { useToast } from '@/components/ui/ToastProvider';
 import { formatCurrency, formatDateTime, openGoogleMaps } from '@/lib/utils';
 import { COLORS, ORDER_STATUS } from '@/lib/constants';
 import { CustomerOrder } from '@/lib/types';
@@ -13,6 +14,7 @@ import { LoadingScreen } from '@/components/ui/LoadingScreen';
 
 export default function OrderDetailScreen() {
   const { orderId } = useLocalSearchParams<{ orderId: string }>();
+  const toast = useToast();
   const [order, setOrder] = useState<CustomerOrder | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -35,7 +37,7 @@ export default function OrderDetailScreen() {
         setOrder(data);
       } catch (error) {
         console.error('Error fetching order:', error);
-        Alert.alert('Error', 'Gagal memuat detail pesanan');
+        toast.error('Error', 'Gagal memuat detail pesanan');
       } finally {
         setLoading(false);
       }
@@ -65,7 +67,7 @@ export default function OrderDetailScreen() {
     if (order.latitude && order.longitude) {
       openGoogleMaps(order.latitude, order.longitude);
     } else {
-      Alert.alert('Error', 'Lokasi tidak tersedia');
+      toast.error('Error', 'Lokasi tidak tersedia');
     }
   };
 
@@ -73,11 +75,9 @@ export default function OrderDetailScreen() {
     if (order.customer_user?.phone) {
       // Use Linking to make a call
       const phoneUrl = `tel:${order.customer_user.phone}`;
-      import('react-native').then(({ Linking }) => {
-        Linking.openURL(phoneUrl);
-      });
+      Linking.openURL(phoneUrl);
     } else {
-      Alert.alert('Error', 'Nomor telepon tidak tersedia');
+      toast.error('Error', 'Nomor telepon tidak tersedia');
     }
   };
 

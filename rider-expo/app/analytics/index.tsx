@@ -1,12 +1,14 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo, memo } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@/store/authStore';
+import { useToast } from '@/components/ui/ToastProvider';
 import { supabase } from '@/lib/supabase';
 import { formatCurrency, getTodayDate } from '@/lib/utils';
 import { COLORS } from '@/lib/constants';
 import { Card } from '@/components/ui/Card';
+import { LoadingScreen } from '@/components/ui/LoadingScreen';
 
 type PeriodType = 'today' | 'yesterday' | 'week' | 'month';
 
@@ -20,8 +22,46 @@ interface AnalyticsData {
   topProducts: { name: string; quantity: number; total: number }[];
 }
 
+// Memoized product row component
+const ProductRow = memo(({ product, index }: { product: { name: string; quantity: number; total: number }; index: number }) => (
+  <View style={styles.productRow}>
+    <View style={styles.productRank}>
+      <Text style={styles.rankText}>{index + 1}</Text>
+    </View>
+    <View style={styles.productInfo}>
+      <Text style={styles.productName}>{product.name}</Text>
+      <Text style={styles.productQty}>{product.quantity} terjual</Text>
+    </View>
+    <Text style={styles.productTotal}>{formatCurrency(product.total)}</Text>
+  </View>
+));
+
+ProductRow.displayName = 'ProductRow';
+
+// Memoized payment breakdown item
+const PaymentBreakdownItem = memo(({ 
+  icon, 
+  label, 
+  value, 
+  color 
+}: { 
+  icon: keyof typeof Ionicons.glyphMap; 
+  label: string; 
+  value: number; 
+  color: string;
+}) => (
+  <View style={styles.breakdownItem}>
+    <Ionicons name={icon} size={20} color={color} />
+    <Text style={styles.breakdownLabel}>{label}</Text>
+    <Text style={styles.breakdownValue}>{formatCurrency(value)}</Text>
+  </View>
+));
+
+PaymentBreakdownItem.displayName = 'PaymentBreakdownItem';
+
 export default function AnalyticsScreen() {
   const { profile } = useAuthStore();
+  const toast = useToast();
   const [period, setPeriod] = useState<PeriodType>('today');
   const [data, setData] = useState<AnalyticsData>({
     totalSales: 0,
@@ -121,6 +161,7 @@ export default function AnalyticsScreen() {
       });
     } catch (error) {
       console.error('Error fetching analytics:', error);
+      toast.error('Error', 'Gagal memuat data analitik');
     } finally {
       setLoading(false);
     }
@@ -136,12 +177,20 @@ export default function AnalyticsScreen() {
     setRefreshing(false);
   }, [fetchAnalytics]);
 
-  const periods: { key: PeriodType; label: string }[] = [
+  // Memoize formatted values
+  const formattedTotalSales = useMemo(() => formatCurrency(data.totalSales), [data.totalSales]);
+  const formattedAvgTransaction = useMemo(() => formatCurrency(data.avgTransaction), [data.avgTransaction]);
+
+  const periods: { key: PeriodType; label: string }[] = useMemo(() => [
     { key: 'today', label: 'Hari Ini' },
     { key: 'yesterday', label: 'Kemarin' },
     { key: 'week', label: '7 Hari' },
     { key: 'month', label: '30 Hari' },
-  ];
+  ], []);
+
+  if (loading) {
+    return <LoadingScreen message="Memuat analitik..." />;
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -169,7 +218,7 @@ export default function AnalyticsScreen() {
         {/* Summary Cards */}
         <View style={styles.summaryGrid}>
           <Card style={styles.summaryCard}>
-            <Text style={styles.summaryValue}>{formatCurrency(data.totalSales)}</Text>
+            <Text style={styles.summaryValue}>{formattedTotalSales}</Text>
             <Text style={styles.summaryLabel}>Total Penjualan</Text>
           </Card>
           <Card style={styles.summaryCard}>
@@ -182,7 +231,7 @@ export default function AnalyticsScreen() {
           <Ionicons name="trending-up" size={24} color={COLORS.success} />
           <View style={styles.avgInfo}>
             <Text style={styles.avgLabel}>Rata-rata Transaksi</Text>
-            <Text style={styles.avgValue}>{formatCurrency(data.avgTransaction)}</Text>
+            <Text style={styles.avgValue}>{formattedAvgTransaction}</Text>
           </View>
         </Card>
 
@@ -190,21 +239,9 @@ export default function AnalyticsScreen() {
         <Card style={styles.breakdownCard}>
           <Text style={styles.sectionTitle}>Metode Pembayaran</Text>
           <View style={styles.breakdownRow}>
-            <View style={styles.breakdownItem}>
-              <Ionicons name="cash-outline" size={20} color={COLORS.success} />
-              <Text style={styles.breakdownLabel}>Tunai</Text>
-              <Text style={styles.breakdownValue}>{formatCurrency(data.cashSales)}</Text>
-            </View>
-            <View style={styles.breakdownItem}>
-              <Ionicons name="qr-code-outline" size={20} color={COLORS.info} />
-              <Text style={styles.breakdownLabel}>QRIS</Text>
-              <Text style={styles.breakdownValue}>{formatCurrency(data.qrisSales)}</Text>
-            </View>
-            <View style={styles.breakdownItem}>
-              <Ionicons name="card-outline" size={20} color={COLORS.warning} />
-              <Text style={styles.breakdownLabel}>Transfer</Text>
-              <Text style={styles.breakdownValue}>{formatCurrency(data.transferSales)}</Text>
-            </View>
+            <PaymentBreakdownItem icon="cash-outline" label="Tunai" value={data.cashSales} color={COLORS.success} />
+            <PaymentBreakdownItem icon="qr-code-outline" label="QRIS" value={data.qrisSales} color={COLORS.info} />
+            <PaymentBreakdownItem icon="card-outline" label="Transfer" value={data.transferSales} color={COLORS.warning} />
           </View>
         </Card>
 
@@ -213,16 +250,7 @@ export default function AnalyticsScreen() {
           <Text style={styles.sectionTitle}>Produk Terlaris</Text>
           {data.topProducts.length > 0 ? (
             data.topProducts.map((product, index) => (
-              <View key={product.name} style={styles.productRow}>
-                <View style={styles.productRank}>
-                  <Text style={styles.rankText}>{index + 1}</Text>
-                </View>
-                <View style={styles.productInfo}>
-                  <Text style={styles.productName}>{product.name}</Text>
-                  <Text style={styles.productQty}>{product.quantity} terjual</Text>
-                </View>
-                <Text style={styles.productTotal}>{formatCurrency(product.total)}</Text>
-              </View>
+              <ProductRow key={product.name} product={product} index={index} />
             ))
           ) : (
             <Text style={styles.emptyText}>Belum ada data penjualan</Text>
