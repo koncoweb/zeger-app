@@ -21,7 +21,11 @@
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Aplikasi membutuhkan akses lokasi untuk tracking posisi rider saat beroperasi.",
         "NSLocationAlwaysUsageDescription": "Aplikasi membutuhkan akses lokasi untuk tracking posisi rider saat beroperasi.",
         "NSCameraUsageDescription": "Aplikasi membutuhkan akses kamera untuk foto verifikasi stok.",
-        "UIBackgroundModes": ["location", "fetch", "remote-notification"]
+        "UIBackgroundModes": [
+          "location",
+          "fetch",
+          "remote-notification"
+        ]
       }
     },
     "android": {
@@ -31,12 +35,15 @@
       },
       "package": "com.zeger.rider",
       "permissions": [
-        "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_BACKGROUND_LOCATION",
-        "CAMERA",
-        "VIBRATE",
-        "RECEIVE_BOOT_COMPLETED"
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.VIBRATE",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION",
+        "android.permission.RECORD_AUDIO"
       ],
       "googleServicesFile": "./google-services.json"
     },
@@ -61,7 +68,9 @@
         {
           "icon": "./assets/notification-icon.png",
           "color": "#DC2626",
-          "sounds": ["./assets/sounds/notification.wav"]
+          "sounds": [
+            "./assets/sounds/notification.wav"
+          ]
         }
       ],
       [
@@ -87,6 +96,15 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "3f638d68-0912-4149-928a-02fe56a166b9"
+      }
+    },
+    "owner": "koncomyid"
   }
 }
