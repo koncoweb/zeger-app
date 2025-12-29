@@ -172,50 +172,6 @@ export default function LoyaltyManagement() {
     }
   };
 
-  const fetchCustomerLoyalty = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('customer_loyalty')
-        .select(`
-          *,
-          profiles!customer_loyalty_customer_id_fkey (
-            full_name
-          )
-        `)
-        .order('points_balance', { ascending: false })
-        .limit(10);
-      
-      if (error) throw error;
-      setCustomerLoyalty(data || []);
-    } catch (error: any) {
-      toast.error('Gagal memuat data loyalty customer: ' + error.message);
-    }
-  };
-
-  const fetchStats = async () => {
-    try {
-      const { data: loyaltyData, error: loyaltyError } = await supabase
-        .from('customer_loyalty')
-        .select('points_balance, total_earned_points, total_redeemed_points');
-      
-      if (loyaltyError) throw loyaltyError;
-
-      const totalCustomers = loyaltyData?.length || 0;
-      const totalPointsEarned = loyaltyData?.reduce((sum, c) => sum + c.total_earned_points, 0) || 0;
-      const totalPointsRedeemed = loyaltyData?.reduce((sum, c) => sum + c.total_redeemed_points, 0) || 0;
-
-      setStats({
-        totalCustomers,
-        totalPointsEarned,
-        totalPointsRedeemed,
-        activeTiers: tiers.length,
-        activeRewards: rewards.filter(r => r.is_active).length
-      });
-    } catch (error: any) {
-      console.error('Error fetching stats:', error);
-    }
-  };
-
   const handleTierSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -641,6 +597,22 @@ export default function LoyaltyManagement() {
                       </Select>
                     </div>
                   </div>
+                  <div className="space-y-2">
+                    <Label>Reward Value (JSON)</Label>
+                    <Textarea
+                      value={rewardForm.reward_value}
+                      onChange={(e) => setRewardForm({ ...rewardForm, reward_value: e.target.value })}
+                      placeholder='{"discount": 20000} or {"product_id": "xxx"}'
+                      rows={3}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Image URL</Label>
+                    <Input
+                      value={rewardForm.image_url}
+                      onChange={(e) => setRewardForm({ ...rewardForm, image_url: e.target.value })}
+                    />
+                  </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Stock (Optional)</Label>
@@ -678,29 +650,6 @@ export default function LoyaltyManagement() {
                         onChange={(e) => setRewardForm({ ...rewardForm, valid_until: e.target.value })}
                       />
                     </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Reward Value (JSON)</Label>
-                    <Textarea
-                      value={rewardForm.reward_value}
-                      onChange={(e) => setRewardForm({ ...rewardForm, reward_value: e.target.value })}
-                      placeholder='{"discount": 20000} or {"product_id": "xxx"}'
-                      rows={3}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Image URL</Label>
-                    <Input
-                      value={rewardForm.image_url}
-                      onChange={(e) => setRewardForm({ ...rewardForm, image_url: e.target.value })}
-                    />
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      checked={rewardForm.is_active}
-                      onCheckedChange={(checked) => setRewardForm({ ...rewardForm, is_active: checked })}
-                    />
-                    <Label>Aktif</Label>
                   </div>
                   <div className="flex gap-2 justify-end">
                     <Button type="button" variant="outline" onClick={() => setRewardDialogOpen(false)}>

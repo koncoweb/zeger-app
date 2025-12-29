@@ -37,3 +37,8 @@ yarn-error.log*
 
 # Local development
 .env.development
+
+# Exclude Expo Apps - Deploy only backoffice
+customer-expo/
+rider-expo/
+supabase/functions/
