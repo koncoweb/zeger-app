@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
+import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { CartItem, Customer, Product, Location } from '@/lib/types';
 import { generateTransactionNumber } from '@/lib/utils';
 
@@ -146,74 +147,123 @@ export const useCartStore = create<CartState>((set, get) => ({
 
     try {
       const transactionNumber = generateTransactionNumber(branchCode);
+      const transactionId = `txn_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 
-      // Create transaction
-      const { data: transaction, error: txError } = await supabase
-        .from('transactions')
-        .insert({
-          transaction_number: transactionNumber,
-          customer_id: customer?.id || null,
-          rider_id: riderId,
-          branch_id: branchId,
-          total_amount: get().getSubtotal(),
-          discount_amount: discountAmount,
-          final_amount: total,
-          payment_method: paymentMethod,
-          status: 'completed',
-          transaction_date: new Date().toISOString(),
-          transaction_latitude: location?.latitude || null,
-          transaction_longitude: location?.longitude || null,
-          notes: notes || null,
-        })
-        .select()
-        .single();
+      // Prepare transaction data
+      const transactionData = {
+        id: transactionId,
+        transaction_number: transactionNumber,
+        customer_id: customer?.id || null,
+        rider_id: riderId,
+        branch_id: branchId,
+        total_amount: get().getSubtotal(),
+        discount_amount: discountAmount,
+        final_amount: total,
+        payment_method: paymentMethod,
+        status: 'completed',
+        transaction_date: new Date().toISOString(),
+        transaction_latitude: location?.latitude || null,
+        transaction_longitude: location?.longitude || null,
+        notes: notes || null,
+      };
 
-      if (txError) {
-        console.error('Error creating transaction:', txError);
-        return { error: 'Gagal membuat transaksi', transactionId: null };
-      }
-
-      // Create transaction items
+      // Prepare transaction items
       const transactionItems = items.map((item) => ({
-        transaction_id: transaction.id,
+        id: `item_${Date.now()}_${item.product.id}`,
+        transaction_id: transactionId,
         product_id: item.product.id,
         quantity: item.quantity,
         unit_price: item.product.price,
         total_price: item.product.price * item.quantity,
       }));
 
-      const { error: itemsError } = await supabase
-        .from('transaction_items')
-        .insert(transactionItems);
+      // Prepare stock movements
+      const stockMovements = items.map((item) => ({
+        id: `stock_${Date.now()}_${item.product.id}`,
+        rider_id: riderId,
+        product_id: item.product.id,
+        movement_type: 'sale',
+        quantity: -item.quantity, // Negative for sale
+        reference_id: transactionId,
+        reference_type: 'transaction',
+        created_at: new Date().toISOString(),
+        notes: `Penjualan ${transactionNumber}`,
+      }));
 
-      if (itemsError) {
-        console.error('Error creating transaction items:', itemsError);
-        // Rollback transaction
-        await supabase.from('transactions').delete().eq('id', transaction.id);
-        return { error: 'Gagal menyimpan item transaksi', transactionId: null };
-      }
+      // Try online first, fallback to offline
+      try {
+        // Check if online and try direct sync
+        const netInfo = await import('@react-native-community/netinfo');
+        const state = await netInfo.default.fetch();
+        const isOnline = state.isConnected === true && state.isInternetReachable === true;
 
-      // Deduct inventory
-      for (const item of items) {
-        const { error: invError } = await supabase.rpc('deduct_rider_inventory', {
-          p_rider_id: riderId,
-          p_product_id: item.product.id,
-          p_quantity: item.quantity,
+        if (isOnline) {
+          // Try direct database insert
+          const { data: transaction, error: txError } = await supabase
+            .from('transactions')
+            .insert(transactionData)
+            .select()
+            .single();
+
+          if (txError) throw txError;
+
+          // Insert transaction items
+          const { error: itemsError } = await supabase
+            .from('transaction_items')
+            .insert(transactionItems);
+
+          if (itemsError) {
+            // Rollback transaction
+            await supabase.from('transactions').delete().eq('id', transaction.id);
+            throw itemsError;
+          }
+
+          // Deduct inventory
+          for (const item of items) {
+            const { error: invError } = await supabase.rpc('deduct_rider_inventory', {
+              p_rider_id: riderId,
+              p_product_id: item.product.id,
+              p_quantity: item.quantity,
+            });
+
+            if (invError) {
+              console.error('Error deducting inventory:', invError);
+              // Continue anyway, inventory will be reconciled later
+            }
+          }
+
+          // Clear cart
+          get().clear();
+          return { error: null, transactionId: transaction.id };
+        } else {
+          throw new Error('Offline mode');
+        }
+      } catch (error) {
+        console.log('Online sync failed, using offline mode:', error);
+        
+        // Use offline sync
+        const { queueSale, queueStockMovement } = useOfflineSync.getState ? 
+          useOfflineSync.getState() : 
+          await import('@/hooks/useOfflineSync').then(m => m.useOfflineSync.getState());
+
+        // Queue transaction for offline sync
+        await queueSale({
+          ...transactionData,
+          transaction_items: transactionItems,
         });
 
-        if (invError) {
-          console.error('Error deducting inventory:', invError);
-          // Continue anyway, inventory will be reconciled later
+        // Queue stock movements
+        for (const stockMovement of stockMovements) {
+          await queueStockMovement(stockMovement);
         }
+
+        // Clear cart
+        get().clear();
+        return { error: null, transactionId: transactionId };
       }
-
-      // Clear cart
-      get().clear();
-
-      return { error: null, transactionId: transaction.id };
     } catch (error) {
       console.error('Error in checkout:', error);
-      return { error: 'Terjadi kesalahan', transactionId: null };
+      return { error: 'Terjadi kesalahan saat menyimpan transaksi', transactionId: null };
     }
   },
 }));

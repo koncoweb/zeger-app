@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@expo/vector-icons": "~14.0.4",
+    "@react-native-async-storage/async-storage": "^2.2.0",
+    "@react-native-community/netinfo": "^11.4.1",
     "@react-navigation/native": "^7.1.26",
     "@supabase/supabase-js": "^2.45.0",
     "expo": "~52.0.0",
@@ -20,6 +22,7 @@
     "expo-image": "~2.0.0",
     "expo-linking": "~7.0.0",
     "expo-location": "~18.0.0",
+    "expo-notifications": "^0.32.15",
     "expo-router": "~4.0.0",
     "expo-secure-store": "~14.0.0",
     "expo-splash-screen": "~0.29.0",

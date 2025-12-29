@@ -40,13 +40,23 @@
         "ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
-      ],
-      "buildType": "apk"
+      ]
     },
     "web": {
       "bundler": "metro",
-      "output": "single",
-      "favicon": "./assets/images/favicon.png"
+      "output": "static",
+      "favicon": "./assets/images/favicon.png",
+      "name": "Zeger Customer",
+      "shortName": "Zeger Customer",
+      "lang": "id",
+      "scope": "/",
+      "themeColor": "#EA2831",
+      "backgroundColor": "#EA2831",
+      "display": "standalone",
+      "orientation": "portrait",
+      "startUrl": "/",
+      "preferRelatedApplications": false,
+      "dangerouslyAllowInsecureHttpInExpoGo": false
     },
     "plugins": [
       "expo-router",

@@ -24,7 +24,12 @@
         "execute_sql",
         "execute_sql",
         "apply_migration",
-        "generate_typescript_types"
+        "generate_typescript_types",
+        "deploy_edge_function",
+        "get_edge_function",
+        "get_project_url",
+        "get_publishable_keys",
+        "get_logs"
       ]
     }
   }

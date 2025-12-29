@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import * as Notifications from 'expo-notifications';
-import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
@@ -45,13 +44,13 @@ export function useNotifications() {
     });
 
     // Listen for incoming notifications
-    notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
+    notificationListener.current = Notifications.addNotificationReceivedListener((notification: Notifications.Notification) => {
       setNotification(notification);
       console.log('Notification received:', notification);
     });
 
     // Listen for notification responses (when user taps notification)
-    responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+    responseListener.current = Notifications.addNotificationResponseReceivedListener((response: Notifications.NotificationResponse) => {
       handleNotificationResponse(response);
     });
 
@@ -74,7 +73,6 @@ export function useNotifications() {
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#DC2626',
-        sound: 'notification.wav',
       });
 
       await Notifications.setNotificationChannelAsync('stock', {
@@ -90,7 +88,8 @@ export function useNotifications() {
       });
     }
 
-    if (!Device.isDevice) {
+    // Check if running on physical device (not simulator/emulator)
+    if (Platform.OS === 'web' || __DEV__) {
       console.log('Push notifications require a physical device');
       return null;
     }
@@ -112,7 +111,7 @@ export function useNotifications() {
 
     try {
       const tokenData = await Notifications.getExpoPushTokenAsync({
-        projectId: 'your-project-id', // Replace with actual project ID
+        projectId: '3f638d68-0912-4149-928a-02fe56a166b9',
       });
       token = tokenData.data;
       setExpoPushToken(token);
@@ -197,11 +196,11 @@ export function useNotifications() {
     registerForPushNotifications,
     setupNotificationListeners: () => {
       // Setup listeners and return cleanup function
-      const notifListener = Notifications.addNotificationReceivedListener(notification => {
+      const notifListener = Notifications.addNotificationReceivedListener((notification: Notifications.Notification) => {
         setNotification(notification);
       });
       
-      const respListener = Notifications.addNotificationResponseReceivedListener(response => {
+      const respListener = Notifications.addNotificationResponseReceivedListener((response: Notifications.NotificationResponse) => {
         handleNotificationResponse(response);
       });
 

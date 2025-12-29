@@ -16,6 +16,10 @@
     },
     "production": {
       "autoIncrement": true
+    },
+    "web": {
+      "channel": "production",
+      "distribution": "internal"
     }
   },
   "submit": {
