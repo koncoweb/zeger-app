@@ -1,5 +1,14 @@
 import { registerRootComponent } from 'expo';
 
+// Suppress known harmless warnings
+const originalWarn = console.warn;
+console.warn = (...args) => {
+  if (typeof args[0] === 'string' && args[0].includes('props.pointerEvents is deprecated')) {
+    return;
+  }
+  originalWarn(...args);
+};
+
 import App from './App';
 
 // registerRootComponent calls AppRegistry.registerComponent('main', () => App);
